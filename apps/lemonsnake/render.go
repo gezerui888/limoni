@@ -68,11 +68,13 @@ var themes = [...]theme{
 	},
 	{
 		name: "Neon Night",
-		bg:   hex(0x0a0614), tileA: hex(0x120c22), tileB: hex(0x170f2b), border: hex(0xff2bd6),
-		text: hex(0xf0e6ff), label: hex(0x8f7fb0), accent: hex(0x00f0ff),
-		head: hex(0x00f0ff), tail: hex(0x6a1bff), eye: hex(0x0a0614),
-		lemon: hex(0xfff200), lemonHi: hex(0xffffc0), leaf: hex(0x39ff88), seed: hex(0xff2bd6),
-		boss: hex(0xff3860), bossEye: hex(0x00ff9c), bossTooth: hex(0xffffff),
+		// Soft rather than neon: saturated magenta, cyan and violet on near
+		// black tired the eyes, so the same night in muted colours.
+		bg: hex(0x13111f), tileA: hex(0x1a1729), tileB: hex(0x1e1b2f), border: hex(0x7c6bb0),
+		text: hex(0xe4e0f0), label: hex(0x8e88a8), accent: hex(0x8fd3e0),
+		head: hex(0x8fd3e0), tail: hex(0x8a74d0), eye: hex(0x13111f),
+		lemon: hex(0xf5dc5a), lemonHi: hex(0xfff1b0), leaf: hex(0x7dd3a0), seed: hex(0xe8b4e0),
+		boss: hex(0xd0607a), bossEye: hex(0xa8f0d0), bossTooth: hex(0xf4f0ff),
 	},
 	{
 		name: "Deep Sea",
