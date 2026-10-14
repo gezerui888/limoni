@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Limoni — a Go TUI engine, running in your browser</title>
-  <meta name="description" content="Limoni is a zero-allocation terminal UI engine for Go with a built-in 3D rasteriser. Try it here — the same engine, compiled to WebAssembly.">
+  <meta name="description" content="Limoni is a zero-allocation terminal UI engine for Go with a built-in 3D rasteriser. Try it here — the same engine, compiled to WebAssembly — and play the games built with it.">
 
   <meta property="og:title" content="Limoni — a Go TUI engine, running in your browser">
   <meta property="og:description" content="Zero-allocation terminal UI engine for Go, with a built-in 3D rasteriser. Compiled to WebAssembly — no install required.">
@@ -18,92 +18,161 @@
   <script src="wasm_exec.js"></script>
   <style>
     :root {
-      --bg: #0d1117;
-      --accent: #00ffaa;
-      --accent-dim: #00c98a;
-      --text: #c9d1d9;
-      --muted: #8b949e;
-      --border: rgba(255, 255, 255, 0.1);
+      --bg: #0b0e14;
+      --surface: #121722;
+      --surface-2: #171d2a;
+      --text: #d6dbe4;
+      --muted: #8a93a3;
+      --faint: #5d6575;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-strong: rgba(255, 255, 255, 0.16);
+      --lemon: #ffd84a;
+      --accent: #ffd84a;
+      --accent-2: #9be15d;
+      --accent-ink: #1d1704;
+      --mono: ui-monospace, "SF Mono", Menlo, Monaco, "Cascadia Mono", "Courier New", monospace;
+      --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      --topbar: 58px;
     }
+    /* Each app brings its own colours; the layout stays the same. */
+    body.app-lemonsnake { --accent: #9be15d; --accent-2: #ffd84a; --accent-ink: #0c1a06; }
+    body.app-lemondrop { --accent: #ffd84a; --accent-2: #ea5a5a; }
+    body.app-playground { --accent: #ffd84a; --accent-2: #5ee3c0; }
+    body.castle {
+      --accent: #efcb71; --accent-2: #b5463f; --accent-ink: #211722;
+      --muted: #aaa3ac; --border: rgba(214, 175, 97, 0.18); --border-strong: rgba(214, 175, 97, 0.35);
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { background: var(--bg); }
     body {
-      background: radial-gradient(circle at 50% 10%, #161b22, #0d1117 70%);
+      background:
+        radial-gradient(1000px 420px at 50% -120px, color-mix(in srgb, var(--accent) 13%, transparent), transparent 70%),
+        var(--bg);
       color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: var(--sans);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 32px 16px 48px;
     }
-    body.castle {
-      --accent: #efcb71;
-      --accent-dim: #cba654;
-      --muted: #aaa3ac;
-      --border: rgba(214, 175, 97, 0.25);
-      background: radial-gradient(ellipse at 50% 0%, #342238, #10131c 65%);
+    body.castle { background: radial-gradient(ellipse at 50% 0%, #342238, #10131c 65%) fixed, #10131c; }
+    a { color: inherit; }
+
+    /* ── the bar on every page: where you are, and every other place one
+       click away, a game running or not ─────────────────────────────── */
+    .topbar {
+      position: sticky; top: 0; z-index: 40; width: 100%;
+      height: var(--topbar);
+      display: flex; align-items: center; gap: 18px;
+      padding: 0 20px;
+      background: color-mix(in srgb, var(--bg) 82%, transparent);
+      backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
     }
-    .castle header h1, .castle .poster h2 {
-      font-family: Georgia, "Times New Roman", serif;
-      color: #f5d88a;
-      letter-spacing: 0.04em;
-      text-shadow: 0 3px 0 #452332;
+    .brand {
+      display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+      font-weight: 750; font-size: 17px; color: #fff; text-decoration: none; letter-spacing: -0.01em;
     }
-    .castle .poster {
-      background: radial-gradient(ellipse at 50% 10%, #31394b, #10131c 70%);
-      border-top: 3px solid #9b7840;
+    .brand .lemon { font-size: 21px; filter: drop-shadow(0 0 10px rgba(255, 216, 74, 0.45)); }
+    .nav {
+      display: flex; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none;
+      margin: 0 auto;
     }
-    .castle .poster::before {
-      content: "♜";
-      color: #e5c16a;
-      background: #762a40;
-      border: 1px solid #9b7840;
-      padding: 8px 18px;
-      font-size: 36px;
-      margin-bottom: 12px;
-      clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 86%, 0 100%);
+    .nav::-webkit-scrollbar { display: none; }
+    .nav a {
+      display: flex; align-items: center; gap: 7px; white-space: nowrap;
+      padding: 7px 13px; border-radius: 9px;
+      font-size: 14px; font-weight: 550; color: var(--muted); text-decoration: none;
+      transition: background 0.15s, color 0.15s;
     }
-    .castle button.run {
-      background: #e9c268;
-      color: #211722;
-      box-shadow: 0 4px 0 #795733;
+    .nav a:hover { color: #fff; background: rgba(255, 255, 255, 0.06); }
+    .nav a[aria-current="page"] {
+      color: #fff; background: rgba(255, 255, 255, 0.09);
+      box-shadow: inset 0 -2px 0 var(--accent);
     }
-    header { text-align: center; margin-bottom: 22px; max-width: 680px; }
-    h1 {
-      font-size: 30px; font-weight: 700; color: #fff;
-      display: flex; align-items: center; gap: 10px;
-      justify-content: center; margin-bottom: 10px;
+    .nav .new {
+      font-size: 10px; font-weight: 750; letter-spacing: 0.04em;
+      padding: 2px 6px; border-radius: 999px;
+      background: var(--lemon); color: #1d1704;
     }
-    h1 span {
-      background: linear-gradient(135deg, #00ffaa, #58a6ff);
+    .gh {
+      flex-shrink: 0; display: flex; align-items: center; gap: 7px;
+      padding: 7px 12px; border-radius: 9px;
+      border: 1px solid var(--border-strong);
+      font-size: 13.5px; font-weight: 600; color: var(--text); text-decoration: none;
+    }
+    .gh:hover { border-color: var(--accent); color: #fff; }
+    .gh svg { width: 17px; height: 17px; fill: currentColor; }
+
+    main {
+      width: 100%; max-width: 1080px; padding: 34px 16px 0;
+      display: flex; flex-direction: column; align-items: center;
+    }
+    body.big main { max-width: none; }
+
+    header.hero { text-align: center; margin-bottom: 22px; max-width: 720px; }
+    .hero h1 {
+      font-size: 34px; line-height: 1.15; font-weight: 800; color: #fff; letter-spacing: -0.02em;
+      margin-bottom: 10px;
+    }
+    .hero h1 .grad {
+      background: linear-gradient(120deg, var(--accent), var(--accent-2));
       -webkit-background-clip: text; background-clip: text;
       -webkit-text-fill-color: transparent; color: transparent;
     }
-    p.subtitle { font-size: 15px; color: var(--muted); line-height: 1.5; }
-    p.subtitle code {
-      font-family: ui-monospace, Menlo, Monaco, "Courier New", monospace;
-      color: var(--accent-dim);
+    .hero p { font-size: 15.5px; color: var(--muted); line-height: 1.55; }
+    .hero code { font-family: var(--mono); font-size: 0.92em; color: var(--accent); }
+    /* A game's own page keeps its heading short: the game is the picture. */
+    body.game header.hero { margin-bottom: 16px; }
+    body.game .hero h1 { font-size: 28px; margin-bottom: 6px; }
+    body.game .hero p { font-size: 14.5px; }
+    .castle .hero h1 {
+      font-family: Georgia, "Times New Roman", serif; color: #f5d88a;
+      letter-spacing: 0.04em; text-shadow: 0 3px 0 #452332;
     }
 
+    /* ── the world's best, from the scoreboard: one line that scrolls
+       sideways rather than wrapping, so it keeps its height ─────────── */
+    .board {
+      width: 100%; max-width: 1000px; margin: 0 0 14px;
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      font: 13px var(--mono); color: var(--muted);
+    }
+    .board[hidden] { display: none; }
+    .board-title { color: var(--lemon); font-weight: 700; white-space: nowrap; }
+    .board ol {
+      list-style: none; display: flex; gap: 8px; min-width: 0;
+      overflow-x: auto; white-space: nowrap; scrollbar-width: thin;
+    }
+    .board li {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+      padding: 4px 12px; color: var(--text);
+    }
+    .board li.first { border-color: color-mix(in srgb, var(--lemon) 55%, transparent); }
+    .board li .score { color: var(--lemon); margin-left: 6px; }
+    .board .board-note { white-space: nowrap; }
+
+    /* ── the terminal ─────────────────────────────────────────────────── */
     .stage {
       position: relative;
       background: #010409;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 12px;
-      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+      border: 1px solid var(--border-strong);
+      border-radius: 14px;
+      padding: 10px 12px 12px;
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(0, 0, 0, 0.4),
+        0 0 60px color-mix(in srgb, var(--accent) 7%, transparent);
       width: 100%;
       max-width: 1000px;
     }
     .stage-header {
       display: flex; align-items: center; gap: 8px;
-      padding: 0 4px 10px; border-bottom: 1px solid var(--border); margin-bottom: 10px;
+      padding: 0 2px 10px; border-bottom: 1px solid var(--border); margin-bottom: 10px;
     }
     .dot { width: 11px; height: 11px; border-radius: 50%; }
     .red { background: #ff5f56; } .yellow { background: #ffbd2e; } .green { background: #27c93f; }
     .title-tag {
-      margin-left: auto; font-size: 12px; color: var(--muted);
-      font-family: ui-monospace, Menlo, Monaco, monospace;
+      margin-left: auto; font-size: 12px; color: var(--faint); font-family: var(--mono);
     }
     /* A fixed height, not a minimum: xterm's own element keeps the size of
        the last fit, and would hold the box at fullscreen size after leaving. */
@@ -118,50 +187,27 @@
     #terminal .xterm-viewport::-webkit-scrollbar { display: none; }
 
     /* A game opens in most of the window rather than the playground's box:
-       the terminal as tall as the window allows below the header (232px:
-       the header and the stage's own frame, with a margin), and the stage up
-       to twice that wide, so the picture keeps its shape on a big screen.
-       Not on a phone, whose header wraps taller and which has no keyboard
-       to play with anyway. */
+       the terminal as tall as the window allows below the bar and the
+       heading (--chrome: those and the stage's own frame, with a margin),
+       and the stage up to twice that wide, so the picture keeps its shape
+       on a big screen. Not on a phone, whose heading wraps taller and which
+       has no keyboard to play with anyway. */
+    body.big { --chrome: 252px; }
+    body.big.has-board { --chrome: 290px; }
     @media (min-width: 700px) {
-      body.big .stage:not(.full) { max-width: max(1000px, calc((100vh - 232px) * 2)); }
-      body.big .stage:not(.full) #terminal { height: max(420px, calc(100vh - 232px)); }
-      /* With the leaderboard above the stage: 48px more of header. */
-      body.big.has-board .stage:not(.full) #terminal { height: max(420px, calc(100vh - 280px)); }
-      body.big.has-board .stage:not(.full),
-      body.big.has-board .board { max-width: max(1000px, calc((100vh - 280px) * 2)); }
+      body.big .stage:not(.full),
+      body.big .board { max-width: max(1000px, calc((100vh - var(--chrome)) * 2)); }
+      body.big .stage:not(.full) #terminal { height: max(420px, calc(100vh - var(--chrome))); }
     }
-
-    /* The world's best runs, from the scoreboard, in one line above the
-       game: a strip that scrolls sideways rather than wrapping, so it is the
-       same height whatever the names. */
-    .board {
-      width: 100%; max-width: 1000px; margin: -8px 0 14px;
-      display: flex; align-items: center; justify-content: center; gap: 10px;
-      font: 13px ui-monospace, Menlo, Monaco, monospace; color: var(--muted);
-    }
-    .board[hidden] { display: none; }
-    .board-title { color: #ffd82a; font-weight: 700; white-space: nowrap; }
-    .board ol {
-      list-style: none; display: flex; gap: 8px; min-width: 0;
-      overflow-x: auto; white-space: nowrap; scrollbar-width: thin;
-    }
-    .board li {
-      background: #161b22; border: 1px solid var(--border); border-radius: 999px;
-      padding: 3px 11px; color: var(--text);
-    }
-    .board li.first { border-color: rgba(255, 216, 42, 0.55); }
-    .board li .score { color: #ffd82a; margin-left: 6px; }
-    .board .board-note { white-space: nowrap; }
 
     button.full-toggle {
       appearance: none; cursor: pointer; margin-left: 12px;
-      background: #161b22; color: var(--text);
-      border: 1px solid var(--border); border-radius: 6px;
-      font: 12px ui-monospace, Menlo, Monaco, monospace;
-      padding: 3px 9px;
+      background: var(--surface); color: var(--text);
+      border: 1px solid var(--border); border-radius: 7px;
+      font: 12px var(--mono);
+      padding: 4px 10px;
     }
-    button.full-toggle:hover { border-color: var(--accent-dim); color: #fff; }
+    button.full-toggle:hover { border-color: var(--accent); color: #fff; }
 
     /* Fullscreen: the stage fills the screen, through the Fullscreen API or,
        where that is refused (an iframe without permission, iPhone Safari),
@@ -184,129 +230,230 @@
     .poster {
       position: absolute; inset: 0;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      gap: 14px; text-align: center;
-      background: rgba(1, 4, 9, 0.94);
-      border-radius: 12px; z-index: 5; padding: 24px;
+      gap: 16px; text-align: center;
+      background:
+        radial-gradient(600px 300px at 50% 35%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 70%),
+        rgba(1, 4, 9, 0.95);
+      border-radius: 14px; z-index: 5; padding: 24px;
     }
     .poster.hidden { display: none; }
-    .poster h2 { font-size: 19px; color: #fff; font-weight: 600; }
-    .poster p { font-size: 13px; color: var(--muted); max-width: 420px; line-height: 1.6; }
+    .poster .emblem { font-size: 46px; line-height: 1; filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.6)); }
+    .poster h2 { font-size: 22px; color: #fff; font-weight: 750; letter-spacing: -0.01em; }
+    .poster p { font-size: 14px; color: var(--muted); max-width: 460px; line-height: 1.6; }
+    .poster p strong { color: var(--text); }
     button.run {
       appearance: none; border: 0; cursor: pointer;
-      background: linear-gradient(135deg, var(--accent), #58a6ff);
-      color: #04170f; font-weight: 700; font-size: 15px;
-      padding: 12px 28px; border-radius: 8px;
-      transition: transform 0.12s ease, opacity 0.12s ease;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: var(--accent-ink); font-weight: 800; font-size: 15.5px;
+      padding: 13px 34px; border-radius: 11px;
+      box-shadow: 0 10px 30px color-mix(in srgb, var(--accent) 28%, transparent);
+      transition: transform 0.12s ease, opacity 0.12s ease, box-shadow 0.12s ease;
     }
-    button.run:hover { transform: translateY(-1px); }
+    button.run:hover { transform: translateY(-1px); box-shadow: 0 14px 36px color-mix(in srgb, var(--accent) 38%, transparent); }
     button.run:disabled { cursor: progress; opacity: 0.65; transform: none; }
-    a.other {
-      font-size: 13px; color: var(--accent-dim); text-decoration: none;
+    .castle .poster {
+      background: radial-gradient(ellipse at 50% 10%, #31394b, #10131c 70%);
+      border-top: 3px solid #9b7840;
     }
-    a.other:hover { text-decoration: underline; }
+    .castle .poster h2 { font-family: Georgia, "Times New Roman", serif; color: #f5d88a; letter-spacing: 0.04em; }
+    .castle button.run { background: #e9c268; color: #211722; box-shadow: 0 4px 0 #795733; }
 
     .status {
       margin-top: 14px; font-size: 12.5px; color: var(--muted);
       display: flex; align-items: center; gap: 8px;
-      font-family: ui-monospace, Menlo, Monaco, monospace;
+      font-family: var(--mono);
     }
     .badge { width: 8px; height: 8px; border-radius: 50%; background: #6e7681; }
     .badge.ready { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
     .badge.error { background: #ff5f56; }
 
     .keys {
-      margin-top: 18px; display: flex; flex-wrap: wrap; gap: 8px 16px;
-      justify-content: center; font-size: 12.5px; color: var(--muted);
+      margin-top: 16px; display: flex; flex-wrap: wrap; gap: 8px 18px;
+      justify-content: center; font-size: 13px; color: var(--muted); max-width: 900px;
     }
     .keys kbd {
-      font-family: ui-monospace, Menlo, Monaco, monospace;
-      background: #161b22; border: 1px solid var(--border);
-      border-bottom-width: 2px; border-radius: 5px;
-      padding: 2px 7px; color: var(--text); margin-right: 4px;
+      font-family: var(--mono); font-size: 12px;
+      background: var(--surface-2); border: 1px solid var(--border-strong);
+      border-bottom-width: 2px; border-radius: 6px;
+      padding: 2px 7px; color: #fff; margin-right: 3px;
     }
 
-    footer { margin-top: 30px; font-size: 13px; color: var(--muted); text-align: center; }
-    footer a { color: var(--accent-dim); text-decoration: none; }
-    footer a:hover { text-decoration: underline; }
-    footer code {
-      font-family: ui-monospace, Menlo, Monaco, monospace;
-      background: #161b22; border: 1px solid var(--border);
-      border-radius: 5px; padding: 3px 8px; color: var(--text);
-      display: inline-block; margin-top: 10px;
+    /* ── everything else to try, as cards ─────────────────────────────── */
+    section.more { width: 100%; max-width: 1000px; margin-top: 56px; }
+    section.more h2 {
+      font-size: 13px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--faint); margin-bottom: 16px; text-align: center;
     }
-    .note { margin-top: 8px; font-size: 12px; color: #6e7681; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
+    .card {
+      display: flex; flex-direction: column;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+      overflow: hidden; text-decoration: none; color: var(--text);
+      transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+    }
+    .card:hover {
+      transform: translateY(-3px); border-color: color-mix(in srgb, var(--card) 60%, transparent);
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45), 0 0 0 1px color-mix(in srgb, var(--card) 25%, transparent);
+    }
+    .card img {
+      width: 100%; aspect-ratio: 16 / 10; object-fit: cover; display: block;
+      image-rendering: pixelated; background: #010409;
+      border-bottom: 1px solid var(--border);
+    }
+    .card .body { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+    .card h3 { font-size: 16px; color: #fff; display: flex; align-items: center; gap: 8px; }
+    .card p { font-size: 13.5px; color: var(--muted); line-height: 1.5; flex: 1; }
+    .card .go { font-size: 13.5px; font-weight: 700; color: var(--card); margin-top: 4px; }
+    .card[hidden] { display: none; }
+
+    footer {
+      width: 100%; margin-top: 64px; padding: 26px 16px 36px;
+      border-top: 1px solid var(--border);
+      font-size: 13px; color: var(--muted); text-align: center;
+    }
+    footer .links { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; }
+    footer a { color: var(--text); text-decoration: none; }
+    footer a:hover { color: var(--accent); }
+    footer code {
+      font-family: var(--mono);
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 7px; padding: 5px 10px; color: var(--text);
+      display: inline-block; margin-top: 14px;
+    }
+    .note { margin-top: 10px; font-size: 12px; color: var(--faint); }
+
+    @media (max-width: 640px) {
+      .topbar { padding: 0 12px; gap: 10px; }
+      .brand .word, .gh .label { display: none; }
+      .hero h1 { font-size: 27px; }
+      main { padding-top: 24px; }
+    }
   </style>
 </head>
 <body>
-  <header>
-    <h1>🍋 <span>Limoni</span></h1>
-    <p class="subtitle">
-      A terminal UI engine for Go — zero heap allocations on the render path,
-      with a built-in 3D rasteriser.<br>
-      This page runs the <strong>same engine</strong>, compiled with
-      <code>GOOS=js GOARCH=wasm</code> and pointed at xterm.js.
-    </p>
-  </header>
-
-  <section class="board" id="board" hidden aria-live="polite">
-    <span class="board-title">🏆 World best</span>
-    <ol id="board-list"></ol>
-    <span class="board-note" id="board-note"></span>
-  </section>
-
-  <div class="stage">
-    <div class="stage-header">
-      <div class="dot red"></div>
-      <div class="dot yellow"></div>
-      <div class="dot green"></div>
-      <div class="title-tag" id="size-tag">xterm.js · truecolor</div>
-      <button class="full-toggle" id="full-toggle" title="Fullscreen">⛶ Fullscreen</button>
+  <nav class="topbar" aria-label="Limoni">
+    <a class="brand" href="./"><span class="lemon">🍋</span><span class="word">Limoni</span></a>
+    <div class="nav">
+      <a href="./" data-app="playground">Playground</a>
+      <a href="?app=lemonsnake" data-app="lemonsnake">🐍 Lemon Snake <span class="new">NEW</span></a>
+      <a href="?app=lemondrop" data-app="lemondrop">🧱 Lemon Drop</a>
+      <a href="?app=castle-lemonstein" data-app="castle-lemonstein">🏰 Castle Lemonstein</a>
     </div>
-    <div id="terminal"></div>
+    <a class="gh" href="https://github.com/thebanri/limoni" title="Limoni on GitHub">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      <span class="label">GitHub</span>
+    </a>
+  </nav>
 
-    <div class="poster" id="poster">
-      <h2 id="poster-title">Run Limoni in this tab</h2>
-      <p id="poster-text">
-        Downloads about <strong>1.5 MB</strong> (a 6 MB WebAssembly module, compressed).
-        Nothing is installed, nothing leaves your browser.
+  <main>
+    <header class="hero">
+      <h1 id="hero-title">A terminal UI engine for Go, <span class="grad">in your browser</span></h1>
+      <p id="hero-text">
+        Zero heap allocations on the render path, a built-in 3D rasteriser, charts and an
+        accessibility tree. This page runs the <strong>same engine</strong>, compiled with
+        <code>GOOS=js GOARCH=wasm</code> and drawn by xterm.js.
       </p>
-      <button class="run" id="run">▶&nbsp;&nbsp;Run it</button>
-      <a class="other" id="other-app" href="?app=castle-lemonstein">🍋 or play Castle Lemonstein, a raycaster game →</a>
-      <a class="other" id="other-app-2" href="?app=lemondrop">🍋 or Lemon Drop, falling blocks that turn to sand →</a>
+    </header>
+
+    <section class="board" id="board" hidden aria-live="polite">
+      <span class="board-title">🏆 World best</span>
+      <ol id="board-list"></ol>
+      <span class="board-note" id="board-note"></span>
+    </section>
+
+    <div class="stage">
+      <div class="stage-header">
+        <div class="dot red"></div>
+        <div class="dot yellow"></div>
+        <div class="dot green"></div>
+        <div class="title-tag" id="size-tag">xterm.js · truecolor</div>
+        <button class="full-toggle" id="full-toggle" title="Fullscreen">⛶ Fullscreen</button>
+      </div>
+      <div id="terminal"></div>
+
+      <div class="poster" id="poster">
+        <div class="emblem" id="poster-emblem">🍋</div>
+        <h2 id="poster-title">Run Limoni in this tab</h2>
+        <p id="poster-text">
+          Downloads about <strong>1.5 MB</strong> (a 6 MB WebAssembly module, compressed).
+          Nothing is installed, nothing leaves your browser.
+        </p>
+        <button class="run" id="run">▶&nbsp;&nbsp;Run it</button>
+      </div>
     </div>
-  </div>
 
-  <div class="status">
-    <span class="badge" id="status-badge"></span>
-    <span id="status-text">Ready — press Run to load the engine</span>
-  </div>
+    <div class="status">
+      <span class="badge" id="status-badge"></span>
+      <span id="status-text">Ready — press Run to load the engine</span>
+    </div>
 
-  <div class="keys" id="keys">
-    <span><kbd>1</kbd>–<kbd>5</kbd> or click a tab</span>
-    <span><kbd>Tab</kbd> next scene</span>
-    <span><kbd>↑</kbd><kbd>↓</kbd><kbd>PgUp</kbd><kbd>PgDn</kbd> scroll</span>
-    <span><kbd>Space</kbd> count</span>
-    <span>mouse wheel scrolls</span>
-  </div>
+    <div class="keys" id="keys">
+      <span><kbd>1</kbd>–<kbd>5</kbd> or click a tab</span>
+      <span><kbd>Tab</kbd> next scene</span>
+      <span><kbd>↑</kbd><kbd>↓</kbd><kbd>PgUp</kbd><kbd>PgDn</kbd> scroll</span>
+      <span><kbd>Space</kbd> count</span>
+      <span>mouse wheel scrolls</span>
+    </div>
+
+    <section class="more" aria-label="More to try">
+      <h2 id="more-title">Games built with Limoni</h2>
+      <div class="cards">
+        <a class="card" href="?app=lemonsnake" data-app="lemonsnake" style="--card: #9be15d">
+          <img src="img/lemonsnake.png" alt="Lemon Snake: a green snake, a glowing lemon and a purple monster" loading="lazy">
+          <div class="body">
+            <h3>🐍 Lemon Snake</h3>
+            <p>Eat lemons; every five, a monster comes. Spit their seeds at it. Five themes, a world leaderboard.</p>
+            <span class="go">Play →</span>
+          </div>
+        </a>
+        <a class="card" href="?app=lemondrop" data-app="lemondrop" style="--card: #ffd84a">
+          <img src="img/lemondrop.png" alt="Lemon Drop: falling blocks crumbling into coloured sand over a faint lemon" loading="lazy">
+          <div class="body">
+            <h3>🧱 Lemon Drop</h3>
+            <p>Falling blocks that crumble into sand. A run of one colour from wall to wall clears.</p>
+            <span class="go">Play →</span>
+          </div>
+        </a>
+        <a class="card" href="?app=castle-lemonstein" data-app="castle-lemonstein" style="--card: #efcb71">
+          <img src="img/castle-lemonstein.png" alt="Castle Lemonstein: the moonlit castle with gold lettering" loading="lazy">
+          <div class="body">
+            <h3>🏰 Castle Lemonstein</h3>
+            <p>A first-person raycaster: squirt the rats, find ten lemons, face Ratatui in the keep.</p>
+            <span class="go">Play →</span>
+          </div>
+        </a>
+        <a class="card" href="./" data-app="playground" style="--card: #5ee3c0">
+          <img src="img/limoni.png" alt="Limoni's charts demo: line, bar and pie charts in the terminal" loading="lazy">
+          <div class="body">
+            <h3>🍋 The playground</h3>
+            <p>The engine itself: widgets, charts, a 3D scene and forms, in one tabbed demo.</p>
+            <span class="go">Open →</span>
+          </div>
+        </a>
+      </div>
+    </section>
+  </main>
 
   <footer>
-    <p>
+    <div class="links">
       <a href="https://github.com/thebanri/limoni">github.com/thebanri/limoni</a>
-      &nbsp;·&nbsp;
       <a href="https://pkg.go.dev/github.com/thebanri/limoni">pkg.go.dev</a>
-    </p>
+      <a href="llms.txt">llms.txt</a>
+    </div>
     <code>go get github.com/thebanri/limoni</code>
-    <p class="note">
-      Go's WebAssembly output is large by nature; a native Limoni binary is a fraction of this size.
-    </p>
+    <p class="note">Go's WebAssembly output is large by nature; a native Limoni binary is a fraction of this size.</p>
   </footer>
 
   <script>
-    // Three modules share this page: the playground, and two games,
-    // ?app=castle-lemonstein from apps/castle-lemonstein and ?app=lemondrop from
-    // apps/lemondrop. They are separate builds because each game is a module
-    // of its own and ships to nobody who imports Limoni.
+    // Four modules share this page: the playground, and three games,
+    // ?app=castle-lemonstein, ?app=lemondrop and ?app=lemonsnake, each from
+    // its directory under apps/. They are separate builds because each game
+    // is a module of its own and ships to nobody who imports Limoni.
     const clock = (secs) => `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+    // The shared leaderboard: apps/scoreboard, deployed on Vercel over a
+    // Neon database. It allows this page's origin (thebanri.github.io).
+    // ?board=URL overrides it.
+    const scoreboard = 'https://limoni-drab.vercel.app';
     const apps = {
       playground: {
         wasm: 'limoni.wasm',
@@ -315,14 +462,15 @@
       'castle-lemonstein': {
         wasm: 'castle-lemonstein.wasm',
         title: 'Castle Lemonstein — a raycaster in the terminal',
+        heading: 'Castle Lemonstein',
+        text: 'A castle full of rats. Ten stolen lemons. One way through.',
+        emblem: '🏰',
         posterTitle: 'Castle Lemonstein',
         theme: 'castle',
         posterText: 'Storm the moonlit castle. Reclaim ten stolen lemons, raise the portcullis, ' +
           'and face Ratatui in the keep. Stone halls. Burgundy banners. Lemon-powered revenge. ' +
           '<strong>Turn your sound on.</strong>',
         button: '▶&nbsp;&nbsp;Enter the castle',
-        other: '← back to the Limoni playground',
-        otherHref: '?',
         keys: '<span><kbd>W</kbd><kbd>S</kbd> walk</span>' +
           '<span><kbd>A</kbd><kbd>D</kbd> strafe</span>' +
           '<span><kbd>←</kbd><kbd>→</kbd> turn</span>' +
@@ -339,23 +487,21 @@
         largeWindow: false,
         audio: true,
         keyReleases: true,
-        // The shared leaderboard: apps/scoreboard, deployed on Vercel over a
-        // Neon database. It allows this page's origin (thebanri.github.io).
-        // Empty keeps each browser's scores to itself; ?board=URL overrides.
-        scoreboard: 'https://limoni-drab.vercel.app',
+        scoreboard,
         describe: (run) => `${run.won ? 'won' : 'lost'} in ${clock(run.secs)}, ${run.aim}% aim`,
       },
       lemondrop: {
         wasm: 'lemondrop.wasm',
         title: 'Lemon Drop — falling blocks that turn to sand',
-        posterTitle: '🍋 Lemon Drop',
+        heading: 'Lemon Drop',
+        text: 'Falling blocks that crumble into sand. One colour from wall to wall clears.',
+        emblem: '🧱',
+        posterTitle: 'Lemon Drop',
         posterText: 'Falling blocks that crumble into sand when they land. A run of ' +
           'one colour from wall to wall clears, and what rested on it falls. Drawn ' +
           'by Limoni in half blocks, a grain to a pixel. Downloads about <strong>1.4 MB</strong> ' +
           'of WebAssembly; turn your sound on.',
         button: '▶&nbsp;&nbsp;Play',
-        other: '← back to the Limoni playground',
-        otherHref: '?',
         keys: '<span><kbd>←</kbd><kbd>→</kbd> move</span>' +
           '<span><kbd>↑</kbd><kbd>X</kbd> turn</span>' +
           '<span><kbd>Z</kbd> turn back</span>' +
@@ -373,10 +519,37 @@
         keyReleases: true,
         // Esc pauses the game, in fullscreen too: see the fullscreen button.
         lockEsc: true,
-        // Lemon Drop's board is on the same server, at its own path.
-        scoreboard: 'https://limoni-drab.vercel.app',
         boardPath: '/drop/scores',
+        scoreboard,
         describe: (run) => `${run.clears} clears, level ${run.level}, ${clock(run.secs)}`,
+      },
+      lemonsnake: {
+        wasm: 'lemonsnake.wasm',
+        title: 'Lemon Snake — a snake that eats lemons and fights a monster',
+        heading: 'Lemon Snake',
+        text: 'Eat lemons. Every five, a monster comes out of the corner: spit their seeds at it.',
+        emblem: '🐍',
+        posterTitle: 'Lemon Snake',
+        posterText: 'A snake that eats lemons and glides in half-block pixels. Every five lemons a ' +
+          'monster comes for its head; each lemon brings two seeds to spit at it. Five colour ' +
+          'themes, a world leaderboard, and soft synthesised sound — <strong>turn it on</strong>. ' +
+          'Downloads about <strong>1.5 MB</strong> of WebAssembly.',
+        button: '▶&nbsp;&nbsp;Play',
+        keys: '<span><kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd> or <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> turn</span>' +
+          '<span><kbd>Space</kbd> spit a seed</span>' +
+          '<span><kbd>T</kbd> theme</span>' +
+          '<span><kbd>M</kbd> sound</span>' +
+          '<span><kbd>P</kbd> or <kbd>Esc</kbd> pause</span>' +
+          '<span><kbd>Q</kbd> quit, from the pause</span>',
+        running: 'Lemon Snake running — click the terminal if keys do nothing',
+        // The board takes the window's size, up to 30×18 tiles at 138×38.
+        fullscreenRows: 40,
+        windowRows: 32,
+        audio: true,
+        lockEsc: true,
+        boardPath: '/snake/scores',
+        scoreboard,
+        describe: (run) => `level ${run.level}, ${run.lemons} lemons, ${clock(run.secs)}`,
       },
     };
     const params = new URLSearchParams(location.search);
@@ -385,20 +558,30 @@
       params.set('app', 'castle-lemonstein');
       history.replaceState(null, '', `${location.pathname}?${params}${location.hash}`);
     }
-    const app = apps[params.get('app')] || apps.playground;
-    // Read by the games (apps/castle-lemonstein/remote_js.go, apps/lemondrop/
-    // remote_js.go) when they start.
-    window.__castle_lemonstein_scoreboard = params.get('board') || app.scoreboard || '';
-    window.__lemondrop_scoreboard = window.__castle_lemonstein_scoreboard;
+    const appName = apps[params.get('app')] ? params.get('app') : 'playground';
+    const app = apps[appName];
+    document.body.classList.add(`app-${appName}`);
+
+    // The bar marks where you are; the cards offer everything else.
+    document.querySelectorAll(`.nav a[data-app="${appName}"]`).forEach((a) => a.setAttribute('aria-current', 'page'));
+    document.querySelectorAll(`.card[data-app="${appName}"]`).forEach((c) => { c.hidden = true; });
+    if (appName !== 'playground') { document.getElementById('more-title').textContent = 'More to play'; }
+
+    // Read by the games (remote_js.go in apps/castle-lemonstein,
+    // apps/lemondrop and apps/lemonsnake) when they start.
+    const boardURL = params.get('board') || app.scoreboard || '';
+    window.__castle_lemonstein_scoreboard = boardURL;
+    window.__lemondrop_scoreboard = boardURL;
+    window.__lemonsnake_scoreboard = boardURL;
     // The world's best, above the game. Fetched when the page opens, which
     // also wakes a sleeping scoreboard (a Vercel function and a Neon
     // database take a moment, a Render service up to a minute) while the
-    // module loads; again when the game has sent a run
-    // (__castle_lemonstein_board_changed, from apps/castle-lemonstein/remote_js.go); and
-    // when the tab comes back into view. Not on a timer: a page left open
-    // would keep the free database awake all day.
-    if (app.scoreboard && window.__castle_lemonstein_scoreboard) {
-      const scoresURL = window.__castle_lemonstein_scoreboard.replace(/\/+$/, '') + (app.boardPath || '/scores');
+    // module loads; again when the game has sent a run (the games call
+    // __<game>_board_changed, from their remote_js.go); and when the tab
+    // comes back into view. Not on a timer: a page left open would keep the
+    // free database awake all day.
+    if (app.scoreboard && boardURL) {
+      const scoresURL = boardURL.replace(/\/+$/, '') + (app.boardPath || '/scores');
       const boardEl = document.getElementById('board');
       const list = document.getElementById('board-list');
       const note = document.getElementById('board-note');
@@ -432,33 +615,29 @@
       loadBoard();
       window.__castle_lemonstein_board_changed = loadBoard;
       window.__lemondrop_board_changed = loadBoard;
+      window.__lemonsnake_board_changed = loadBoard;
       document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') { loadBoard(); }
       });
     }
     if (app.title) { document.title = app.title; }
-    if (app.theme === 'castle') {
-      document.body.classList.add('castle');
-      document.querySelector('header h1').textContent = 'Castle Lemonstein';
-      document.querySelector('header .subtitle').textContent = 'A castle full of rats. Ten stolen lemons. One way through.';
-      document.querySelector('meta[name="description"]').content = 'Storm Castle Lemonstein, a retro first-person castle adventure in your terminal or browser.';
-      document.querySelector('meta[property="og:title"]').content = 'Castle Lemonstein';
-      document.querySelector('meta[property="og:description"]').content = 'Reclaim the lemons. Breach the keep. Defeat the Rat King.';
+    if (app.heading) {
+      document.getElementById('hero-title').textContent = app.heading;
+      document.getElementById('hero-text').textContent = app.text;
+      document.querySelector('meta[name="description"]').content = app.text;
+      document.querySelector('meta[property="og:title"]').content = app.heading;
+      document.querySelector('meta[property="og:description"]').content = app.text;
     }
+    if (app.theme === 'castle') { document.body.classList.add('castle'); }
     // Before the terminal is made, so its first fit is to the large box.
     if (app.windowRows) {
       document.body.classList.add('game');
       if (app.largeWindow !== false) { document.body.classList.add('big'); }
     }
+    if (app.emblem) { document.getElementById('poster-emblem').textContent = app.emblem; }
     if (app.posterTitle) { document.getElementById('poster-title').textContent = app.posterTitle; }
     if (app.posterText) { document.getElementById('poster-text').innerHTML = app.posterText; }
     if (app.button) { document.getElementById('run').innerHTML = app.button; }
-    if (app.other) {
-      document.getElementById('other-app-2').remove();
-      const other = document.getElementById('other-app');
-      other.textContent = app.other;
-      other.href = app.otherHref;
-    }
     if (app.keys) { document.getElementById('keys').innerHTML = app.keys; }
 
     const term = new Terminal({

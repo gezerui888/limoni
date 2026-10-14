@@ -75,12 +75,29 @@ jobs:
           go -C "$work/lemondrop" mod tidy
           go -C "$work/lemondrop" build -trimpath -ldflags="-s -w" -o "$PWD/site/lemondrop.wasm" .
 
+      # Lemon Snake the same way, loaded as ?app=lemonsnake.
+      - name: Build Lemon Snake
+        env:
+          GOOS: js
+          GOARCH: wasm
+        run: |
+          set -euo pipefail
+          work=$(mktemp -d)
+          cp -r apps/lemonsnake "$work/lemonsnake"
+          go -C "$work/lemonsnake" mod edit -replace github.com/thebanri/limoni="$PWD"
+          go -C "$work/lemonsnake" mod tidy
+          go -C "$work/lemonsnake" build -trimpath -ldflags="-s -w" -o "$PWD/site/lemonsnake.wasm" .
+
       - name: Assemble site
         run: |
           set -euo pipefail
           cp examples/wasm/index.html site/index.html
           # A map of the project for language models and agents (llmstxt.org).
           cp llms.txt site/llms.txt
+          # The pictures on the cards. assets/ is a module of its own, so
+          # these reach the site and nobody who imports Limoni.
+          mkdir -p site/img
+          cp assets/lemonsnake.png assets/lemondrop.png assets/castle-lemonstein.png assets/limoni.png site/img/
           # wasm_exec.js must match the toolchain that produced the module.
           # Go moved it from misc/wasm to lib/wasm in 1.24; support both.
           if [ -f "$(go env GOROOT)/lib/wasm/wasm_exec.js" ]; then
@@ -100,11 +117,12 @@ jobs:
           node scripts/verify-wasm.mjs "$(go env GOROOT)" site/limoni.wasm
           node scripts/verify-wasm-castle-lemonstein.mjs "$(go env GOROOT)" site/castle-lemonstein.wasm
           node scripts/verify-wasm-lemondrop.mjs "$(go env GOROOT)" site/lemondrop.wasm
+          node scripts/verify-wasm-lemonsnake.mjs "$(go env GOROOT)" site/lemonsnake.wasm
 
       - name: Report module size
         run: |
           set -euo pipefail
-          for module in limoni castle-lemonstein lemondrop; do
+          for module in limoni castle-lemonstein lemondrop lemonsnake; do
             raw=$(stat -c%s "site/$module.wasm")
             gz=$(gzip -9 -c "site/$module.wasm" | wc -c)
             br=$(command -v brotli >/dev/null && brotli -q 11 -c "site/$module.wasm" | wc -c || echo 0)
