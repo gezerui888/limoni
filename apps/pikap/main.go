@@ -5,6 +5,7 @@
 //	pikap ~/Music         # play files itself, with the needle in the groove
 //	pikap song.flac a/    # files and folders, in that order
 //	pikap -demo           # the built-in record, needing nothing
+//	pikap -sixel          # the record as a picture (Sixel or kitty's protocol)
 //
 // With no files it follows another player over MPRIS, the desktop's media
 // interface: the record turns while it plays and coasts to a stop when it
@@ -22,10 +23,14 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"math"
 	"os"
 	"time"
 
 	"github.com/thebanri/limoni"
+	"github.com/thebanri/limoni/core/cell"
+	"github.com/thebanri/limoni/core/terminal"
+	"github.com/thebanri/limoni/graphics"
 )
 
 func main() {
@@ -34,6 +39,8 @@ func main() {
 	mute := flag.Bool("mute", false, "play files without sound (the record still turns)")
 	ascii := flag.Bool("ascii", false, "draw in ASCII characters rather than half blocks")
 	vinyl := flag.Bool("vinyl", false, "a black record with the cover on its label")
+	blocks := flag.Bool("blocks", false, "stay with half blocks even where the terminal shows pictures")
+	sixel := flag.Bool("sixel", false, "draw the record as a picture where the terminal shows one (Sixel or kitty), half blocks elsewhere")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, "usage: pikap [flags] [file or folder…]\n\n")
 		fmt.Fprintf(os.Stderr, "With no files, pikap follows whatever is playing (MPRIS).\n\n")
@@ -53,6 +60,15 @@ func main() {
 	if *vinyl {
 		u.disc = blackVinyl
 	}
+	// Where the terminal shows pictures, the record is one unless a way of
+	// drawing was asked for. The terminal may say so only after the first
+	// frames, so this is settled in the loop. -sixel does not force Sixel:
+	// a terminal without it (kitty) printed the picture as text.
+	// LIMONI_GRAPHICS=sixel does, for one that shows Sixel without saying so.
+	autoPix := !*ascii && !*blocks && !*sixel
+	if *sixel {
+		u.glyph = sixelPixels
+	}
 
 	term, err := limoni.New()
 	if err != nil {
@@ -71,7 +87,25 @@ func main() {
 			}
 		}
 		u.tick(time.Now())
+		proto := term.Capabilities().GraphicsProto
+		u.pixels = proto == graphics.ProtocolSixel || proto == graphics.ProtocolKitty
+		if autoPix && u.pixels {
+			u.glyph, autoPix = sixelPixels, false
+		}
+		if cw, ch, err := term.Driver().CellPixelSize(); err == nil {
+			u.cellW, u.cellH = int(cw), int(ch)
+		}
 		u.render(f.Buffer)
+		if u.pixImg != nil {
+			f.ImageRegions = append(f.ImageRegions, terminal.ImageRegion{
+				Area: cell.Rect{X: uint16(u.dv.x0), Y: uint16(u.dv.y0), Width: uint16(u.dv.w), Height: uint16(u.dv.h)},
+				Img:  u.pixImg,
+				// In kitty, under the cells with a background of their own (the
+				// help card's): at -1 the card's text was over the picture,
+				// its background under it.
+				ZIndex: math.MinInt32/2 - 1,
+			})
+		}
 		return !u.quit
 	})
 	term.Close()

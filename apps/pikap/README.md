@@ -14,6 +14,8 @@ pikap song.flac dir/  # files and folders, in that order
 pikap -demo           # the built-in record, needing nothing
 pikap -ascii          # ASCII characters instead of half blocks
 pikap -vinyl          # a black record with the cover on its label
+pikap -sixel          # the record as a picture (Sixel or kitty), half blocks elsewhere
+pikap -blocks         # half blocks even where pictures are shown
 ```
 
 Or download it ready to run, for Linux, macOS or Windows, from the
@@ -74,7 +76,7 @@ platter, pressing play spins it back up, dragging the record scratches it
 | `1` `3` `4` `7` | 16⅔, 33⅓, 45, 78 rpm |
 | `<` `>`, or the wheel over the speed | 1 rpm slower / faster, from 8⅓ to 83⅓ (the look only) |
 | `D` | picture disc / black vinyl |
-| `V` | half blocks / ASCII |
+| `V` | half blocks / ASCII / picture (where the terminal shows pictures) |
 | `C` | crackle on or off (files) |
 | `?` | every key, on a card (`?` or `Esc` closes it) |
 | `Q`, or `Esc` outside fullscreen | quit |
@@ -95,6 +97,22 @@ brightness ramp would give a staircase of `#`.
 Either way a frame of a 160×50 terminal costs about a millisecond and a
 half (1.4–1.5 ms on a Ryzen 5 5600, `go test -bench Frame`) and allocates
 nothing.
+
+## Pictures: Sixel and kitty
+
+In a terminal that shows pictures — Sixel (foot, mlterm, xterm with
+`-ti vt340`, Konsole…) or kitty's graphics protocol (kitty, Ghostty, WezTerm) —
+the record is drawn as a picture, one sample per pixel instead of two per
+cell. pikap does this on its own where the terminal says it can; `-ascii` or
+`-blocks` keep it off, `V` cycles through the ways of drawing, and `-sixel`
+starts with the picture, falling back to half blocks where there is none.
+`LIMONI_GRAPHICS=sixel` tells a terminal that shows Sixel without saying so
+(it forces it: a terminal without Sixel prints the picture as text).
+
+The picture is at most about 520 pixels a side, since it is encoded whole
+each frame (about 30 ms), and it is sent again only while something moves —
+about 250–420 KB a frame, which is fine in a local terminal and too much for
+a slow SSH link (use `-blocks` there).
 
 ## Tests
 

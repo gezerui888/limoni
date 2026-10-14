@@ -71,6 +71,7 @@ type glyphStyle uint8
 const (
 	asciiGlyphs glyphStyle = iota
 	halfBlocks
+	sixelPixels // a real picture, where the terminal shows Sixel; cells where it does not
 )
 
 // Where the tonearm is: its pivot, its length, and the radii the needle
@@ -439,7 +440,8 @@ func (s *scene) arm(u, v float64, c rgb, solid float64) (rgb, float64) {
 type deckView struct {
 	x0, y0, w, h int
 	cx, cy       float64 // the record's centre, in cells
-	R            float64 // its radius in columns; in rows it is R/2
+	R            float64 // its radius in columns
+	Ry           float64 // and in rows
 }
 
 // deckExtent is the picture's extent in record units: the record and the
@@ -449,26 +451,27 @@ const (
 	extT, extB = -1.12, 1.04
 )
 
-// fitDeck places the largest deck that fits in w×h cells at (x, y).
-func fitDeck(x, y, w, h int) (deckView, bool) {
-	// Columns: R·(extR-extL); rows: R/2·(extB-extT).
-	R := min(float64(w)/(extR-extL), float64(h)*2/(extB-extT))
+// fitDeck places the largest deck that fits in w×h cells at (x, y), for
+// cells aspect times as wide as they are tall (½ for the usual cell).
+func fitDeck(x, y, w, h int, aspect float64) (deckView, bool) {
+	// Columns: R·(extR-extL); rows: R·aspect·(extB-extT).
+	R := min(float64(w)/(extR-extL), float64(h)/(aspect*(extB-extT)))
 	R = math.Floor(R)
 	if R < 6 {
 		return deckView{}, false
 	}
 	dw := int(math.Ceil(R * (extR - extL)))
-	dh := int(math.Ceil(R / 2 * (extB - extT)))
-	dv := deckView{x0: x + (w-dw)/2, y0: y + (h-dh)/2, w: dw, h: dh, R: R}
+	dh := int(math.Ceil(R * aspect * (extB - extT)))
+	dv := deckView{x0: x + (w-dw)/2, y0: y + (h-dh)/2, w: dw, h: dh, R: R, Ry: R * aspect}
 	dv.cx = float64(dv.x0) - extL*R
-	dv.cy = float64(dv.y0) - extT*R/2
+	dv.cy = float64(dv.y0) - extT*dv.Ry
 	return dv, true
 }
 
 // toUnits turns a screen position (cell units, fractional) into record
 // units.
 func (dv deckView) toUnits(x, y float64) (u, v float64) {
-	return (x - dv.cx) / dv.R, (y - dv.cy) / (dv.R / 2)
+	return (x - dv.cx) / dv.R, (y - dv.cy) / dv.Ry
 }
 
 // draw renders the deck into b. rows holds the panel's colour for each row.

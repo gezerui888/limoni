@@ -1,6 +1,7 @@
 package main
 
 import (
+	"image"
 	"math"
 	"time"
 
@@ -19,6 +20,18 @@ type ui struct {
 	disc  discStyle
 	glyph glyphStyle
 	quit  bool
+	qm    quitModal // the "quit?" question
+	winW  int       // the window's size at the last frame
+	winH  int
+
+	// Sixel: whether the terminal shows it, and the size of a cell in
+	// pixels, both set by main; pixImg is the picture of the deck this
+	// frame, nil when the deck is drawn in cells.
+	pixels       bool
+	cellW, cellH int
+	pix          pixelDeck
+	pixImg       *image.RGBA
+
 	local *localSource // set when pikap plays files itself
 
 	// Cover art, loaded off the interface goroutine.
@@ -92,6 +105,19 @@ func newUI(src source) *ui {
 	return u
 }
 
+// cycleGlyph moves on to the next way of drawing: half blocks, ASCII, and
+// where the terminal shows Sixel, a picture.
+func (u *ui) cycleGlyph() {
+	switch {
+	case u.glyph == halfBlocks:
+		u.glyph = asciiGlyphs
+	case u.glyph == asciiGlyphs && u.pixels:
+		u.glyph = sixelPixels
+	default:
+		u.glyph = halfBlocks
+	}
+}
+
 // tick advances everything that moves with time: the source's state, the
 // platter, the arm, the colours.
 func (u *ui) tick(now time.Time) {
@@ -100,6 +126,7 @@ func (u *ui) tick(now time.Time) {
 		dt = max(0, min(0.1, now.Sub(u.last).Seconds()))
 	}
 	u.last = now
+	u.qm.tick(dt)
 	u.src.update(&u.np)
 
 	if u.np.artKey != u.artKey {
@@ -206,6 +233,8 @@ func (u *ui) render(b *buffer.Buffer) {
 		return
 	}
 	b.IsDirty = true
+	u.pixImg = nil
+	u.winW, u.winH = W, H
 	top, bottom, accent := u.panelColours()
 	if cap(u.rows) < H {
 		u.rows = make([]rgb, H)
@@ -276,6 +305,7 @@ func (u *ui) render(b *buffer.Buffer) {
 	if u.help {
 		u.drawHelpCard(c, mainW, accent)
 	}
+	u.drawQuit(c, accent)
 }
 
 // listWidth is how wide the list beside the deck is: as dragged, or two
@@ -309,14 +339,43 @@ const (
 // the text under it should keep to: the record's own, when it is narrower
 // than the area.
 func (u *ui) drawDeck(b *buffer.Buffer, x, y, w, h, mainW int) (left, right int) {
-	u.dv, u.haveDeck = fitDeck(x, y, w, h)
-	if u.haveDeck {
+	pixels := u.glyph == sixelPixels && u.pixels && !u.qm.visible() && u.cellW > 0 && u.cellH > 0
+	if pixels {
+		u.dv, u.haveDeck = fitPixelDeck(x, y, w, h, u.cellW, u.cellH)
+	} else {
+		aspect := 0.5 // a cell twice as tall as it is wide, unless known
+		if u.cellW > 0 && u.cellH > 0 {
+			aspect = float64(u.cellW) / float64(u.cellH)
+		}
+		u.dv, u.haveDeck = fitDeck(x, y, w, h, aspect)
+	}
+	if !u.haveDeck {
+		u.pix.forget()
+	} else if pixels {
+		R := int(u.dv.R) * u.cellW
+		u.scene.prepare(u.cover, R, u.disc)
+		p := sceneParams{angle: u.angle, arm: u.armA, lifted: u.armLift, style: u.disc, tube: 0.024}
+		u.pixImg = u.pix.draw(&u.scene, u.dv, p, u.cover, u.rows, u.cellW, u.cellH, u.help)
+		// The picture's cells: the diff leaves them alone, so it does not
+		// write blanks over the picture.
+		W, H := int(b.Area.Width), int(b.Area.Height)
+		for y := max(0, u.dv.y0); y < min(H, u.dv.y0+u.dv.h); y++ {
+			for x := max(0, u.dv.x0); x < min(W, u.dv.x0+u.dv.w); x++ {
+				b.Content[y*W+x] = cell.Cell{Content: cell.RuneImage, Style: style(textCol, u.rows[y])}
+			}
+		}
+	} else {
+		u.pix.forget()
 		u.scene.prepare(u.cover, int(u.dv.R), u.disc)
 		p := sceneParams{angle: u.angle, arm: u.armA, lifted: u.armLift, style: u.disc, tube: 0.024}
-		if u.glyph == asciiGlyphs {
+		gs := u.glyph
+		if gs == sixelPixels {
+			gs = halfBlocks // asked for, but this terminal shows no Sixel
+		}
+		if gs == asciiGlyphs {
 			p.tube = 0.35 / u.dv.R
 		}
-		u.scene.draw(b, u.dv, p, u.glyph, u.gt, u.rows)
+		u.scene.draw(b, u.dv, p, gs, u.gt, u.rows)
 	}
 	left, right = 3, mainW-3
 	if u.haveDeck && u.dv.w < mainW-8 {
@@ -343,6 +402,7 @@ func (u *ui) renderFull(c canvas, b *buffer.Buffer, W, H int, accent rgb) {
 	if u.help {
 		u.drawHelpCard(c, W, accent)
 	}
+	u.drawQuit(c, accent)
 }
 
 // drawNowPlaying writes the title and artist at y, then the progress and
@@ -560,7 +620,7 @@ var helpKeys = [...][2]string{
 	{"+ -", "volume"},
 	{"1 3 4 7  < >", "rpm, only the look"},
 	{"d", "picture disc / black vinyl"},
-	{"v", "half blocks / ascii"},
+	{"v", "blocks / ascii / sixel"},
 	{"c", "crackle, playing files"},
 	{"drag record", "scrub"},
 	{"drag arm", "put the needle down"},
@@ -698,6 +758,12 @@ func (u *ui) key(k limoni.KeyEvent) {
 	if k.Release {
 		return
 	}
+	if u.qm.open { // a question on its way out no longer holds the keys
+		if u.qm.key(k) {
+			u.quit = true
+		}
+		return
+	}
 	ch := k.Ch
 	switch k.Type {
 	case limoni.KeySpace:
@@ -732,12 +798,12 @@ func (u *ui) key(k limoni.KeyEvent) {
 		} else if u.cursorOn {
 			u.cursorOn = false
 		} else {
-			u.quit = true
+			u.askQuit()
 		}
 	case limoni.KeyRune:
 		switch ch {
 		case 'q', 'Q':
-			u.quit = true
+			u.askQuit()
 		case 'k', 'K':
 			u.src.toggle()
 		case 'n', 'N', ']':
@@ -775,7 +841,7 @@ func (u *ui) key(k limoni.KeyEvent) {
 		case 'd', 'D':
 			u.disc = 1 - u.disc
 		case 'v', 'V':
-			u.glyph = 1 - u.glyph
+			u.cycleGlyph()
 		case 'c', 'C':
 			if u.local != nil {
 				u.local.d.crackle.Store(!u.local.d.crackle.Load())
@@ -788,6 +854,16 @@ func (u *ui) key(k limoni.KeyEvent) {
 			u.src.seek(0)
 		}
 	}
+}
+
+// askQuit opens the "quit?" question, or, in a window too small to show
+// it, quits.
+func (u *ui) askQuit() {
+	if u.winW < quitCardW+2 || u.winH < quitCardH+2 {
+		u.quit = true
+		return
+	}
+	u.qm.show()
 }
 
 func (u *ui) seekStep(k limoni.KeyEvent) float64 {
@@ -825,6 +901,12 @@ func (u *ui) moveCursor(d int) {
 }
 
 func (u *ui) mouse(m limoni.MouseEvent) {
+	if u.qm.open {
+		if u.qm.mouse(m) {
+			u.quit = true
+		}
+		return
+	}
 	x, y := int(m.X), int(m.Y)
 	fx, fy := float64(m.X)+0.5, float64(m.Y)+0.5
 	switch {

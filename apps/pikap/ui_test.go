@@ -23,7 +23,7 @@ func setup(t *testing.T) (*ui, *fakeSource, *buffer.Buffer) {
 
 // cellAt is the screen cell at record units (uu, vv).
 func cellAt(dv deckView, uu, vv float64) (uint16, uint16) {
-	return uint16(dv.cx + uu*dv.R), uint16(dv.cy + vv*dv.R/2)
+	return uint16(dv.cx + uu*dv.R), uint16(dv.cy + vv*dv.Ry)
 }
 
 func press(u *ui, x, y uint16) {
@@ -194,8 +194,12 @@ func TestKeys(t *testing.T) {
 		t.Fatalf("↓ Enter chose %d", f.chosen)
 	}
 	u.key(limoni.KeyEvent{Type: limoni.KeyRune, Ch: 'q'})
+	if u.quit || !u.qm.open {
+		t.Fatalf("q asks first: quit %v, modal open %v", u.quit, u.qm.open)
+	}
+	u.key(limoni.KeyEvent{Type: limoni.KeyRune, Ch: 'y'})
 	if !u.quit {
-		t.Fatal("q did not quit")
+		t.Fatal("q, y did not quit")
 	}
 }
 
