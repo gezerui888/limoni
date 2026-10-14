@@ -3,6 +3,7 @@ package terminal_test
 import (
 	"image"
 	"image/color"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -54,5 +55,67 @@ func TestImageWidgetUsesTheTerminalsProtocol(t *testing.T) {
 	}
 	if got := draw(graphics.ProtocolHalfBlock); strings.Contains(got, "\x1bP") {
 		t.Errorf("a half-block terminal was sent a Sixel picture: %q", got)
+	}
+}
+
+// A Sixel picture is cells on the terminal's side. It went out before the
+// diff, whose ECH for the cells turning into RuneImage then erased it; and
+// text over it was covered whenever the picture was sent again. Now the
+// cells go first, the picture after them, and the text over it after that.
+func TestSixelPictureGoesOutAfterTheCells(t *testing.T) {
+	t.Setenv("LIMONI_PROBE", "0")
+	io := driver.NewMemoryTerminalIO(nil, 20, 6)
+	b := driver.NewPortableBackend(io)
+	if err := b.Setup(); err != nil {
+		t.Fatal(err)
+	}
+	term, err := terminal.New(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = term.Close() }()
+	caps := term.Capabilities()
+	caps.GraphicsProto = graphics.ProtocolSixel
+	term.SetCapabilities(caps)
+
+	area := cell.NewRect(2, 1, 8, 3)
+	draw := func(pic *image.RGBA) string {
+		before := len(io.Output())
+		if err := term.Draw(func(f *terminal.Frame) {
+			for y := area.Y; y < area.Y+area.Height; y++ {
+				for x := area.X; x < area.X+area.Width; x++ {
+					f.Buffer.SetCell(x, y, cell.Cell{Content: cell.RuneImage})
+				}
+			}
+			f.Buffer.SetString(3, 2, "hi", cell.Style{})
+			f.ImageRegions = append(f.ImageRegions, terminal.ImageRegion{Area: area, Img: pic})
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return string(io.Output()[before:])
+	}
+	pic := image.NewRGBA(image.Rect(0, 0, 80, 60))
+	for i := range pic.Pix {
+		pic.Pix[i] = 0x80
+	}
+	for _, name := range []string{"first frame", "a new picture"} {
+		if name != "first frame" {
+			pic = image.NewRGBA(pic.Rect) // another value: the terminal is sent it again
+		}
+		out := draw(pic)
+		start := strings.Index(out, "\x1bP")
+		if start < 0 {
+			t.Fatalf("%s: no picture sent: %q", name, out)
+		}
+		end := start + strings.Index(out[start:], "\x1b\\")
+		if ech := regexp.MustCompile(`\x1b\[\d+X`).FindAllStringIndex(out, -1); len(ech) > 0 && ech[len(ech)-1][0] > start {
+			t.Errorf("%s: cells were erased after the picture: %q", name, out)
+		}
+		if !strings.Contains(out[end:], "hi") {
+			t.Errorf("%s: the text over the picture was not sent after it: %q", name, out[end:])
+		}
+	}
+	if out := draw(pic); strings.Contains(out, "\x1bP") {
+		t.Errorf("an unchanged picture was sent again: %q", out)
 	}
 }

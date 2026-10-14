@@ -474,23 +474,27 @@ func EncodeSixel(img image.Image, cols, rows uint16, cellW, cellH uint16, transp
 		num = strconv.AppendInt(num[:0], int64(n), 10)
 		buf.Write(num)
 	}
-	// Sixel initialization sequence
+	width := resized.Bounds().Dx()
+	height := resized.Bounds().Dy()
+	minX, minY := resized.Bounds().Min.X, resized.Bounds().Min.Y
+
+	// The raster attributes give the size: without it the last band's six
+	// rows are all drawn, past the picture and into the row below.
 	buf.WriteString("\x1bPq\"1;1;")
+	writeInt(width)
+	buf.WriteByte(';')
+	writeInt(height)
 
 	for idx, col := range pal {
 		buf.WriteByte('#')
 		writeInt(idx)
 		buf.WriteString(";2;")
-		writeInt(int(col.R) * 100 / 255)
+		writeInt((int(col.R)*100 + 127) / 255)
 		buf.WriteByte(';')
-		writeInt(int(col.G) * 100 / 255)
+		writeInt((int(col.G)*100 + 127) / 255)
 		buf.WriteByte(';')
-		writeInt(int(col.B) * 100 / 255)
+		writeInt((int(col.B)*100 + 127) / 255)
 	}
-
-	width := resized.Bounds().Dx()
-	height := resized.Bounds().Dy()
-	minX, minY := resized.Bounds().Min.X, resized.Bounds().Min.Y
 
 	bandIndices := make([][6]int16, width)
 	colorsInBand := make([]bool, len(pal))
@@ -514,10 +518,13 @@ func EncodeSixel(img image.Image, cols, rows uint16, cellW, cellH uint16, transp
 					bandIndices[x][dy] = -1 // Transparent pixel
 					continue
 				}
-				if q.many {
-					c = dither(c, x, y)
+				colIdx, ok := q.common(c)
+				if !ok {
+					if q.many {
+						c = dither(c, x, y)
+					}
+					colIdx = q.index(c)
 				}
-				colIdx := q.index(c)
 				bandIndices[x][dy] = colIdx
 				colorsInBand[colIdx] = true
 			}
@@ -585,8 +592,17 @@ type sixelQuant struct {
 	sums   [1 << 15][3]int64    // and the sum of their channels
 	table  [1 << 15]int16       // a five-bit colour's entry; -1 until looked up
 	used   []int32              // the five-bit colours seen, to clear after
-	ready  bool                 // table has been set to -1
-	many   bool                 // more colours than the palette holds: dithered
+
+	// Every colour seen, counted, in an open-addressing table: the common
+	// ones get a palette entry of their own and are not dithered, so a flat
+	// background comes out the colour of the cells around the picture.
+	keys    [commonSlots]uint32 // colour+1; 0 for an empty slot
+	seen    [commonSlots]int32
+	entry   [commonSlots]int16 // the colour's own palette entry, or -1
+	nkeys   int
+	ncommon int  // colours with their own entries; 0 for a picture of at most 256
+	ready   bool // table has been set to -1
+	many    bool // more colours than the palette holds: dithered
 }
 
 // bayer4 is a 4×4 ordered-dither matrix.
@@ -621,6 +637,42 @@ func (q *sixelQuant) at(img image.Image, x, y int) (color.RGBA, uint8) {
 	return color.RGBA{uint8(r >> 8), uint8(g >> 8), uint8(b >> 8), uint8(a >> 8)}, uint8(a >> 8)
 }
 
+// commonSlots is the size of the table of colours seen; it is filled to
+// half, after which new colours are not counted.
+const commonSlots = 1 << 12
+
+// slot is c's place in the table of colours seen, added when add is set and
+// there is room; -1 when it is not there.
+func (q *sixelQuant) slot(c color.RGBA, add bool) int {
+	k := uint32(c.R)<<16 | uint32(c.G)<<8 | uint32(c.B) + 1
+	i := int((k * 2654435761) >> 20)
+	for {
+		switch q.keys[i] {
+		case k:
+			return i
+		case 0:
+			if !add || q.nkeys >= commonSlots/2 {
+				return -1
+			}
+			q.keys[i] = k
+			q.nkeys++
+			return i
+		}
+		i = (i + 1) & (commonSlots - 1)
+	}
+}
+
+// common is c's own palette entry, when it was common enough for one.
+func (q *sixelQuant) common(c color.RGBA) (int16, bool) {
+	if q.ncommon == 0 {
+		return 0, false
+	}
+	if i := q.slot(c, false); i >= 0 && q.entry[i] >= 0 {
+		return q.entry[i], true
+	}
+	return 0, false
+}
+
 // build chooses the palette for img.
 func (q *sixelQuant) build(img image.Image, transparent bool) {
 	for _, k := range q.used {
@@ -629,6 +681,9 @@ func (q *sixelQuant) build(img image.Image, transparent bool) {
 	q.used = q.used[:0]
 	clear(q.exact)
 	q.pal = q.pal[:0]
+	clear(q.keys[:])
+	clear(q.seen[:])
+	q.nkeys, q.ncommon = 0, 0
 	if !q.ready {
 		for i := range q.table {
 			q.table[i] = -1
@@ -653,6 +708,9 @@ func (q *sixelQuant) build(img image.Image, transparent bool) {
 					}
 				}
 			}
+			if i := q.slot(c, true); i >= 0 {
+				q.seen[i]++
+			}
 			k := key15(c)
 			if q.counts[k] == 0 {
 				q.used = append(q.used, k)
@@ -670,17 +728,54 @@ func (q *sixelQuant) build(img image.Image, transparent bool) {
 		}
 		return
 	}
-	// The 256 most common five-bit colours, each the average of its pixels.
+	// Colours with a share of the picture (a flat background, a solid
+	// shape) keep their own entries, up to half the palette. They leave the
+	// five-bit colour they fall in, which is then the rest's average.
 	clear(q.exact)
-	byCount := append([]int32(nil), q.used...)
+	q.pal = q.pal[:0]
+	for i := range q.entry {
+		q.entry[i] = -1
+	}
+	total := int32(b.Dx() * b.Dy())
+	var common []int
+	for i, n := range q.seen {
+		if n > 0 && n >= total/512 {
+			common = append(common, i)
+		}
+	}
+	sort.Slice(common, func(a, b int) bool {
+		if q.seen[common[a]] != q.seen[common[b]] {
+			return q.seen[common[a]] > q.seen[common[b]]
+		}
+		return q.keys[common[a]] < q.keys[common[b]]
+	})
+	q.ncommon = min(128, len(common))
+	for _, i := range common[:q.ncommon] {
+		v, n := q.keys[i]-1, int64(q.seen[i])
+		c := color.RGBA{uint8(v >> 16), uint8(v >> 8), uint8(v), 255}
+		q.entry[i] = int16(len(q.pal))
+		q.pal = append(q.pal, c)
+		k := key15(c)
+		q.counts[k] -= int32(n)
+		q.sums[k][0] -= int64(c.R) * n
+		q.sums[k][1] -= int64(c.G) * n
+		q.sums[k][2] -= int64(c.B) * n
+	}
+	// The most common five-bit colours fill the rest, each the average of
+	// its pixels.
+	byCount := make([]int32, 0, len(q.used))
+	for _, k := range q.used {
+		if q.counts[k] > 0 {
+			byCount = append(byCount, k)
+		}
+	}
 	sort.Slice(byCount, func(i, j int) bool {
 		if q.counts[byCount[i]] != q.counts[byCount[j]] {
 			return q.counts[byCount[i]] > q.counts[byCount[j]]
 		}
 		return byCount[i] < byCount[j]
 	})
-	q.pal = q.pal[:0]
-	for _, k := range byCount[:min(256, len(byCount))] {
+	for _, k := range byCount[:min(256-len(q.pal), len(byCount))] {
 		n := int64(q.counts[k])
 		q.table[k] = int16(len(q.pal))
 		q.pal = append(q.pal, color.RGBA{uint8(q.sums[k][0] / n), uint8(q.sums[k][1] / n), uint8(q.sums[k][2] / n), 255})

@@ -508,7 +508,37 @@ func (t *Terminal) present(t0 time.Time) error {
 		}
 	}
 
-	// ── STEP 1: add Kitty/Sixel images to the buffer (the pixel layer at the back) ──
+	// ── STEP 1: the cells ──
+	var diffErr error
+	diffOpts := buffer.DiffOptions{
+		TrueColor:  t.caps.TrueColor,
+		Colors256:  t.caps.Colors256,
+		EraseChar:  t.caps.EraseChar,
+		RepeatChar: t.caps.RepeatChar,
+		Hyperlinks: t.caps.Hyperlinks,
+		// A terminal that confirmed mode 2027 needs no cursor re-anchoring
+		// after each grapheme cluster.
+		ClusterWidths: t.caps.ClusterWidths,
+		ScrollRegions: t.caps.ScrollRegions,
+		InsertDelete:  t.caps.ScrollRegions,
+		// Draw already wrapped the frame in ?2026 above; wrapping again inside
+		// the encoder would nest the sequence.
+		SyncOutput: false,
+	}
+	if t.inline > 0 {
+		// Inline frames are emitted relative to the cursor, because the row the
+		// application starts on moves whenever the terminal scrolls.
+		t.writeBuf, diffErr = buffer.DiffInline(t.front, t.back, t.writeBuf, diffOpts)
+	} else {
+		t.writeBuf, diffErr = buffer.DiffWithOptions(t.front, t.back, t.writeBuf, diffOpts)
+	}
+	if diffErr != nil {
+		return diffErr
+	}
+
+	// ── STEP 2: the images, after the cells ──
+	// A Sixel or iTerm2 picture lives in the terminal's cells: sent before
+	// the diff, it was erased by the ECH for cells turning into RuneImage.
 	// The protocol detected when the terminal was created (or set with
 	// SetCapabilities). Detecting it again here read a dozen environment
 	// variables on every frame, and on Windows each read allocates.
@@ -547,6 +577,13 @@ func (t *Terminal) present(t0 time.Time) error {
 						t.writeBuf = append(t.writeBuf, escSeq...)
 					}
 				}
+				// Text drawn over a picture stays over it: sent again, after it.
+				if t.inline == 0 && t.repaintOver(imageRegions) {
+					t.front.IsDirty = true
+					if t.writeBuf, diffErr = buffer.DiffWithOptions(t.front, t.back, t.writeBuf, diffOpts); diffErr != nil {
+						return diffErr
+					}
+				}
 			}
 			if imagesChanged {
 				if cap(t.lastDrawnImages) >= len(imageRegions) {
@@ -566,34 +603,6 @@ func (t *Terminal) present(t0 time.Time) error {
 				t.lastDrawnImages = nil
 			}
 		}
-	}
-
-	// ── STEP 2: draw the ASCII buffer (ON TOP of the pixel layer) ──
-	var diffErr error
-	diffOpts := buffer.DiffOptions{
-		TrueColor:  t.caps.TrueColor,
-		Colors256:  t.caps.Colors256,
-		EraseChar:  t.caps.EraseChar,
-		RepeatChar: t.caps.RepeatChar,
-		Hyperlinks: t.caps.Hyperlinks,
-		// A terminal that confirmed mode 2027 needs no cursor re-anchoring
-		// after each grapheme cluster.
-		ClusterWidths: t.caps.ClusterWidths,
-		ScrollRegions: t.caps.ScrollRegions,
-		InsertDelete:  t.caps.ScrollRegions,
-		// Draw already wrapped the frame in ?2026 above; wrapping again inside
-		// the encoder would nest the sequence.
-		SyncOutput: false,
-	}
-	if t.inline > 0 {
-		// Inline frames are emitted relative to the cursor, because the row the
-		// application starts on moves whenever the terminal scrolls.
-		t.writeBuf, diffErr = buffer.DiffInline(t.front, t.back, t.writeBuf, diffOpts)
-	} else {
-		t.writeBuf, diffErr = buffer.DiffWithOptions(t.front, t.back, t.writeBuf, diffOpts)
-	}
-	if diffErr != nil {
-		return diffErr
 	}
 
 	if len(t.writeBuf) == bodyStart {
@@ -632,6 +641,24 @@ func (t *Terminal) copyWidgetStats() {
 	}
 	t.lastWidgetStats = make([]WidgetStat, len(t.frame.WidgetStats))
 	copy(t.lastWidgetStats, t.frame.WidgetStats)
+}
+
+// repaintOver marks for the diff the cells in the pictures' areas that are
+// not RuneImage, and says whether there were any.
+func (t *Terminal) repaintOver(regions []ImageRegion) bool {
+	w, h := int(t.front.Area.Width), int(t.front.Area.Height)
+	found := false
+	for _, reg := range regions {
+		for y := int(reg.Area.Y); y < min(h, int(reg.Area.Y)+int(reg.Area.Height)); y++ {
+			for x := int(reg.Area.X); x < min(w, int(reg.Area.X)+int(reg.Area.Width)); x++ {
+				if i := y*w + x; t.front.Content[i].Content != cell.RuneImage {
+					t.back.Content[i].Content = cell.RuneInvalid
+					found = true
+				}
+			}
+		}
+	}
+	return found
 }
 
 // clippedImageRegions intentionally preserves native image placements.

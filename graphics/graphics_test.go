@@ -385,3 +385,40 @@ func BenchmarkEncodeSixelPhoto(b *testing.B) {
 		_ = EncodeSixel(img, 22, 11, 9, 19, false)
 	}
 }
+
+// A flat background around a picture of more colours than the palette
+// holds keeps its own colour, undithered: it was put in a five-bit colour
+// with whatever else fell in it, and drawn as their average, so the picture
+// showed as a box against the same colour in the cells around it.
+func TestEncodeSixelKeepsAFlatBackgroundExact(t *testing.T) {
+	bg := color.RGBA{0x25, 0x2e, 0x25, 255}
+	img := image.NewRGBA(image.Rect(0, 0, 60, 24))
+	for y := 0; y < 24; y++ {
+		for x := 0; x < 60; x++ {
+			c := bg
+			switch {
+			case y < 6: // the first band
+			case x%2 == 0: // colours near the background, in its five-bit colour
+				c = color.RGBA{0x20 + uint8(x/2%8), 0x28 + uint8(y%8), 0x20 + uint8(x*y%8), 255}
+			default: // and a colour for every other pixel
+				c = color.RGBA{uint8(x * 4), uint8(y * 10), uint8(x*y) | 1, 255}
+			}
+			img.SetRGBA(x, y, c)
+		}
+	}
+	out := EncodeSixel(img, 6, 2, 10, 12, false)
+	defs := map[string]string{}
+	end := 0
+	for _, m := range regexp.MustCompile(`#(\d+);2;(\d+;\d+;\d+)`).FindAllStringSubmatchIndex(out, -1) {
+		defs[out[m[2]:m[3]]] = out[m[4]:m[5]]
+		end = m[1]
+	}
+	band := out[end : end+strings.Index(out[end:], "-")] // the first, after the palette
+	used := regexp.MustCompile(`#(\d+)[^;\d]`).FindAllStringSubmatch(band, -1)
+	if len(used) != 1 {
+		t.Fatalf("the flat band is drawn in %d colours, want 1: %q", len(used), band)
+	}
+	if got, want := defs[used[0][1]], "15;18;15"; got != want {
+		t.Fatalf("the background is %s%%, want %s%%", got, want)
+	}
+}

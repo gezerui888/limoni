@@ -8,6 +8,22 @@ a patch bump (`v0.x.y`) does not.
 
 ## [Unreleased]
 
+## [v0.12.1] — 2026-10-14
+
+### Fixed
+- A Sixel picture no longer spills into the row below. Without the raster
+  attributes' size, the last band's six rows were all drawn, past the
+  picture's bottom edge.
+- A Sixel or iTerm2 picture is sent after the cells instead of before them.
+  Sent first, it was erased by the `ECH` that cleared the cells turning into
+  the picture's area; text drawn over a picture is sent again after it, so
+  it stays on top. `TestSixelPictureGoesOutAfterTheCells`.
+- A flat background in a Sixel picture of more than 256 colours keeps its
+  exact colour, so it matches the cells around the picture. Colours that
+  cover a share of the picture get their own palette entries (up to half the
+  palette) and are not dithered, and channels are rounded instead of cut.
+  `TestEncodeSixelKeepsAFlatBackgroundExact`.
+
 ### Added
 - `examples/file_browser` (FilePicker, CodeView, SplitPane, StatusBar and
   Autocomplete) and `examples/dashboard_gauges` (BigText, Gauge, LineGauge and a
@@ -841,7 +857,8 @@ a patch bump (`v0.x.y`) does not.
 ## v0.1.0 – v0.1.8
 See the [GitHub releases](https://github.com/thebanri/limoni/releases).
 
-[Unreleased]: https://github.com/thebanri/limoni/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/thebanri/limoni/compare/v0.12.1...HEAD
+[v0.12.1]: https://github.com/thebanri/limoni/compare/v0.12.0...v0.12.1
 [v0.12.0]: https://github.com/thebanri/limoni/compare/v0.11.1...v0.12.0
 [v0.11.1]: https://github.com/thebanri/limoni/compare/v0.11.0...v0.11.1
 [v0.11.0]: https://github.com/thebanri/limoni/compare/v0.10.0...v0.11.0
