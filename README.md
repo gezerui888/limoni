@@ -267,6 +267,20 @@ lemondrop
 Or [play it in the browser](https://thebanri.github.io/limoni/?app=lemondrop), with sound and a
 world leaderboard.
 
+[**Lemon Snake**](apps/lemonsnake) is a snake that eats lemons. Every five, a monster climbs out of the far
+corner and hunts the head; spit the seeds your lemons bring at it, and where it steps on
+the body it bites the rest off. Every level is faster, and so is its monster. `t` switches between five
+colour themes at any time. It glides in half-block pixels, plays soft synthesised sounds, and
+sends finished runs to the same shared leaderboard as Lemon Drop.
+
+```bash
+go install github.com/thebanri/limoni/apps/lemonsnake@latest
+lemonsnake
+```
+
+Or [play it in the browser](https://thebanri.github.io/limoni/?app=lemonsnake), with its sound and the
+world leaderboard.
+
 <p align="center"><img src="assets/pikap.gif" alt="pikap playing its demo record: the needle is put down half-way in, the record is dragged back and forth to scratch, then it is drawn in ASCII" /></p>
 
 [**pikap**](apps/pikap) is a record player drawn in half blocks (or ASCII). It follows whatever the computer is playing

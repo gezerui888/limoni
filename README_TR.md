@@ -251,6 +251,19 @@ lemondrop
 Ya da [tarayıcıda oyna](https://thebanri.github.io/limoni/?app=lemondrop); sesi ve dünya skor
 tablosu da var.
 
+[**Lemon Snake**](apps/lemonsnake) limon yiyen bir yılan. Her beş limonda uzak köşeden bir canavar çıkar ve
+başın peşine düşer; yediğin her limon iki çekirdek getirir, onları canavara tükür. Gövdeye basarsa oradan
+koparır. Her seviye daha hızlıdır, canavarı da. `t` beş renk teması arasında istediğin an geçer. Yarım blok piksellerle akıcı çizilir, yumuşak
+sentezlenmiş sesleri vardır ve biten oyunlar Lemon Drop'unkiyle aynı ortak skor tablosuna gider.
+
+```bash
+go install github.com/thebanri/limoni/apps/lemonsnake@latest
+lemonsnake
+```
+
+Ya da [tarayıcıda oyna](https://thebanri.github.io/limoni/?app=lemonsnake); sesi ve dünya skor
+tablosu da var.
+
 <p align="center"><img src="assets/pikap.gif" alt="pikap demo plağını çalıyor: iğne plağın ortasına konuyor, plak ileri geri sürüklenip scratch yapılıyor, sonra ASCII ile çiziliyor" /></p>
 
 [**pikap**](apps/pikap) yarım bloklarla (istersen ASCII ile) çizilmiş bir pikap. Bilgisayarda o an ne çalıyorsa onu izler

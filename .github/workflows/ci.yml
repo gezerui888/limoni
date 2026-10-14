@@ -246,6 +246,27 @@ jobs:
           GOOS=js GOARCH=wasm go -C "$work/lemondrop" build -o /dev/null .
           echo "ok   lemondrop builds against this checkout as well as against the release"
 
+      # Lemon Snake, the same way: a frame, through the diff, allocates
+      # nothing, dialogs included.
+      - name: apps/lemonsnake
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          go -C apps/lemonsnake vet ./...
+          go -C apps/lemonsnake test ./...
+          test -z "$(gofmt -l apps/lemonsnake)" || { gofmt -l apps/lemonsnake; exit 1; }
+
+          work=$(mktemp -d)
+          cp -r apps/lemonsnake "$work/lemonsnake"
+          go -C "$work/lemonsnake" mod edit -replace github.com/thebanri/limoni="$PWD"
+          go -C "$work/lemonsnake" mod tidy
+          go -C "$work/lemonsnake" build ./...
+          go -C "$work/lemonsnake" test ./...
+          GOOS=js GOARCH=wasm go -C "$work/lemonsnake" vet ./...
+          GOOS=js GOARCH=wasm go -C "$work/lemonsnake" build -o /dev/null .
+          echo "ok   lemonsnake builds against this checkout as well as against the release"
+
       # pikap, the record player. Its MPRIS tests start a dbus-daemon of their
       # own (and skip without one), so they never touch a session bus; the
       # macOS and Windows builds take the path without MPRIS.
@@ -423,6 +444,6 @@ jobs:
         run: |
           set -euo pipefail
           go -C apps/scoreboard test -race -count=1 -p 1 -v ./... | tee /tmp/pg.out
-          for test in TestTheBoardSurvivesARestart/postgres TestTheLimitHoldsForRunsSentAtOnce/postgres TestTheFunctionServesTheBoard TestTheServerOverALazyDatabase TestDropRunsAreScoredByTheServerAndRanked/postgres TestTheFunctionServesLemonDropsBoard; do
+          for test in TestTheBoardSurvivesARestart/postgres TestTheLimitHoldsForRunsSentAtOnce/postgres TestTheFunctionServesTheBoard TestTheServerOverALazyDatabase TestDropRunsAreScoredByTheServerAndRanked/postgres TestTheFunctionServesLemonDropsBoard TestSnakeRunsAreScoredByTheServerAndRanked/postgres TestTheFunctionServesLemonSnakesBoard; do
             grep -q -- "--- PASS: $test " /tmp/pg.out || { echo "FAIL $test did not run"; exit 1; }
           done
