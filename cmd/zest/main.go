@@ -7,7 +7,7 @@
 //	zest -level warn -filter timeout app.log
 //	zest -demo 1000000                # a generated log, for trying it out
 //
-// Keys: / filter · 1–6 minimum level · Enter details · f follow · ↑↓ PgUp PgDn
+// Keys: / filter · 1–6 minimum level (l the next one) · Enter details · f follow · ↑↓ PgUp PgDn
 // Home End scroll · ←→ scroll sideways · ? help · q quit.
 package main
 

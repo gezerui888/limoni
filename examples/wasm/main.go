@@ -86,6 +86,7 @@ func newPlayground() *playground {
 		{title: "About", view: (*playground).viewAbout},
 	}
 	m.zest = zestapp.NewViewer("demo log")
+	m.zest.UseLevelDigits(false)
 	return m
 }
 
@@ -131,10 +132,14 @@ func (m *playground) Update(msg engine.Msg) engine.UpdateResult {
 }
 
 func (m *playground) handleKey(key driver.KeyEvent) engine.UpdateResult {
-	// In the zest scene every key but Tab belongs to the viewer, digits
-	// included: they pick its minimum level. Esc and q would quit zest; in
-	// a browser tab there is nothing to quit to, so they are just ignored.
-	if m.scenes[m.active].title == "Logs · zest" && key.Type != driver.KeyTab {
+	// In the zest scene the keys belong to the viewer, but for Tab and the
+	// digits, which switch scenes here as everywhere else (the viewer steps
+	// through levels with l instead: UseLevelDigits). When its filter has
+	// the keyboard, digits are text and go to it. Esc and q would quit
+	// zest; in a browser tab there is nothing to quit to, so they are just
+	// ignored.
+	digit := key.Type == driver.KeyRune && key.Ch >= '1' && key.Ch <= '9' && !key.Ctrl && !key.Alt
+	if m.scenes[m.active].title == "Logs · zest" && key.Type != driver.KeyTab && (!digit || m.zest.Editing()) {
 		m.zest.Key(key)
 		return engine.UpdateResult{Redraw: true}
 	}

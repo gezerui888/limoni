@@ -39,6 +39,9 @@ type Viewer struct {
 	editing bool // the filter input has the keyboard
 	details bool
 	help    bool
+	// noDigits leaves 1–6 to the application around the viewer, which uses
+	// them itself; l still steps through the levels.
+	noDigits bool
 
 	minLevel   widgets.LogLevel
 	detail     detailCache
@@ -126,6 +129,16 @@ func (u *Viewer) Draw(f *limoni.Frame, area limoni.Rect) {
 	}
 }
 
+// UseLevelDigits says whether keys 1–6 pick the minimum level, as they do
+// by default. An application that embeds the viewer and uses the digits
+// itself — the playground switches its scenes with them — turns it off;
+// l still steps through the levels, and the footer and help say so.
+func (u *Viewer) UseLevelDigits(on bool) { u.noDigits = !on }
+
+// Editing reports whether the filter input has the keyboard, so that an
+// application around the viewer passes it every key, digits included.
+func (u *Viewer) Editing() bool { return u.editing }
+
 // Key handles one key press. It returns false when the key asks to quit.
 func (u *Viewer) Key(k driver.KeyEvent) bool {
 	if u.help {
@@ -158,10 +171,17 @@ func (u *Viewer) Key(k driver.KeyEvent) bool {
 		return false
 	case k.Type == driver.KeyRune && k.Ch == '/':
 		u.editing = true
-	case k.Type == driver.KeyRune && k.Ch >= '1' && k.Ch <= '6':
-		u.minLevel = levelKeys[k.Ch-'1']
-		u.view.setFilter(u.filter.Value(), u.minLevel)
-		u.state.Follow, u.state.Selected = true, -1
+	case k.Type == driver.KeyRune && k.Ch >= '1' && k.Ch <= '6' && !u.noDigits:
+		u.setLevel(levelKeys[k.Ch-'1'])
+	case k.Type == driver.KeyRune && k.Ch == 'l':
+		// The next level up, and from fatal back to everything.
+		next := levelKeys[0]
+		for i, l := range levelKeys[:len(levelKeys)-1] {
+			if l == u.minLevel {
+				next = levelKeys[i+1]
+			}
+		}
+		u.setLevel(next)
 	case k.Type == driver.KeyEnter:
 		u.details = !u.details
 		if u.details && u.state.Selected < 0 && u.view.Len() > 0 {
@@ -178,6 +198,12 @@ func (u *Viewer) Key(k driver.KeyEvent) bool {
 		u.state.HandleKey(k, u.view.Len())
 	}
 	return true
+}
+
+func (u *Viewer) setLevel(l widgets.LogLevel) {
+	u.minLevel = l
+	u.view.setFilter(u.filter.Value(), u.minLevel)
+	u.state.Follow, u.state.Selected = true, -1
 }
 
 // levelKeys maps keys 1–6 to the minimum level shown: everything, then
@@ -285,7 +311,11 @@ func (u *Viewer) drawFooter(f *limoni.Frame, area limoni.Rect) {
 		x += w
 	}
 	if x < area.X+area.Width {
-		f.RenderWidget(&widgets.Paragraph{ID: "keys", Text: " / filter  1-6 level  ⏎ details  f follow  g top  G end  ? help  q quit", Style: dimStyle}, limoni.NewRect(x, area.Y, area.X+area.Width-x, 1))
+		keys := " / filter  1-6 level  ⏎ details  f follow  g top  G end  ? help  q quit"
+		if u.noDigits {
+			keys = " / filter  l level  ⏎ details  f follow  g top  G end  ? help  q quit"
+		}
+		f.RenderWidget(&widgets.Paragraph{ID: "keys", Text: keys, Style: dimStyle}, limoni.NewRect(x, area.Y, area.X+area.Width-x, 1))
 	}
 }
 
@@ -305,12 +335,24 @@ func (u *Viewer) drawDetails(f *limoni.Frame, area limoni.Rect) {
 
 const helpText = `/          filter: show lines containing text (Enter keeps it, Esc clears)
 1 … 6      minimum level: all, debug, info, warn, error, fatal
+l          the next minimum level, round to all again
 Enter      details: the selected line's fields, pretty-printed
 f          follow new lines on and off (scrolling up pauses it)
 ↑ ↓ j k    move · PgUp PgDn page · Home g top · End G bottom
 ← →        scroll sideways
 Esc        clear filters (staying on the line), close details, quit
 q          quit`
+
+// helpText is the help, without the digits where the application around
+// the viewer has them.
+func (u *Viewer) helpText() string {
+	if u.noDigits {
+		return helpNoDigits
+	}
+	return helpText
+}
+
+var helpNoDigits = strings.Replace(helpText, "1 … 6      minimum level: all, debug, info, warn, error, fatal\n", "", 1)
 
 func (u *Viewer) drawHelp(f *limoni.Frame, area limoni.Rect) {
 	w, h := uint16(74), uint16(12)
@@ -324,7 +366,7 @@ func (u *Viewer) drawHelp(f *limoni.Frame, area limoni.Rect) {
 	f.RenderWidget(widgets.Block{
 		Title: " zest keys ", Borders: widgets.BorderAll, BorderSymbols: widgets.SymbolsRounded,
 		Style: cell.Style{Bg: cell.NewColorRGB(25, 27, 35)}, BorderStyle: cell.Style{Fg: cell.NewColorRGB(250, 210, 60)},
-		PaddingLeft: 1, Child: &widgets.Paragraph{ID: "help", Text: helpText},
+		PaddingLeft: 1, Child: &widgets.Paragraph{ID: "help", Text: u.helpText()},
 	}, box)
 }
 

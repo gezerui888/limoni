@@ -104,3 +104,50 @@ func TestKeyHintsAreInTheTree(t *testing.T) {
 		t.Fatalf("status with a filter: %q", got)
 	}
 }
+
+// l steps through the levels, and wraps round to everything. With the
+// digits given up to the application around the viewer (the playground
+// switches scenes with them), a digit does nothing here and the hints say
+// l; the filter still takes digits as text.
+func TestLStepsTheLevelAndTheDigitsCanBeLeftAlone(t *testing.T) {
+	s := &store{}
+	for i := 1; i <= 400; i++ {
+		level := "info"
+		switch {
+		case i%100 == 0:
+			level = "error"
+		case i%20 == 0:
+			level = "warn"
+		}
+		s.add([]byte(level + " job " + strconv.Itoa(i)))
+	}
+	v := &view{src: s}
+	u := newViewer("t", s, v)
+	u.UseLevelDigits(false)
+	page := uitest.Run(t, 120, 30, u.Frame)
+	v.wake = func() {}
+	log := page.GetByID("log")
+	rows := page.GetByRole("list-item", "").Within(log)
+
+	if got := page.GetByID("keys").Node().Value; !strings.Contains(got, "l level") || strings.Contains(got, "1-6") {
+		t.Fatalf("hints with the digits given up: %q", got)
+	}
+	page.Press("5")
+	page.Expect(rows).ToHaveCount(28) // the pane's height: no filter
+	for range 4 {                     // debug, info, warn, error
+		page.Press("l")
+	}
+	page.Expect(rows).ToHaveCount(4) // 400/100
+	page.Press("l")                  // fatal: none
+	page.Expect(rows).ToHaveCount(0)
+	page.Press("l") // and round to everything
+	page.Expect(rows).ToHaveCount(28)
+
+	page.Press("/")
+	if !u.Editing() {
+		t.Fatal("the filter does not report that it has the keyboard")
+	}
+	page.GetByID("filter").Type("job 300")
+	page.Press("enter")
+	page.Expect(rows).ToHaveCount(1)
+}

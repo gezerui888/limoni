@@ -51,10 +51,20 @@ const beforeZest = captured.length;
 if (typeof globalThis.__limoni_input === "function") {
   globalThis.__limoni_input("3"); // "Logs · zest"
   await new Promise((r) => setTimeout(r, 2500));
-  globalThis.__limoni_input("5"); // errors and worse
+  // l steps the level: debug, info, warn, error. The digits switch
+  // scenes here, zest's included.
+  for (let i = 0; i < 4; i++) globalThis.__limoni_input("l");
   await new Promise((r) => setTimeout(r, 1500));
 }
-const zestOut = captured.slice(beforeZest);
+const zestOutEnd = captured.length;
+// A digit in the zest scene switches scenes, as it does everywhere else:
+// it used to go to the viewer and leave the reader stuck there.
+if (typeof globalThis.__limoni_input === "function") {
+  globalThis.__limoni_input("5"); // "About"
+  await new Promise((r) => setTimeout(r, 800));
+}
+const leftZest = captured.slice(zestOutEnd);
+const zestOut = captured.slice(beforeZest, zestOutEnd);
 
 const checks = [
   ["alternate screen  (?1049h)", "\x1b[?1049h"],
@@ -102,4 +112,6 @@ for (const [label, fragment] of zestChecks) {
 }
 
 console.log(`\nfirst 120 bytes emitted: ${JSON.stringify(captured.slice(0, 120))}`);
-process.exit(missing === 0 && zestMissing === 0 && inputRegistered && resizeRegistered ? 0 : 1);
+const digitLeftZest = leftZest.includes("About Limoni");
+console.log(`  ${digitLeftZest ? "OK     " : "MISSING"}  5 in the zest scene opens About, not a zest level`);
+process.exit(missing === 0 && zestMissing === 0 && digitLeftZest && inputRegistered && resizeRegistered ? 0 : 1);
