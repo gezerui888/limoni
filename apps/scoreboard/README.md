@@ -87,9 +87,10 @@ non-commercial projects, which this is) and Neon's Free plan.
    `examples/wasm/index.html` (`scoreboard:` under `castle-lemonstein`), and push.
    The playground is rebuilt from `main` and uses it from then on.
 
-In **Settings → Git**, an **Ignored Build Step** of
-`git diff --quiet HEAD^ HEAD -- .` keeps changes elsewhere in the repository
-from redeploying it.
+A push does not deploy it: `vercel.json` turns off Git deployments, so
+commits to the rest of the repository neither rebuild the board nor carry a
+Vercel check. After changing the board, deploy it by hand: **Create
+Deployment** with `main`, or `vercel --prod` from `apps/scoreboard`.
 
 Two things this was not able to check before it was written, having no
 Vercel account to try it on: the Go version Vercel builds with (the module
@@ -106,8 +107,8 @@ If `/healthz` answers 404:
   Directory**.
 - Check which commit the deployment was built from (the deployment's page
   names it). **Redeploy** builds the same commit again; a project made before
-  `apps/scoreboard` reached `main` needs a deployment of a newer commit,
-  which the next push to `main` makes, or **Create Deployment** with `main`.
+  `apps/scoreboard` reached `main` needs a deployment of a newer commit:
+  **Create Deployment** with `main`.
 - A build log warning that "internal rewrites in backend framework projects
   now route requests using the rewritten destination path" means the Go
   preset is running `main.go`, and `vercel.json` hands it `/api/healthz` for
