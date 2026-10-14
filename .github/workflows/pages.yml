@@ -98,6 +98,7 @@ jobs:
           # these reach the site and nobody who imports Limoni.
           mkdir -p site/img
           cp assets/lemonsnake.png assets/lemondrop.png assets/castle-lemonstein.png assets/limoni.png site/img/
+          cp assets/limoni-logo.svg site/img/logo.svg
           # wasm_exec.js must match the toolchain that produced the module.
           # Go moved it from misc/wasm to lib/wasm in 1.24; support both.
           if [ -f "$(go env GOROOT)/lib/wasm/wasm_exec.js" ]; then

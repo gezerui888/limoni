@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Limoni">
+  <defs>
+    <radialGradient id="flesh" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#fff6b0"/>
+      <stop offset="0.55" stop-color="#ffe14d"/>
+      <stop offset="1" stop-color="#ffcc1a"/>
+    </radialGradient>
+    <radialGradient id="dome" cx="38%" cy="20%" r="85%">
+      <stop offset="0" stop-color="#ffe04a"/>
+      <stop offset="0.6" stop-color="#f5b800"/>
+      <stop offset="1" stop-color="#d99400"/>
+    </radialGradient>
+  </defs>
+  <path d="M3 29 C3 49 16 59 32 59.5 C48 59 61 49 61 29 Z" fill="url(#dome)" stroke="#b97f00" stroke-width="1.2" stroke-linejoin="round"/>
+  <path d="M28.5 59 Q32 63.5 35.5 59 Z" fill="#e5a600" stroke="#b97f00" stroke-width="1" stroke-linejoin="round"/>
+  <path d="M9 41 Q14 51 24 55" fill="none" stroke="#fff3b0" stroke-width="2" stroke-linecap="round" opacity="0.55"/>
+  <g transform="translate(32 29) scale(1 0.66) translate(-32 -32)">
+    <circle cx="32" cy="32" r="29" fill="#f2c200" stroke="#b97f00" stroke-width="1.6"/>
+    <circle cx="32" cy="32" r="25.2" fill="#fff4cc"/>
+    <g fill="url(#flesh)">
+      <path d="M33.30 28.01 L32.68 13.41 Q33.05 9.82 33.92 10.49 A21.6 21.6 0 0 1 43.09 13.47 Q44.19 13.45 42.37 16.56 Z"/>
+      <path d="M35.40 29.53 L43.48 17.36 Q45.88 14.67 46.20 15.72 A21.6 21.6 0 0 1 51.87 23.53 Q52.77 24.15 49.47 25.61 Z"/>
+      <path d="M36.20 32.00 L49.89 26.90 Q53.41 26.14 53.05 27.18 A21.6 21.6 0 0 1 53.05 36.82 Q53.41 37.86 49.89 37.10 Z"/>
+      <path d="M35.40 34.47 L49.47 38.39 Q52.77 39.85 51.87 40.47 A21.6 21.6 0 0 1 46.20 48.28 Q45.88 49.33 43.48 46.64 Z"/>
+      <path d="M33.30 35.99 L42.37 47.44 Q44.19 50.55 43.09 50.53 A21.6 21.6 0 0 1 33.92 53.51 Q33.05 54.18 32.68 50.59 Z"/>
+      <path d="M30.70 35.99 L31.32 50.59 Q30.95 54.18 30.08 53.51 A21.6 21.6 0 0 1 20.91 50.53 Q19.81 50.55 21.63 47.44 Z"/>
+      <path d="M28.60 34.47 L20.52 46.64 Q18.12 49.33 17.80 48.28 A21.6 21.6 0 0 1 12.13 40.47 Q11.23 39.85 14.53 38.39 Z"/>
+      <path d="M27.80 32.00 L14.11 37.10 Q10.59 37.86 10.95 36.82 A21.6 21.6 0 0 1 10.95 27.18 Q10.59 26.14 14.11 26.90 Z"/>
+      <path d="M28.60 29.53 L14.53 25.61 Q11.23 24.15 12.13 23.53 A21.6 21.6 0 0 1 17.80 15.72 Q18.12 14.67 20.52 17.36 Z"/>
+      <path d="M30.70 28.01 L21.63 16.56 Q19.81 13.45 20.91 13.47 A21.6 21.6 0 0 1 30.08 10.49 Q30.95 9.82 31.32 13.41 Z"/>
+    </g>
+    <circle cx="32" cy="32" r="2.6" fill="#fff4cc"/>
+  </g>
+  <path d="M14 22 Q20 15.5 29 14.2" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" opacity="0.7"/>
+</svg>

@@ -9,6 +9,7 @@
   <meta property="og:title" content="Limoni — a Go TUI engine, running in your browser">
   <meta property="og:description" content="Zero-allocation terminal UI engine for Go, with a built-in 3D rasteriser. Compiled to WebAssembly — no install required.">
   <meta property="og:type" content="website">
+  <link rel="icon" type="image/svg+xml" href="img/logo.svg">
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.css" />
   <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js"></script>
@@ -74,7 +75,7 @@
       display: flex; align-items: center; gap: 8px; flex-shrink: 0;
       font-weight: 750; font-size: 17px; color: #fff; text-decoration: none; letter-spacing: -0.01em;
     }
-    .brand .lemon { font-size: 21px; filter: drop-shadow(0 0 10px rgba(255, 216, 74, 0.45)); }
+    .brand img { width: 28px; height: 28px; filter: drop-shadow(0 0 8px rgba(255, 216, 74, 0.35)); }
     .nav {
       display: flex; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: none;
       margin: 0 auto;
@@ -112,6 +113,18 @@
     body.big main { max-width: none; }
 
     header.hero { text-align: center; margin-bottom: 22px; max-width: 720px; }
+    /* The half lemon over the playground's heading, bobbing slowly. */
+    .hero-logo {
+      display: none; width: 76px; height: 76px; margin: 0 auto 14px;
+      filter: drop-shadow(0 10px 22px rgba(255, 200, 40, 0.35));
+      animation: bob 4.5s ease-in-out infinite;
+    }
+    body.app-playground .hero-logo { display: block; }
+    @keyframes bob {
+      0%, 100% { transform: translateY(0) rotate(-4deg); }
+      50% { transform: translateY(-6px) rotate(4deg); }
+    }
+    @media (prefers-reduced-motion: reduce) { .hero-logo { animation: none; } }
     .hero h1 {
       font-size: 34px; line-height: 1.15; font-weight: 800; color: #fff; letter-spacing: -0.02em;
       margin-bottom: 10px;
@@ -238,6 +251,7 @@
     }
     .poster.hidden { display: none; }
     .poster .emblem { font-size: 46px; line-height: 1; filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.6)); }
+    .poster .emblem img { width: 64px; height: 64px; display: block; }
     .poster h2 { font-size: 22px; color: #fff; font-weight: 750; letter-spacing: -0.01em; }
     .poster p { font-size: 14px; color: var(--muted); max-width: 460px; line-height: 1.6; }
     .poster p strong { color: var(--text); }
@@ -332,7 +346,7 @@
 </head>
 <body>
   <nav class="topbar" aria-label="Limoni">
-    <a class="brand" href="./"><span class="lemon">🍋</span><span class="word">Limoni</span></a>
+    <a class="brand" href="./"><img src="img/logo.svg" alt="" width="28" height="28"><span class="word">Limoni</span></a>
     <div class="nav">
       <a href="./" data-app="playground">Playground</a>
       <a href="?app=lemonsnake" data-app="lemonsnake">🐍 Lemon Snake <span class="new">NEW</span></a>
@@ -347,6 +361,7 @@
 
   <main>
     <header class="hero">
+      <img class="hero-logo" src="img/logo.svg" alt="" width="76" height="76">
       <h1 id="hero-title">A terminal UI engine for Go, <span class="grad">in your browser</span></h1>
       <p id="hero-text">
         Zero heap allocations on the render path, a built-in 3D rasteriser, charts and an
@@ -372,7 +387,7 @@
       <div id="terminal"></div>
 
       <div class="poster" id="poster">
-        <div class="emblem" id="poster-emblem">🍋</div>
+        <div class="emblem" id="poster-emblem"><img src="img/logo.svg" alt=""></div>
         <h2 id="poster-title">Run Limoni in this tab</h2>
         <p id="poster-text">
           Downloads about <strong>1.5 MB</strong> (a 6 MB WebAssembly module, compressed).
@@ -425,7 +440,7 @@
         <a class="card" href="./" data-app="playground" style="--card: #5ee3c0">
           <img src="img/limoni.png" alt="Limoni's charts demo: line, bar and pie charts in the terminal" loading="lazy">
           <div class="body">
-            <h3>🍋 The playground</h3>
+            <h3><img src="img/logo.svg" alt="" width="20" height="20"> The playground</h3>
             <p>The engine itself: widgets, charts, a 3D scene and forms, in one tabbed demo.</p>
             <span class="go">Open →</span>
           </div>
