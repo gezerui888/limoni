@@ -45,7 +45,7 @@ func forEachStore(t *testing.T, test func(t *testing.T, open func() Store)) {
 			t.Fatal(err)
 		}
 		t.Cleanup(first.Close)
-		if _, err := first.pool.Exec(context.Background(), `TRUNCATE runs; TRUNCATE posts; TRUNCATE drop_runs`); err != nil {
+		if _, err := first.pool.Exec(context.Background(), `TRUNCATE runs; TRUNCATE posts; TRUNCATE drop_runs; TRUNCATE snake_runs`); err != nil {
 			t.Fatal(err)
 		}
 		test(t, func() Store {

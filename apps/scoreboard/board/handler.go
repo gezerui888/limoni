@@ -34,6 +34,14 @@ type DropStore interface {
 	Allow(ctx context.Context, addr string, now time.Time) (bool, error)
 }
 
+// SnakeStore keeps Lemon Snake's runs, beside the others: every store here
+// is one.
+type SnakeStore interface {
+	TopSnake(ctx context.Context, n int) ([]SnakeEntry, error)
+	AddSnake(ctx context.Context, e SnakeEntry) (int, error)
+	Allow(ctx context.Context, addr string, now time.Time) (bool, error)
+}
+
 // Config is how the handler is set up.
 type Config struct {
 	Store Store
@@ -60,6 +68,13 @@ func Scores(c Config) http.Handler { return newHandler(c) }
 func DropScores(c Config) http.Handler {
 	ds, _ := c.Store.(DropStore)
 	return &dropHandler{handler: newHandler(c), store: ds}
+}
+
+// SnakeScores serves Lemon Snake's board as Scores does Castle Lemonstein's.
+// The store must be a SnakeStore too.
+func SnakeScores(c Config) http.Handler {
+	ss, _ := c.Store.(SnakeStore)
+	return &snakeHandler{handler: newHandler(c), store: ss}
 }
 
 func newHandler(c Config) *handler {
@@ -93,17 +108,19 @@ func Health() http.Handler {
 // the rewritten path — /api/healthz for /healthz. So the server answers on
 // both.
 func New(c Config) http.Handler {
-	scores, drop, health := Scores(c), DropScores(c), Health()
+	scores, drop, snake, health := Scores(c), DropScores(c), SnakeScores(c), Health()
 	mux := http.NewServeMux()
 	mux.Handle("/scores", scores)
 	mux.Handle("/api/scores", scores)
 	mux.Handle("/drop/scores", drop)
 	mux.Handle("/api/drop/scores", drop)
+	mux.Handle("/snake/scores", snake)
+	mux.Handle("/api/snake/scores", snake)
 	mux.Handle("/healthz", health)
 	mux.Handle("/api/healthz", health)
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		_, _ = w.Write([]byte("Castle Lemonstein's shared leaderboard. The best ten are at /scores, and Lemon Drop's at /drop/scores.\n"))
+		_, _ = w.Write([]byte("Castle Lemonstein's shared leaderboard. The best ten are at /scores, Lemon Drop's at /drop/scores, and Lemon Snake's at /snake/scores.\n"))
 	})
 	return mux
 }
@@ -293,6 +310,77 @@ func (h *dropHandler) submit(w http.ResponseWriter, r *http.Request) {
 func nonNilDrop(e []DropEntry) []DropEntry {
 	if e == nil {
 		return []DropEntry{}
+	}
+	return e
+}
+
+// snakeHandler is Lemon Snake's board: the same answers in the same shapes,
+// over its own runs.
+type snakeHandler struct {
+	*handler
+	store SnakeStore
+}
+
+func (h *snakeHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.cors(w, r)
+	switch {
+	case r.Method == http.MethodOptions:
+		w.WriteHeader(http.StatusNoContent)
+	case h.store == nil:
+		h.fail(w, "serving Lemon Snake", errors.New("the store keeps no Lemon Snake runs"))
+	case r.Method == http.MethodGet:
+		top, err := h.store.TopSnake(r.Context(), SnakeShown)
+		if err != nil {
+			h.fail(w, "reading Lemon Snake's board", err)
+			return
+		}
+		w.Header().Set("Cache-Control", "no-store")
+		writeJSON(w, http.StatusOK, map[string]any{"board": nonNilSnake(top)})
+	case r.Method == http.MethodPost:
+		h.submit(w, r)
+	default:
+		w.Header().Set("Allow", "GET, POST, OPTIONS")
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "GET or POST"})
+	}
+}
+
+func (h *snakeHandler) submit(w http.ResponseWriter, r *http.Request) {
+	ok, err := h.store.Allow(r.Context(), clientAddr(r), h.now())
+	if err != nil {
+		h.fail(w, "counting runs", err)
+		return
+	}
+	if !ok {
+		writeJSON(w, http.StatusTooManyRequests, map[string]string{"error": "too many runs, too quickly"})
+		return
+	}
+	var run SnakeRun
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, SnakeBody))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&run); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "not a run: " + err.Error()})
+		return
+	}
+	if err := run.Check(); err != nil {
+		writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
+		return
+	}
+	rank, err := h.store.AddSnake(r.Context(), run.Entry(h.now()))
+	if err != nil {
+		h.fail(w, "adding the run", err)
+		return
+	}
+	top, err := h.store.TopSnake(r.Context(), SnakeShown)
+	if err != nil {
+		h.fail(w, "reading Lemon Snake's board", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"rank": rank, "board": nonNilSnake(top)})
+}
+
+func nonNilSnake(e []SnakeEntry) []SnakeEntry {
+	if e == nil {
+		return []SnakeEntry{}
 	}
 	return e
 }

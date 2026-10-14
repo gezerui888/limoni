@@ -5,6 +5,7 @@
   "rewrites": [
     { "source": "/scores", "destination": "/api/scores" },
     { "source": "/drop/scores", "destination": "/api/drop/scores" },
+    { "source": "/snake/scores", "destination": "/api/snake/scores" },
     { "source": "/healthz", "destination": "/api/healthz" }
   ]
 }

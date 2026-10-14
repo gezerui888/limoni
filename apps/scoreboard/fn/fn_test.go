@@ -24,7 +24,7 @@ func TestTheFunctionServesTheBoard(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer conn.Close(context.Background())
-	_, _ = conn.Exec(context.Background(), `TRUNCATE runs; TRUNCATE posts; TRUNCATE drop_runs`)
+	_, _ = conn.Exec(context.Background(), `TRUNCATE runs; TRUNCATE posts; TRUNCATE drop_runs; TRUNCATE snake_runs`)
 	t.Setenv("DATABASE_URL", url)
 
 	post := httptest.NewRequest("POST", "/api/scores", strings.NewReader(
@@ -86,6 +86,41 @@ func TestTheFunctionServesLemonDropsBoard(t *testing.T) {
 	}
 	w = httptest.NewRecorder()
 	DropScores(w, httptest.NewRequest("GET", "/drop/scores", nil))
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"Arslan"`) {
+		t.Errorf("GET: %d %s", w.Code, w.Body.String())
+	}
+}
+
+// Lemon Snake's board, as Vercel runs it: its own function, the same
+// database, whose table is made on first use there too.
+func TestTheFunctionServesLemonSnakesBoard(t *testing.T) {
+	url := os.Getenv("TEST_DATABASE_URL")
+	if url == "" {
+		t.Skip("TEST_DATABASE_URL is not set")
+	}
+	conn, err := pgx.Connect(context.Background(), url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close(context.Background())
+	t.Setenv("DATABASE_URL", url)
+	w := httptest.NewRecorder()
+	SnakeScores(w, httptest.NewRequest("GET", "/snake/scores", nil))
+	if w.Code != 200 {
+		t.Fatalf("GET: %d %s", w.Code, w.Body.String())
+	}
+	_, _ = conn.Exec(context.Background(), `TRUNCATE snake_runs; TRUNCATE posts`)
+
+	post := httptest.NewRequest("POST", "/api/snake/scores", strings.NewReader(
+		`{"name":"Arslan","secs":90,"levels":[[7,4],[3,0]]}`))
+	post.Header.Set("Origin", "https://thebanri.github.io")
+	w = httptest.NewRecorder()
+	SnakeScores(w, post)
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"score":250`) || !strings.Contains(w.Body.String(), `"rank":1`) {
+		t.Fatalf("POST: %d %s", w.Code, w.Body.String())
+	}
+	w = httptest.NewRecorder()
+	SnakeScores(w, httptest.NewRequest("GET", "/snake/scores", nil))
 	if w.Code != 200 || !strings.Contains(w.Body.String(), `"Arslan"`) {
 		t.Errorf("GET: %d %s", w.Code, w.Body.String())
 	}

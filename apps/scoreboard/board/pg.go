@@ -61,6 +61,15 @@ func OpenPG(ctx context.Context, url string) (*PG, error) {
 			level  integer NOT NULL,
 			secs   integer NOT NULL,
 			at     bigint  NOT NULL
+		);
+		CREATE TABLE IF NOT EXISTS snake_runs (
+			id     bigserial PRIMARY KEY,
+			name   text    NOT NULL,
+			score  bigint  NOT NULL,
+			level  integer NOT NULL,
+			lemons integer NOT NULL,
+			secs   integer NOT NULL,
+			at     bigint  NOT NULL
 		)`)
 	if err != nil {
 		pool.Close()
@@ -138,6 +147,22 @@ func (l *LazyPG) AddDrop(ctx context.Context, e DropEntry) (int, error) {
 		return 0, err
 	}
 	return pg.AddDrop(ctx, e)
+}
+
+func (l *LazyPG) TopSnake(ctx context.Context, n int) ([]SnakeEntry, error) {
+	pg, err := l.get(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return pg.TopSnake(ctx, n)
+}
+
+func (l *LazyPG) AddSnake(ctx context.Context, e SnakeEntry) (int, error) {
+	pg, err := l.get(ctx)
+	if err != nil {
+		return 0, err
+	}
+	return pg.AddSnake(ctx, e)
 }
 
 // order is the board's order: the higher score, then the run made first,
@@ -252,6 +277,49 @@ func (p *PG) AddDrop(ctx context.Context, e DropEntry) (int, error) {
 			rank = 0
 		}
 		_, err := tx.Exec(ctx, `DELETE FROM drop_runs WHERE id IN (SELECT id FROM drop_runs `+order+` OFFSET $1)`, Keep)
+		return err
+	})
+	return rank, err
+}
+
+// TopSnake is Top for Lemon Snake's board.
+func (p *PG) TopSnake(ctx context.Context, n int) ([]SnakeEntry, error) {
+	ctx, cancel := context.WithTimeout(ctx, pgTimeout)
+	defer cancel()
+	rows, err := p.pool.Query(ctx, `SELECT name, score, level, lemons, secs, at FROM snake_runs `+order+` LIMIT $1`, n)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (SnakeEntry, error) {
+		var e SnakeEntry
+		var score int64
+		err := r.Scan(&e.Name, &score, &e.Level, &e.Lemons, &e.Secs, &e.At)
+		e.Score = int(score)
+		return e, err
+	})
+}
+
+// AddSnake is Add for Lemon Snake's board.
+func (p *PG) AddSnake(ctx context.Context, e SnakeEntry) (int, error) {
+	ctx, cancel := context.WithTimeout(ctx, pgTimeout)
+	defer cancel()
+	rank := 0
+	err := pgx.BeginFunc(ctx, p.pool, func(tx pgx.Tx) error {
+		var id int64
+		if err := tx.QueryRow(ctx,
+			`INSERT INTO snake_runs (name, score, level, lemons, secs, at) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+			e.Name, int64(e.Score), e.Level, e.Lemons, e.Secs, e.At).Scan(&id); err != nil {
+			return err
+		}
+		if err := tx.QueryRow(ctx,
+			`SELECT count(*) + 1 FROM snake_runs WHERE score > $1 OR (score = $1 AND (at < $2 OR (at = $2 AND id < $3)))`,
+			int64(e.Score), e.At, id).Scan(&rank); err != nil {
+			return err
+		}
+		if rank > Keep {
+			rank = 0
+		}
+		_, err := tx.Exec(ctx, `DELETE FROM snake_runs WHERE id IN (SELECT id FROM snake_runs `+order+` OFFSET $1)`, Keep)
 		return err
 	})
 	return rank, err

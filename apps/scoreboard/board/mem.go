@@ -18,7 +18,8 @@ import (
 type Mem struct {
 	mu      sync.Mutex
 	entries []Entry
-	drops   []DropEntry // Lemon Drop's board, in drop.json beside it
+	drops   []DropEntry  // Lemon Drop's board, in drop.json beside it
+	snakes  []SnakeEntry // Lemon Snake's board, in snake.json beside it
 	path    string
 	posts   map[string][]time.Time // recent runs sent, by address
 }
@@ -38,6 +39,10 @@ func OpenMem(path string) (*Mem, error) {
 		return nil, err
 	}
 	m.sortDrops()
+	if err := readFile(m.snakePath(), &m.snakes); err != nil {
+		return nil, err
+	}
+	m.sortSnakes()
 	return m, nil
 }
 
@@ -89,6 +94,44 @@ func (m *Mem) AddDrop(_ context.Context, e DropEntry) (int, error) {
 		return rank, nil
 	}
 	return rank, writeFile(m.dropPath(), m.drops)
+}
+
+func (m *Mem) snakePath() string { return filepath.Join(filepath.Dir(m.path), "snake.json") }
+
+func (m *Mem) sortSnakes() {
+	sort.SliceStable(m.snakes, func(i, j int) bool { return snakeBefore(m.snakes[i], m.snakes[j]) })
+	if len(m.snakes) > Keep {
+		m.snakes = m.snakes[:Keep]
+	}
+}
+
+// TopSnake is Top for Lemon Snake's board.
+func (m *Mem) TopSnake(_ context.Context, n int) ([]SnakeEntry, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	n = min(n, len(m.snakes))
+	out := make([]SnakeEntry, n)
+	copy(out, m.snakes[:n])
+	return out, nil
+}
+
+// AddSnake is Add for Lemon Snake's board.
+func (m *Mem) AddSnake(_ context.Context, e SnakeEntry) (int, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.snakes = append(m.snakes, e)
+	m.sortSnakes()
+	rank := 0
+	for i := range m.snakes {
+		if m.snakes[i] == e {
+			rank = i + 1
+			break
+		}
+	}
+	if m.path == "" {
+		return rank, nil
+	}
+	return rank, writeFile(m.snakePath(), m.snakes)
 }
 
 func (m *Mem) sort() {

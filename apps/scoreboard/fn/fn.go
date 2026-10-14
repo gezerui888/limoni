@@ -19,30 +19,31 @@ var (
 	mu      sync.Mutex
 	handler http.Handler
 	drop    http.Handler
+	snake   http.Handler
 	health  = board.Health()
 )
 
 // serve builds the handler on the first request and keeps it for the rest
 // of this copy's life, with its connections. A failure to reach the
 // database is not kept: the next request tries again.
-func serve() (scores, dropScores http.Handler, err error) {
+func serve() (scores, dropScores, snakeScores http.Handler, err error) {
 	mu.Lock()
 	defer mu.Unlock()
 	if handler != nil {
-		return handler, drop, nil
+		return handler, drop, snake, nil
 	}
 	pg, err := board.OpenPG(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	c := board.Config{Store: pg, Origins: board.Origins(os.Getenv("ALLOWED_ORIGINS"))}
-	handler, drop = board.Scores(c), board.DropScores(c)
-	return handler, drop, nil
+	handler, drop, snake = board.Scores(c), board.DropScores(c), board.SnakeScores(c)
+	return handler, drop, snake, nil
 }
 
 // Scores serves /scores.
 func Scores(w http.ResponseWriter, r *http.Request) {
-	h, _, err := serve()
+	h, _, _, err := serve()
 	if err != nil {
 		unavailable(w, err)
 		return
@@ -52,7 +53,17 @@ func Scores(w http.ResponseWriter, r *http.Request) {
 
 // DropScores serves /drop/scores, Lemon Drop's board.
 func DropScores(w http.ResponseWriter, r *http.Request) {
-	_, h, err := serve()
+	_, h, _, err := serve()
+	if err != nil {
+		unavailable(w, err)
+		return
+	}
+	h.ServeHTTP(w, r)
+}
+
+// SnakeScores serves /snake/scores, Lemon Snake's board.
+func SnakeScores(w http.ResponseWriter, r *http.Request) {
+	_, _, h, err := serve()
 	if err != nil {
 		unavailable(w, err)
 		return
