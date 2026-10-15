@@ -120,25 +120,6 @@ func TestRunsGoOnTheGamesOwnBoard(t *testing.T) {
 	}
 }
 
-func screen(b *buffer.Buffer) string {
-	var sb strings.Builder
-	for y := 0; y < int(b.Area.Height); y++ {
-		for x := 0; x < int(b.Area.Width); x++ {
-			sb.WriteRune(b.Content[y*int(b.Area.Width)+x].Content)
-		}
-		sb.WriteByte('\n')
-	}
-	return sb.String()
-}
-
-// opened renders the dialog on screen once it has finished opening.
-func opened(g *game, b *buffer.Buffer) string {
-	g.render(b)
-	g.dialogT -= 10
-	g.render(b)
-	return screen(b)
-}
-
 // The game against a stand-in for the leaderboard: it fetches the board on
 // start, sends a run when it ends, and shows the world's board and its
 // place, all without a frame waiting.
