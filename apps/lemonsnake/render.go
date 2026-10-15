@@ -391,7 +391,7 @@ func (g *game) paintSnake(q pix, th *theme, f float64) {
 	if L == 0 {
 		return
 	}
-	dead := g.phase == phOver
+	dead := g.phase == phOver && !g.won
 	flash := dead && g.t-g.diedT < 1 && int((g.t-g.diedT)*8)%2 == 0
 	col := func(i int) rgb {
 		if flash {
@@ -760,7 +760,11 @@ func (g *game) drawDialogs(cv canvas, th *theme, cx, cy int) {
 		x := b.cv.text(b.x+(b.w-runes("playing as ")-runes(g.name))/2, b.y+rows+7, "playing as ", b.st(th.label))
 		b.cv.text(x, b.y+rows+7, g.name, b.st(th.text))
 	case dlgOver:
-		b, ok := g.openDialog(cv, th, cx, cy, dialogW, rows+8, "GAME OVER")
+		title := "GAME OVER"
+		if g.won {
+			title = "YOU WIN!"
+		}
+		b, ok := g.openDialog(cv, th, cx, cy, dialogW, rows+8, title)
 		if !ok {
 			return
 		}

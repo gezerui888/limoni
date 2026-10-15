@@ -141,6 +141,7 @@ type game struct {
 
 	acc     float64 // time since the last step
 	graced  bool    // held at a wall or the body for a late turn
+	won     bool    // the run ended with the board full of snake
 	ticks   uint
 	banner  bannerKind
 	bannerT float64
@@ -362,6 +363,12 @@ func (g *game) eat() {
 		note = min(g.eaten, lemonsPerLevel) - 1
 	}
 	g.sound(sfxEat+sfx(note), 0.8)
+	// Every tile is snake, or will be once it has grown: the classic win,
+	// before a monster could come for the last lemon and bite the body.
+	if g.length+g.grow >= g.cols*g.rows {
+		g.win()
+		return
+	}
 	if !g.boss.on && g.eaten >= lemonsPerLevel {
 		g.summon()
 	}
@@ -393,6 +400,18 @@ func (g *game) die() {
 	g.diedT = g.t
 	g.burst(g.at(0), 0.5, 0.5, 20, themes[g.theme].text)
 	g.sound(sfxOver, 0.9)
+	g.finishRun()
+}
+
+// win ends the run with the board full.
+func (g *game) win() {
+	g.won = true
+	g.phase = phOver
+	g.diedT = g.t
+	for i := 0; i < g.length; i += 5 {
+		g.burst(g.at(i), 0.5, 0.5, 2, themes[g.theme].lemonHi)
+	}
+	g.sound(sfxWin, 1)
 	g.finishRun()
 }
 
@@ -574,6 +593,9 @@ func (g *game) hit(at pos) {
 	g.score += 100 * g.level
 	g.boss.on = false
 	g.seeds = [maxSeeds]seed{}
+	if !g.inside(g.lemon) {
+		g.placeLemon() // it had no room while the monster stood on the last free tiles
+	}
 	g.level++
 	g.eaten = 0
 	g.show(bnWin)

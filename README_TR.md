@@ -253,7 +253,7 @@ tablosu da var.
 
 [**Lemon Snake**](apps/lemonsnake) limon yiyen bir yılan. Her beş limonda uzak köşeden bir canavar çıkar ve
 başın peşine düşer; yediğin her limon iki çekirdek getirir, onları canavara tükür. Gövdeye basarsa oradan
-koparır. Her seviye daha hızlıdır, canavarı da. `t` beş renk teması arasında istediğin an geçer. Yarım blok piksellerle akıcı çizilir, yumuşak
+koparır. Her seviye daha hızlıdır, canavarı da; tahtayı doldurursan kazanırsın. `t` beş renk teması arasında istediğin an geçer. Yarım blok piksellerle akıcı çizilir, yumuşak
 sentezlenmiş sesleri vardır ve biten oyunlar Lemon Drop'unkiyle aynı ortak skor tablosuna gider.
 
 ```bash

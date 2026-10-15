@@ -22,7 +22,8 @@ fast as you can press it; with none left it thuds. Lemons keep coming
 during the fight, so eat to reload. Where the monster steps on the body it
 bites off everything behind; on the head, the run is over. So are the walls
 and the snake's own body — but a step into either waits half a step first,
-so a turn pressed a moment late still counts.
+so a turn pressed a moment late still counts. Fill the whole board with
+snake and you win, as in every snake game.
 
 A seed that strikes scores five times the level; the monster's last health
 scores a hundred times. Then the level goes up: the snake is faster, the

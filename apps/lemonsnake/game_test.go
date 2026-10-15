@@ -397,3 +397,48 @@ func TestSpaceCanBeHammered(t *testing.T) {
 		t.Fatalf("%d presses spat %d seeds", have, spat)
 	}
 }
+
+// fill makes the snake cover every tile but the last, in rows back and
+// forth, with the lemon on that last tile and the head beside it.
+func fill(g *game) {
+	g.length, g.head, g.grow = 0, 0, 0
+	g.occ = [maxCols * maxRows]uint8{}
+	n := g.cols * g.rows
+	for i := 0; i < n-1; i++ {
+		y, x := i/g.cols, i%g.cols
+		if y%2 == 1 {
+			x = g.cols - 1 - x
+		}
+		g.push(pos{x, y})
+	}
+	y, x := (n-1)/g.cols, (n-1)%g.cols
+	if y%2 == 1 {
+		x = g.cols - 1 - x
+	}
+	g.lemon = pos{x, y}
+}
+
+// Filling the board wins, as in every snake game, even on the lemon that
+// would have brought a monster.
+func TestFillingTheBoardWins(t *testing.T) {
+	g := playing()
+	fill(g)
+	g.eaten = lemonsPerLevel - 1
+	g.eat()
+	if !g.won || g.phase != phOver || g.boss.on {
+		t.Fatalf("won %v, phase %d, monster %v: the full board did not win", g.won, g.phase, g.boss.on)
+	}
+	g.diedT -= 5
+	if s := opened(g, buffer.NewBuffer(cell.Rect{Width: 100, Height: 30})); !strings.Contains(s, "YOU WIN!") {
+		t.Fatalf("no win dialog:\n%s", s)
+	}
+
+	// A lemon short of full is not a win.
+	g = playing()
+	fill(g)
+	g.popTail()
+	g.eat()
+	if g.won || g.phase != phPlay {
+		t.Fatal("a board a tile short of full won")
+	}
+}

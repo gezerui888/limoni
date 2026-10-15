@@ -269,7 +269,7 @@ world leaderboard.
 
 [**Lemon Snake**](apps/lemonsnake) is a snake that eats lemons. Every five, a monster climbs out of the far
 corner and hunts the head; spit the seeds your lemons bring at it, and where it steps on
-the body it bites the rest off. Every level is faster, and so is its monster. `t` switches between five
+the body it bites the rest off. Every level is faster, and so is its monster; fill the board to win. `t` switches between five
 colour themes at any time. It glides in half-block pixels, plays soft synthesised sounds, and
 sends finished runs to the same shared leaderboard as Lemon Drop.
 
