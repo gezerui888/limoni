@@ -119,3 +119,53 @@ func TestSixelPictureGoesOutAfterTheCells(t *testing.T) {
 		t.Errorf("an unchanged picture was sent again: %q", out)
 	}
 }
+
+// A dialog over a Sixel picture sends no solid picture of its own: the picture is sent, then
+// the dialog's cells over it. Windows Terminal drew the solid one over the dialog's text.
+func TestSixelDialogSendsNoBackdropPicture(t *testing.T) {
+	t.Setenv("LIMONI_PROBE", "0")
+	io := driver.NewMemoryTerminalIO(nil, 40, 12)
+	b := driver.NewPortableBackend(io)
+	if err := b.Setup(); err != nil {
+		t.Fatal(err)
+	}
+	term, err := terminal.New(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = term.Close() }()
+	caps := term.Capabilities()
+	caps.GraphicsProto = graphics.ProtocolSixel
+	term.SetCapabilities(caps)
+
+	pic := image.NewRGBA(image.Rect(0, 0, 80, 60))
+	for i := range pic.Pix {
+		pic.Pix[i] = 0x80
+	}
+	for _, withPicture := range []bool{false, true} {
+		before := len(io.Output())
+		if err := term.Draw(func(f *terminal.Frame) {
+			if withPicture {
+				f.RenderWidget(&widgets.Image{Img: pic}, cell.NewRect(1, 1, 20, 8))
+			}
+			f.RegisterLayer("dialog", terminal.LayerModal, cell.NewRect(10, 3, 20, 6), 1000, nil)
+			f.BeginLayer("dialog")
+			f.RenderWidget(widgets.Block{Borders: widgets.BorderAll, Opaque: true, Style: cell.Style{Bg: cell.NewColorRGB(20, 20, 30)}}, cell.NewRect(10, 3, 20, 6))
+			f.Buffer.SetString(12, 5, "dialog", cell.Style{})
+			f.EndLayer()
+		}); err != nil {
+			t.Fatal(err)
+		}
+		out := string(io.Output()[before:])
+		want := 0
+		if withPicture {
+			want = 1
+		}
+		if n := strings.Count(out, "\x1bP"); n != want {
+			t.Fatalf("picture %v: %d Sixel pictures sent, want %d", withPicture, n, want)
+		}
+		if withPicture && strings.LastIndex(out, "dialog") < strings.Index(out, "\x1bP") {
+			t.Fatal("the dialog's text was not sent again after the picture")
+		}
+	}
+}

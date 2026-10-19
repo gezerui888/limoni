@@ -55,7 +55,8 @@ type Terminal struct {
 	overlay         *overlay.Overlay
 	overlayFailed   bool
 	overlayPics     []overlay.Picture
-	overlayFallback bool   // SetOverlayPictures
+	overlayFallback bool // SetOverlayPictures
+	cellPicturesBuf []ImageRegion
 	overlayGen      uint64 // graphics.Generation when the overlay was last trimmed
 
 	// Dither transition state
@@ -561,6 +562,9 @@ func (t *Terminal) present(t0 time.Time) error {
 	proto := t.caps.GraphicsProto
 	if proto != graphics.ProtocolHalfBlock {
 		imageRegions := t.clippedImageRegions()
+		if proto == graphics.ProtocolSixel || proto == graphics.ProtocolIterm2 {
+			imageRegions = t.cellPictures(imageRegions)
+		}
 		if len(imageRegions) > 0 {
 			cellW, cellH, _ := t.driver.CellPixelSize()
 
@@ -678,6 +682,22 @@ func (t *Terminal) repaintOver(regions []ImageRegion) bool {
 		}
 	}
 	return found
+}
+
+// cellPictures leaves out the solid pictures opaque blocks and dialogs register behind
+// themselves (z -2 and -4). Kitty needs them: its pictures float over the text, and only a
+// picture covers one. A Sixel or iTerm2 picture lives in the cells, so a dialog's own cells
+// cover it, sent again after it by repaintOver; a solid picture as well was encoded again
+// every frame a dialog animated, and Windows Terminal drew it over the dialog's text.
+func (t *Terminal) cellPictures(regions []ImageRegion) []ImageRegion {
+	kept := t.cellPicturesBuf[:0]
+	for _, reg := range regions {
+		if reg.ZIndex != -2 && reg.ZIndex != -4 {
+			kept = append(kept, reg)
+		}
+	}
+	t.cellPicturesBuf = kept
+	return kept
 }
 
 // clippedImageRegions intentionally preserves native image placements.

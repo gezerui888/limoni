@@ -8,6 +8,15 @@ a patch bump (`v0.x.y`) does not.
 
 ## [Unreleased]
 
+### Fixed
+
+- Dialogs and opaque blocks no longer send a solid picture behind themselves
+  with Sixel or iTerm2. Those pictures live in the terminal's cells, so the
+  dialog's own cells cover them; the solid picture was encoded again every
+  frame a dialog animated, and Windows Terminal drew it over the dialog's
+  text. Kitty, whose pictures float over the text, keeps it.
+  `TestSixelDialogSendsNoBackdropPicture`.
+
 ## [v0.13.0] — 2026-10-19
 
 ### Added
