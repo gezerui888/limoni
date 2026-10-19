@@ -26,6 +26,12 @@ a patch bump (`v0.x.y`) does not.
 - `backdrop-shell`: links (OSC 8) a program prints reach the terminal, and
   Ctrl+click opens a web link in the browser — the terminal cannot, since the
   wrapper has the mouse.
+- `Frame.Text(x, y, s, style)` draws text cut off at the frame's edges and
+  returns the column after it, so differently styled runs follow one another;
+  `Frame.TextFit(x, y, w, s, style)` draws it in exactly `w` columns, cut with
+  `…` or padded. Both cut by grapheme cluster and allocate nothing. Until now
+  a line of text meant a `Label` widget and a `Rect`, clipped by hand — the
+  helpers residual wrote for its port.
 
 ### Fixed
 
