@@ -16,6 +16,10 @@ a patch bump (`v0.x.y`) does not.
   frame a dialog animated, and Windows Terminal drew it over the dialog's
   text. Kitty, whose pictures float over the text, keeps it.
   `TestSixelDialogSendsNoBackdropPicture`.
+- A kitty picture under a modal or layer with no solid picture of its own (a
+  dialog not `Opaque`) is no longer placed: it floated over the dialog's text.
+  The overlay already left such pictures out.
+  `TestKittyPictureUnderAModalWithoutBackdrop`.
 
 ## [v0.13.0] — 2026-10-19
 

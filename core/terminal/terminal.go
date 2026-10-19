@@ -562,8 +562,8 @@ func (t *Terminal) present(t0 time.Time) error {
 	proto := t.caps.GraphicsProto
 	if proto != graphics.ProtocolHalfBlock {
 		imageRegions := t.clippedImageRegions()
-		if proto == graphics.ProtocolSixel || proto == graphics.ProtocolIterm2 {
-			imageRegions = t.cellPictures(imageRegions)
+		if proto == graphics.ProtocolSixel || proto == graphics.ProtocolIterm2 || proto == graphics.ProtocolKitty {
+			imageRegions = t.visiblePictures(imageRegions, proto)
 		}
 		if len(imageRegions) > 0 {
 			cellW, cellH, _ := t.driver.CellPixelSize()
@@ -684,20 +684,38 @@ func (t *Terminal) repaintOver(regions []ImageRegion) bool {
 	return found
 }
 
-// cellPictures leaves out the solid pictures opaque blocks and dialogs register behind
-// themselves (z -2 and -4). Kitty needs them: its pictures float over the text, and only a
-// picture covers one. A Sixel or iTerm2 picture lives in the cells, so a dialog's own cells
-// cover it, sent again after it by repaintOver; a solid picture as well was encoded again
-// every frame a dialog animated, and Windows Terminal drew it over the dialog's text.
-func (t *Terminal) cellPictures(regions []ImageRegion) []ImageRegion {
+// visiblePictures leaves out what a native protocol should not be sent.
+//
+// A Sixel or iTerm2 picture lives in the cells, so a dialog's own cells cover it, sent again
+// after it by repaintOver: the solid pictures opaque blocks and dialogs register behind
+// themselves (z -2 and -4) are left out. Encoded again every frame a dialog animated, they
+// cost time, and Windows Terminal drew them over the dialog's text.
+//
+// A kitty picture floats over the text, so a dialog without a solid picture of its own (one
+// not Opaque) would show it through: a picture behind such a modal or layer (z -3, and no
+// solid picture over it) is left out, as the overlay leaves it out.
+func (t *Terminal) visiblePictures(regions []ImageRegion, proto graphics.Protocol) []ImageRegion {
 	kept := t.cellPicturesBuf[:0]
 	for _, reg := range regions {
-		if reg.ZIndex != -2 && reg.ZIndex != -4 {
+		switch {
+		case proto == graphics.ProtocolKitty && reg.ZIndex == -3 && t.underLayer(reg.Area) && !backdropOver(regions, reg.Area):
+		case proto != graphics.ProtocolKitty && (reg.ZIndex == -2 || reg.ZIndex == -4):
+		default:
 			kept = append(kept, reg)
 		}
 	}
 	t.cellPicturesBuf = kept
 	return kept
+}
+
+// backdropOver reports whether a solid picture behind a dialog (z -2) covers part of area.
+func backdropOver(regions []ImageRegion, area cell.Rect) bool {
+	for _, reg := range regions {
+		if reg.ZIndex == -2 && Intersects(reg.Area, area) {
+			return true
+		}
+	}
+	return false
 }
 
 // clippedImageRegions intentionally preserves native image placements.
