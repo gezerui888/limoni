@@ -8,6 +8,8 @@ a patch bump (`v0.x.y`) does not.
 
 ## [Unreleased]
 
+## [v0.13.1] — 2026-10-19
+
 ### Fixed
 
 - Dialogs and opaque blocks no longer send a solid picture behind themselves
@@ -925,7 +927,8 @@ a patch bump (`v0.x.y`) does not.
 ## v0.1.0 – v0.1.8
 See the [GitHub releases](https://github.com/thebanri/limoni/releases).
 
-[Unreleased]: https://github.com/thebanri/limoni/compare/v0.13.0...HEAD
+[Unreleased]: https://github.com/thebanri/limoni/compare/v0.13.1...HEAD
+[v0.13.1]: https://github.com/thebanri/limoni/compare/v0.13.0...v0.13.1
 [v0.13.0]: https://github.com/thebanri/limoni/compare/v0.12.1...v0.13.0
 [v0.12.1]: https://github.com/thebanri/limoni/compare/v0.12.0...v0.12.1
 [v0.12.0]: https://github.com/thebanri/limoni/compare/v0.11.1...v0.12.0
