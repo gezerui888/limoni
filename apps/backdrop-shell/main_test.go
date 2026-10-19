@@ -2,8 +2,11 @@ package main
 
 import (
 	"bytes"
+	"flag"
+	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 
 	uv "github.com/charmbracelet/ultraviolet"
@@ -122,5 +125,59 @@ func TestLateTerminalRepliesNeverReachTheShell(t *testing.T) {
 	// Keys that begin the same way still arrive: Alt+] is ESC ] alone.
 	if pass, carry := splitInput([]byte("\x1b]"), nil, false, func(inputEvent) {}); string(pass) != "\x1b]" || carry != nil {
 		t.Fatalf("Alt+] became %q, carry %q", pass, carry)
+	}
+}
+
+func TestNestedFlagsSayWhatToRun(t *testing.T) {
+	fs := flag.NewFlagSet("x", flag.ContinueOnError)
+	fs.Float64("opacity", 0.45, "")
+	fs.Float64("fps", 0, "")
+	if err := fs.Parse([]string{"-opacity", "0.3"}); err != nil {
+		t.Fatal(err)
+	}
+	var set []*flag.Flag
+	fs.Visit(func(f *flag.Flag) { set = append(set, f) })
+	if got := nestedHint(set); !strings.Contains(got, "backdrop-shell opacity 0.3\n") {
+		t.Fatalf("-opacity alone: %q", got)
+	}
+	_ = fs.Parse([]string{"-opacity", "0.3", "-fps", "30"})
+	set = set[:0]
+	fs.Visit(func(f *flag.Flag) { set = append(set, f) })
+	if got := nestedHint(set); !strings.Contains(got, "backdrop-shell enable -fps 30 -opacity 0.3\n") {
+		t.Fatalf("two flags: %q", got)
+	}
+}
+
+func TestLocalScenesAreFoundByName(t *testing.T) {
+	cfg := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", cfg)
+	dir := filepath.Join(cfg, "limoni", "scenes")
+	write := func(name string, mode os.FileMode) {
+		p := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte("#!/bin/sh\n"), mode); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("fireflies.py", 0o755)
+	write("cosmos/cosmos", 0o755)
+	write("cosmos/main.go", 0o644)
+	write("notes.txt", 0o644)
+	got := localScenes()
+	want := map[string]string{"fireflies": filepath.Join(dir, "fireflies.py"), "cosmos": filepath.Join(dir, "cosmos", "cosmos")}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("localScenes = %v, want %v", got, want)
+	}
+	if names := strings.Join(sceneNames(), ","); !strings.HasSuffix(names, ",cosmos,fireflies") {
+		t.Fatalf("sceneNames = %s", names)
+	}
+	bd, err := chooseScene("cosmos", "", "", "", false)
+	if c, ok := bd.(*cmdScene); err != nil || !ok || c.path != want["cosmos"] {
+		t.Fatalf("chooseScene(cosmos) = %#v, %v", bd, err)
+	}
+	if _, err := chooseScene("notes", "", "", "", false); err == nil || !strings.Contains(err.Error(), "fireflies") {
+		t.Fatalf("an unknown scene: %v", err)
 	}
 }

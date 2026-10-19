@@ -28,7 +28,8 @@ ones, write a program in any language that draws on a terminal, and name it
 with `-scene-cmd`. It is run on a terminal the size of the screen, started
 again when the window changes size, stopped while the background cannot be
 seen, and ended with the terminal. [`scenes/fireflies.py`](scenes/fireflies.py)
-is an example to copy; section 7 of the guide has the rules.
+is an example to copy; section 7 of the guide has the rules. Kept in
+`~/.config/limoni/scenes`, it is a scene by name: `-scene fireflies`.
 
 ## Install
 

@@ -8,6 +8,21 @@ a patch bump (`v0.x.y`) does not.
 
 ## [Unreleased]
 
+### Added
+
+- `KeyInsert` and `KeyF1`…`KeyF12` re-exported from the root package, so key
+  bindings no longer need `core/driver` for them (#84, @Merith-TK).
+- `backdrop-shell`: a program in `~/.config/limoni/scenes` is a scene by name,
+  listed with the built-in ones: `fireflies.py` there is `-scene fireflies`, a
+  folder holding a program of its own name (`cosmos/cosmos`) is `-scene cosmos`.
+
+### Fixed
+
+- `backdrop-shell -opacity 0.3` (or any flags alone) typed inside a running
+  backdrop-shell opened a plain nested shell and changed nothing. It now says
+  what to run instead — `backdrop-shell opacity 0.3`, or `backdrop-shell
+  enable` with the same flags — and exits.
+
 ## [v0.12.1] — 2026-10-14
 
 ### Fixed

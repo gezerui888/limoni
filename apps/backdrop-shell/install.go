@@ -11,8 +11,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-
-	"github.com/thebanri/limoni/backdrop"
 )
 
 // The permanent setup: a settings file, and a few lines in each shell's
@@ -120,7 +118,7 @@ scene-cmd = %s
 # select: select and copy with the mouse, leaving the background out;
 # false gives the mouse back to the terminal, whose selection copies it too
 select = %t
-`, strings.Join(backdrop.Names(), ", "), s.Scene, s.Opacity, s.FPS, s.Still, s.Image, s.Art, s.SceneCmd, s.Select)
+`, strings.Join(sceneNames(), ", "), s.Scene, s.Opacity, s.FPS, s.Still, s.Image, s.Art, s.SceneCmd, s.Select)
 	return os.WriteFile(path, []byte(text), 0o644)
 }
 
@@ -334,7 +332,7 @@ func cmdEnable(args []string) error {
 		return err
 	}
 	fl := flag.NewFlagSet("enable", flag.ContinueOnError)
-	fl.StringVar(&s.Scene, "scene", s.Scene, "scene: "+strings.Join(backdrop.Names(), ", "))
+	fl.StringVar(&s.Scene, "scene", s.Scene, "scene: "+strings.Join(sceneNames(), ", "))
 	fl.Float64Var(&s.Opacity, "opacity", s.Opacity, "how strongly the scene shows, from 0 to 1")
 	fl.Float64Var(&s.FPS, "fps", s.FPS, "cap the scene's frame rate (0: the scene's own)")
 	fl.BoolVar(&s.Still, "still", s.Still, "a still picture instead of an animation")

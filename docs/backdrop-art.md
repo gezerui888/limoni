@@ -295,6 +295,10 @@ backdrop-shell -scene-cmd ~/.config/limoni/scenes/fireflies.py
 backdrop-shell enable -scene-cmd ~/.config/limoni/scenes/fireflies.py   # in every terminal
 ```
 
+A program kept in `~/.config/limoni/scenes` is also a scene by name, listed
+with the built-in ones: `fireflies.py` there is `-scene fireflies`, and a
+folder holding a program of its own name, `cosmos/cosmos`, is `-scene cosmos`.
+
 A complete example is
 [`apps/backdrop-shell/scenes/fireflies.py`](../apps/backdrop-shell/scenes/fireflies.py);
 copy it and change what it draws. The smallest scene there is, a dot that

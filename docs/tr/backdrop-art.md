@@ -297,6 +297,11 @@ backdrop-shell -scene-cmd ~/.config/limoni/scenes/fireflies.py
 backdrop-shell enable -scene-cmd ~/.config/limoni/scenes/fireflies.py   # her terminalde
 ```
 
+`~/.config/limoni/scenes` içindeki bir program aynı zamanda adıyla seçilen
+bir sahnedir ve hazır sahnelerle birlikte listelenir: oradaki `fireflies.py`
+`-scene fireflies` olur; kendi adında bir program taşıyan `cosmos/cosmos`
+klasörü de `-scene cosmos`.
+
 Eksiksiz bir örnek:
 [`apps/backdrop-shell/scenes/fireflies.py`](../../apps/backdrop-shell/scenes/fireflies.py).
 Kopyala ve çizdiğini değiştir. Olabilecek en küçük sahne, ekranın ortasında

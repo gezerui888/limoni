@@ -39,8 +39,11 @@ import (
 	"flag"
 	"fmt"
 	"image/color"
+	"maps"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -92,7 +95,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, "backdrop-shell:", err)
 	}
 	opts := options{}
-	flag.StringVar(&opts.scene, "scene", s.Scene, "scene: "+strings.Join(backdrop.Names(), ", "))
+	flag.StringVar(&opts.scene, "scene", s.Scene, "scene: "+strings.Join(sceneNames(), ", "))
 	flag.Float64Var(&opts.opacity, "opacity", s.Opacity, "how strongly the scene shows, from 0 to 1")
 	flag.Float64Var(&opts.fps, "fps", s.FPS, "cap the scene's frame rate (0: the scene's own)")
 	flag.BoolVar(&opts.still, "still", s.Still, "a still picture of the scene instead of an animation")
@@ -105,6 +108,15 @@ func main() {
 	// A background named on the command line is the one wanted, over one
 	// the settings name: -scene city shows the city even with art saved.
 	flag.Visit(func(f *flag.Flag) { chooseOnly(f.Name, &opts.image, &opts.art, &opts.sceneCmd) })
+	// Inside backdrop-shell already, flags alone are a wish to change the
+	// background here, which a nested plain shell would silently ignore:
+	// "backdrop-shell -opacity 0.3" opened a shell and changed nothing.
+	if nested() && flag.NArg() == 0 && flag.NFlag() > 0 {
+		var set []*flag.Flag
+		flag.Visit(func(f *flag.Flag) { set = append(set, f) })
+		fmt.Fprint(os.Stderr, nestedHint(set))
+		os.Exit(2)
+	}
 	opts.argv = flag.Args()
 	if len(opts.argv) == 0 {
 		shell := os.Getenv("SHELL")
@@ -162,15 +174,51 @@ func chooseScene(scene, image, art, sceneCmd string, still bool) (terminal.Backd
 		bd = c
 	default:
 		bd = backdrop.New(scene)
-		if bd == nil {
-			return nil, fmt.Errorf("no scene %q; there are %s", scene, strings.Join(backdrop.Names(), ", "))
+		if bd != nil {
+			break
 		}
+		path, ok := localScenes()[scene]
+		if !ok {
+			return nil, fmt.Errorf("no scene %q; there are %s", scene, strings.Join(sceneNames(), ", "))
+		}
+		c, err := newCmdScene(path)
+		if err != nil {
+			return nil, err
+		}
+		bd = c
 	}
 	if still && bd.Interval() > 0 {
 		// A moment well into it, when everything is on stage.
 		bd = backdrop.Still(bd, 20*time.Second)
 	}
 	return bd, nil
+}
+
+// sceneNames lists the built-in scenes, then the user's own.
+func sceneNames() []string {
+	return append(backdrop.Names(), slices.Sorted(maps.Keys(localScenes()))...)
+}
+
+// localScenes finds the user's scene programs in ~/.config/limoni/scenes,
+// which -scene names like the built-in ones: an executable file there is
+// named without its extension (fireflies.py is "fireflies"), and a folder
+// holding an executable of its own name (cosmos/cosmos) by the folder's.
+func localScenes() map[string]string {
+	dir := filepath.Join(configDir(), "limoni", "scenes")
+	entries, _ := os.ReadDir(dir)
+	found := map[string]string{}
+	for _, e := range entries {
+		name, path := e.Name(), filepath.Join(dir, e.Name())
+		if e.IsDir() {
+			path = filepath.Join(path, name)
+		} else {
+			name = strings.TrimSuffix(name, filepath.Ext(name))
+		}
+		if st, err := os.Stat(path); err == nil && st.Mode().IsRegular() && st.Mode().Perm()&0o111 != 0 {
+			found[name] = path
+		}
+	}
+	return found
 }
 
 // chooseOnly clears the other backgrounds when the flag named chose one, as
@@ -209,6 +257,28 @@ Flags (enable saves them as the defaults):
 
 // execPlain replaces the process with the command, as if the wrapper had
 // never been there.
+// nestedHint says how to change the background of the terminal the flags
+// were typed in: the opacity command, else enable with the same flags.
+func nestedHint(set []*flag.Flag) string {
+	var flags []string
+	opacity := ""
+	for _, f := range set {
+		if f.Name == "opacity" {
+			opacity = f.Value.String()
+		}
+		flags = append(flags, "-"+f.Name+" "+f.Value.String())
+	}
+	var b strings.Builder
+	b.WriteString("backdrop-shell: this terminal already shows a background, so the flags would start\n")
+	b.WriteString("a plain shell inside it and change nothing. To change it here and in every open terminal:\n")
+	if opacity != "" && len(set) == 1 {
+		b.WriteString("    backdrop-shell opacity " + opacity + "\n")
+	} else {
+		b.WriteString("    backdrop-shell enable " + strings.Join(flags, " ") + "\n")
+	}
+	return b.String()
+}
+
 func execPlain(argv []string) {
 	path, err := exec.LookPath(argv[0])
 	if err == nil {
