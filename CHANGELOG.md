@@ -8,6 +8,12 @@ a patch bump (`v0.x.y`) does not.
 
 ## [Unreleased]
 
+### Fixed
+
+- A kitty picture under a modal or layer is not placed even when the dialog
+  has a solid picture of its own: kitty 0.49 showed the picture through it,
+  dimmed. `TestKittyPictureUnderAModalIsNotPlaced`.
+
 ## [v0.13.1] — 2026-10-19
 
 ### Fixed

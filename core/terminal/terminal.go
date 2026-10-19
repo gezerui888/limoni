@@ -691,14 +691,14 @@ func (t *Terminal) repaintOver(regions []ImageRegion) bool {
 // themselves (z -2 and -4) are left out. Encoded again every frame a dialog animated, they
 // cost time, and Windows Terminal drew them over the dialog's text.
 //
-// A kitty picture floats over the text, so a dialog without a solid picture of its own (one
-// not Opaque) would show it through: a picture behind such a modal or layer (z -3, and no
-// solid picture over it) is left out, as the overlay leaves it out.
+// A kitty picture floats over the text, so a dialog would show it through: a picture behind
+// a modal or a layer (z -3) is left out, as the overlay leaves it out. A dialog's own solid
+// picture did not hide it either: kitty 0.49 showed the picture through it, dimmed.
 func (t *Terminal) visiblePictures(regions []ImageRegion, proto graphics.Protocol) []ImageRegion {
 	kept := t.cellPicturesBuf[:0]
 	for _, reg := range regions {
 		switch {
-		case proto == graphics.ProtocolKitty && reg.ZIndex == -3 && t.underLayer(reg.Area) && !backdropOver(regions, reg.Area):
+		case proto == graphics.ProtocolKitty && reg.ZIndex == -3 && t.underLayer(reg.Area):
 		case proto != graphics.ProtocolKitty && (reg.ZIndex == -2 || reg.ZIndex == -4):
 		default:
 			kept = append(kept, reg)
@@ -706,16 +706,6 @@ func (t *Terminal) visiblePictures(regions []ImageRegion, proto graphics.Protoco
 	}
 	t.cellPicturesBuf = kept
 	return kept
-}
-
-// backdropOver reports whether a solid picture behind a dialog (z -2) covers part of area.
-func backdropOver(regions []ImageRegion, area cell.Rect) bool {
-	for _, reg := range regions {
-		if reg.ZIndex == -2 && Intersects(reg.Area, area) {
-			return true
-		}
-	}
-	return false
 }
 
 // clippedImageRegions intentionally preserves native image placements.

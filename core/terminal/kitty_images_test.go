@@ -122,9 +122,10 @@ func TestKittyClipsASmallPictureInItsOwnPixels(t *testing.T) {
 	}
 }
 
-// A kitty picture floats over the text: under a modal with no solid picture of its own it
-// would show through, so it is not placed; an opaque dialog covers it with its own.
-func TestKittyPictureUnderAModalWithoutBackdrop(t *testing.T) {
+// A kitty picture floats over the text: under a modal it would show through, so it is not
+// placed, whether the dialog has a solid picture of its own (which kitty showed it through,
+// dimmed) or not.
+func TestKittyPictureUnderAModalIsNotPlaced(t *testing.T) {
 	for _, opaque := range []bool{false, true} {
 		term, io := kittyTerminal(t)
 		img := picture(100, 80)
@@ -141,8 +142,8 @@ func TestKittyPictureUnderAModalWithoutBackdrop(t *testing.T) {
 		out := string(io.Output()[before:])
 		// The picture is placed at its own top left cell; a backdrop would be at the dialog's.
 		placed := strings.Contains(out, "\x1b[1;1H\x1b_Ga=p,")
-		if placed != opaque {
-			t.Errorf("opaque dialog %v: picture sent %v, want %v", opaque, placed, opaque)
+		if placed {
+			t.Errorf("opaque dialog %v: the picture under it was placed", opaque)
 		}
 	}
 }
