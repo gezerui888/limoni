@@ -8,6 +8,8 @@ a patch bump (`v0.x.y`) does not.
 
 ## [Unreleased]
 
+## [v0.13.0] — 2026-10-19
+
 ### Added
 
 - `KeyInsert` and `KeyF1`…`KeyF12` re-exported from the root package, so key
@@ -910,7 +912,8 @@ a patch bump (`v0.x.y`) does not.
 ## v0.1.0 – v0.1.8
 See the [GitHub releases](https://github.com/thebanri/limoni/releases).
 
-[Unreleased]: https://github.com/thebanri/limoni/compare/v0.12.1...HEAD
+[Unreleased]: https://github.com/thebanri/limoni/compare/v0.13.0...HEAD
+[v0.13.0]: https://github.com/thebanri/limoni/compare/v0.12.1...v0.13.0
 [v0.12.1]: https://github.com/thebanri/limoni/compare/v0.12.0...v0.12.1
 [v0.12.0]: https://github.com/thebanri/limoni/compare/v0.11.1...v0.12.0
 [v0.11.1]: https://github.com/thebanri/limoni/compare/v0.11.0...v0.11.1
