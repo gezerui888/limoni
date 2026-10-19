@@ -173,6 +173,11 @@ func WithPanicHandler(handler func(any)) ProgramOption { return engine.WithPanic
 // such as one from package backdrop. It mirrors WithBackdrop for Run.
 func WithProgramBackdrop(bg Backdrop) ProgramOption { return engine.WithBackdrop(bg) }
 
+// WithProgramOverlayPictures shows pictures at full resolution in terminals
+// with no picture protocol of their own; it mirrors WithOverlayPictures for
+// Run.
+func WithProgramOverlayPictures() ProgramOption { return engine.WithOverlayPictures() }
+
 // WithoutProgramMouse leaves the mouse to the terminal: no clicks, wheel or
 // pointer movement reach the model, and text can be selected as in a shell,
 // without holding Shift. Most terminals turn the wheel into arrow keys on the

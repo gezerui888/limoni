@@ -38,6 +38,9 @@ func (p *Program) RunTerminal(ctx context.Context, term *terminal.Terminal, b *d
 	if p.backdrop != nil {
 		term.SetBackdrop(p.backdrop)
 	}
+	if p.overlayPictures {
+		term.SetOverlayPictures(true)
+	}
 
 	runDone := make(chan error, 1)
 	go func() { runDone <- p.Run(ctx) }()
@@ -176,6 +179,7 @@ type programOptions struct {
 	noMouse      bool
 	observer     Observer
 	backdrop     terminal.Backdrop
+	overlay      bool
 }
 
 // Option configures a Program.
@@ -252,6 +256,10 @@ var idleFrame = time.Second / 30
 
 func WithAltScreen() Option { return func(opts *programOptions) { opts.altScreen = true } }
 
+// WithOverlayPictures shows pictures in windows over the terminal where it
+// has no picture protocol; see terminal.Terminal.SetOverlayPictures.
+func WithOverlayPictures() Option { return func(opts *programOptions) { opts.overlay = true } }
+
 // commandResult is what a command returned, or the panic it raised. Results
 // reach Update as their commands finish: a command that waits — a timer, a
 // request, a stream — does not hold back one that started after it.
@@ -278,6 +286,8 @@ type Program struct {
 	catchCtrlC bool
 	noMouse    bool
 	backdrop   terminal.Backdrop
+
+	overlayPictures bool
 
 	observer Observer
 	// step counts messages passed to Update. Guarded by modelMu, which is what
@@ -313,21 +323,22 @@ func New(options ...Option) *Program {
 		}
 	}
 	return &Program{
-		model:          opts.model,
-		messages:       make(chan Msg, opts.messageQueue),
-		commandResults: make(chan commandResult, opts.commandQueue),
-		redraw:         make(chan struct{}, 1),
-		changed:        make(chan struct{}, 1),
-		onPanic:        opts.onPanic,
-		fps:            opts.fps,
-		backdrop:       opts.backdrop,
-		altScreen:      opts.altScreen,
-		catchCtrlC:     opts.catchCtrlC,
-		noMouse:        opts.noMouse,
-		observer:       opts.observer,
-		stop:           make(chan struct{}),
-		notifications:  make(chan Notification, 4),
-		handovers:      make(chan Handover, 1),
+		model:           opts.model,
+		messages:        make(chan Msg, opts.messageQueue),
+		commandResults:  make(chan commandResult, opts.commandQueue),
+		redraw:          make(chan struct{}, 1),
+		changed:         make(chan struct{}, 1),
+		onPanic:         opts.onPanic,
+		fps:             opts.fps,
+		backdrop:        opts.backdrop,
+		altScreen:       opts.altScreen,
+		catchCtrlC:      opts.catchCtrlC,
+		noMouse:         opts.noMouse,
+		overlayPictures: opts.overlay,
+		observer:        opts.observer,
+		stop:            make(chan struct{}),
+		notifications:   make(chan Notification, 4),
+		handovers:       make(chan Handover, 1),
 	}
 }
 

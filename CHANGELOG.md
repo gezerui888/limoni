@@ -32,8 +32,29 @@ a patch bump (`v0.x.y`) does not.
   `…` or padded. Both cut by grapheme cluster and allocate nothing. Until now
   a line of text meant a `Label` widget and a `Rect`, clipped by hand — the
   helpers residual wrote for its port.
+- Pictures at full resolution in terminals with no picture protocol of their
+  own, such as Alacritty: `graphics.ProtocolOverlay` shows them in windows
+  laid over the terminal's X11 window (Xwayland is one), written against the
+  X11 protocol directly, with no library or desktop behind it. They move,
+  hide and show with the terminal under any window manager, follow resizes
+  and font changes, and leave out what a modal covers. `LIMONI_GRAPHICS=overlay`
+  asks for it; `WithOverlayPictures()` / `WithProgramOverlayPictures()` /
+  `Terminal.SetOverlayPictures` turn half blocks into it once the capability
+  probe found no protocol. Where no overlay can be opened (Windows, macOS,
+  SSH, Wayland-only terminals, inline mode) it is half blocks.
+- `graphics.DecodeGIF` and `Animation.Frame(elapsed)`: a GIF's frames composed
+  as a browser shows them, for an `Image` widget; `Frame` does not allocate.
+- `graphics.ContainSize`: the size a picture takes fitted into a box.
+- `apps/termimg`: runs a shell or a command so the sixel, kitty graphics and
+  iTerm2 pictures it prints show in terminals with none of them — `chafa`,
+  `mpv --vo=kitty`, `kitten icat` (animations and Unicode placeholders
+  included) — at full resolution through the overlay. Its own module.
 
 ### Fixed
+
+- Cells under an overlay picture keep the background under them; the window
+  takes the picture's shape, and what it leaves showed the terminal's default
+  background.
 
 - `backdrop-shell -opacity 0.3` (or any flags alone) typed inside a running
   backdrop-shell opened a plain nested shell and changed nothing. It now says

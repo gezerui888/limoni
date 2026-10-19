@@ -107,6 +107,27 @@ func TestImageUsesTheProtocolAndFallsBack(t *testing.T) {
 	}
 }
 
+// Under an overlay picture the cells are blanks on the background already
+// there: the window takes the picture's shape, and what it leaves uncovered
+// must look like the panel, not the terminal's default background.
+func TestImageUnderTheOverlayKeepsTheBackground(t *testing.T) {
+	area := cell.NewRect(0, 0, 2, 2)
+	ctx := cell.NewContext(area, cell.Style{})
+	ctx.ImageProtocol = uint8(graphics.ProtocolOverlay)
+	ctx.RegisterImage = func(cell.Rect, image.Image, int, bool) bool { return true }
+	buf := buffer.NewBuffer(area)
+	panel := cell.NewColorRGB(30, 40, 50)
+	for y := range uint16(2) {
+		for x := range uint16(2) {
+			buf.SetCell(x, y, cell.Cell{Content: 'x', Style: cell.Style{Fg: rgb(red), Bg: panel}})
+		}
+	}
+	(&Image{Img: pixelColumn(red, green)}).Draw(ctx, buf)
+	if c := buf.CellAt(1, 1); c.Content != ' ' || c.Style != (cell.Style{Bg: panel}) {
+		t.Errorf("cell under the picture: %q %+v, want a blank on the panel", c.Content, c.Style)
+	}
+}
+
 // A circle mask clears the corners; opacity fades the picture.
 func TestImageMaskAndOpacity(t *testing.T) {
 	solid := image.NewRGBA(image.Rect(0, 0, 8, 16))

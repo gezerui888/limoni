@@ -130,6 +130,8 @@ func protocolName(p graphics.Protocol) string {
 		return "iTerm2"
 	case graphics.ProtocolHalfBlock:
 		return "half blocks"
+	case graphics.ProtocolOverlay:
+		return "overlay"
 	}
 	return "auto"
 }

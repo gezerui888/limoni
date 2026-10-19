@@ -10,6 +10,7 @@ import (
 	"github.com/thebanri/limoni/core/cell"
 	"github.com/thebanri/limoni/core/driver"
 	"github.com/thebanri/limoni/graphics"
+	"github.com/thebanri/limoni/internal/overlay"
 )
 
 // Terminal is the main controller of the TUI engine.
@@ -48,6 +49,14 @@ type Terminal struct {
 
 	// kitty is what kitty has been sent: see kittyImages.
 	kitty kittyImages
+
+	// overlay shows the pictures for graphics.ProtocolOverlay; overlayFailed
+	// is set once opening it failed, so it is not tried every frame.
+	overlay         *overlay.Overlay
+	overlayFailed   bool
+	overlayPics     []overlay.Picture
+	overlayFallback bool   // SetOverlayPictures
+	overlayGen      uint64 // graphics.Generation when the overlay was last trimmed
 
 	// Dither transition state
 	transitionActive   bool
@@ -198,6 +207,10 @@ func (t *Terminal) Close() error {
 		t.RestoreModes()
 		if len(t.kitty.ids) > 0 {
 			_, _ = t.driver.Write(t.kitty.freeAll(nil))
+		}
+		if t.overlay != nil {
+			_ = t.overlay.Close()
+			t.overlay = nil
 		}
 		if err := t.driver.Close(); err != nil {
 			return err
@@ -350,6 +363,7 @@ func (t *Terminal) Suspend() error {
 	// The shell should not inherit a resize arrow or the kitty keyboard
 	// flags; the next mouse move and the next frame set them again.
 	t.RestoreModes()
+	t.hideOverlay()
 	if err := t.driver.Suspend(); err != nil {
 		return err
 	}
@@ -382,6 +396,7 @@ func (t *Terminal) Release(fn func() error) error {
 		return driver.ErrReleaseUnsupported
 	}
 	t.RestoreModes()
+	t.hideOverlay()
 	err := t.driver.Release(fn)
 	if errors.Is(err, driver.ErrReleaseUnsupported) {
 		return err
@@ -398,6 +413,7 @@ func (t *Terminal) Release(fn func() error) error {
 func (t *Terminal) Draw(fn func(f *Frame)) error {
 	t0 := time.Now()
 	t.refreshCapabilities()
+	t.syncOverlay()
 	t.syncKeyboardMode()
 	// Query the current screen size
 	w, h, err := t.driver.Size()
@@ -563,7 +579,9 @@ func (t *Terminal) present(t0 time.Time) error {
 				}
 			}
 
-			if imagesChanged && proto == graphics.ProtocolKitty {
+			if imagesChanged && proto == graphics.ProtocolOverlay {
+				t.placeOverlay(imageRegions)
+			} else if imagesChanged && proto == graphics.ProtocolKitty {
 				t.writeBuf = t.kitty.place(t.writeBuf, imageRegions, cellW, cellH)
 			} else if imagesChanged {
 				for _, reg := range imageRegions {
@@ -599,6 +617,7 @@ func (t *Terminal) present(t0 time.Time) error {
 				if proto == graphics.ProtocolKitty {
 					t.writeBuf = t.kitty.freeAll(t.writeBuf)
 				}
+				t.hideOverlay()
 				t.lastImageCount = 0
 				t.lastDrawnImages = nil
 			}

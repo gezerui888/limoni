@@ -40,6 +40,11 @@ const (
 	ProtocolSixel
 	ProtocolIterm2
 	ProtocolHalfBlock
+	// ProtocolOverlay shows pictures in windows laid over the terminal
+	// (internal/overlay), for terminals with no protocol of their own. It is
+	// only chosen with LIMONI_GRAPHICS=overlay; where no overlay can be
+	// opened the terminal falls back to half blocks.
+	ProtocolOverlay
 )
 
 // DetectProtocol automatically selects the most suitable image protocol by examining terminal environment variables.
@@ -53,6 +58,8 @@ func DetectProtocol() Protocol {
 		return ProtocolIterm2
 	case "halfblock":
 		return ProtocolHalfBlock
+	case "overlay":
+		return ProtocolOverlay
 	}
 
 	termProg := strings.ToLower(os.Getenv("TERM_PROGRAM"))
@@ -270,6 +277,23 @@ func ResizeImage(img image.Image, w, h int) image.Image {
 	return dst
 }
 
+// ContainSize is the size img takes fitted into w×h with its aspect ratio
+// kept, as ResizeImageContain draws it: the whole of one side, at least a
+// pixel of the other. A Uniform, which has no shape, fills w×h.
+func ContainSize(img image.Image, w, h int) (fitW, fitH int) {
+	srcW, srcH := img.Bounds().Dx(), img.Bounds().Dy()
+	if _, ok := img.(*image.Uniform); ok || srcW <= 0 || srcH <= 0 {
+		return w, h
+	}
+	fitW, fitH = w, h
+	if float64(srcW)*float64(h) > float64(srcH)*float64(w) {
+		fitH = int(float64(w) * float64(srcH) / float64(srcW))
+	} else {
+		fitW = int(float64(h) * float64(srcW) / float64(srcH))
+	}
+	return max(fitW, 1), max(fitH, 1)
+}
+
 // ResizeImageContain fits the image into the target area while preserving its aspect ratio.
 // The target canvas is full-sized; unused areas are filled with the top-left pixel
 // of the source image. This prevents native protocols from stretching the image.
@@ -287,19 +311,7 @@ func ResizeImageContain(img image.Image, w, h int, transparent bool) image.Image
 	if srcW <= 0 || srcH <= 0 {
 		return img
 	}
-
-	fitW, fitH := w, h
-	if float64(srcW)*float64(h) > float64(srcH)*float64(w) {
-		fitH = int(float64(w) * float64(srcH) / float64(srcW))
-	} else {
-		fitW = int(float64(h) * float64(srcW) / float64(srcH))
-	}
-	if fitW < 1 {
-		fitW = 1
-	}
-	if fitH < 1 {
-		fitH = 1
-	}
+	fitW, fitH := ContainSize(img, w, h)
 
 	dst := image.NewRGBA(image.Rect(0, 0, w, h))
 	var background color.Color = color.RGBA{0, 0, 0, 0}

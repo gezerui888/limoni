@@ -112,6 +112,7 @@ type appConfig struct {
 	hasTitle         bool
 	keyReleases      bool
 	backdrop         Backdrop
+	overlayPictures  bool
 }
 
 // AutomationPolicy decides what an application's automation socket lets out.
@@ -164,6 +165,18 @@ func WithKeyReleases() AppOption {
 func WithSuspend() AppOption {
 	return func(c *appConfig) {
 		c.suspendOnCtrlZ = true
+	}
+}
+
+// WithOverlayPictures shows pictures at full resolution in terminals with
+// no picture protocol of their own, such as Alacritty, in windows laid over
+// the terminal's X11 window (Xwayland is one); elsewhere they stay half
+// blocks. A protocol the terminal has wins. It is not the default because a
+// terminal with tabs shows the pictures over every tab. See
+// Terminal.SetOverlayPictures.
+func WithOverlayPictures() AppOption {
+	return func(c *appConfig) {
+		c.overlayPictures = true
 	}
 }
 
@@ -301,6 +314,9 @@ func runLoop(ctx context.Context, term *Terminal, appFn func(f *Frame, ev *Event
 	term.StartEventLoop()
 	if cfg.backdrop != nil {
 		term.SetBackdrop(cfg.backdrop)
+	}
+	if cfg.overlayPictures {
+		term.SetOverlayPictures(true)
 	}
 
 	// The gateway is everything that carries application state out of the

@@ -289,6 +289,23 @@ jobs:
           go -C "$work/pikap" test ./...
           echo "ok   pikap builds against this checkout as well as against the release"
 
+      # termimg, sixel pictures in terminals without sixel. It is built only
+      # against this checkout: it needs internal/overlay, which no release
+      # has yet. Once one does, build it against the release too, as above.
+      - name: apps/termimg
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(gofmt -l apps/termimg)" || { gofmt -l apps/termimg; exit 1; }
+          work=$(mktemp -d)
+          cp -r apps/termimg "$work/termimg"
+          go -C "$work/termimg" mod edit -replace github.com/thebanri/limoni="$PWD"
+          go -C "$work/termimg" mod tidy
+          go -C "$work/termimg" vet ./...
+          go -C "$work/termimg" test -race ./...
+          echo "ok   termimg builds and passes against this checkout"
+
       # backdrop-shell, the user's shell in front of a backdrop scene. Besides
       # the usual checks, its installer runs for real in a throwaway HOME:
       # enable must hook the shells, and uninstall must leave every start-up
