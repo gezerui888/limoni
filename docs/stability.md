@@ -36,7 +36,7 @@ v1.0 will be tagged when:
    Markdown's word wrap followed (`WordWidths`, measured by cluster).
 4. The experimental packages have been used by at least one application outside
    this repository, and their API has had one round of changes from that use.
-   *Half done:* [residual](https://git.merith.xyz/residual/core), a suite of
+   *Half done:* [residual](https://git.merith.xyz/residual/), a suite of
    terminal tools ported from Bubble Tea in October 2026, tests its screens
    with `uitest`. The round of changes from that use is still to come.
 

@@ -278,6 +278,11 @@ pikap            # çalanı izle
 pikap ~/Music    # ya da dosyaları çal
 ```
 
+### Kullananlar
+
+- [**residual**](https://git.merith.xyz/residual/) — Bubble Tea'den taşınmış bir terminal araçları takımı
+  (editör, kod editörü, tablo, hesap makinesi, giriş ekranı); ortak arayüz parçaları `core`'da.
+
 ---
 
 ## Uygulama yazmanın iki yolu

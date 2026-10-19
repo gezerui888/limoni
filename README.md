@@ -294,6 +294,11 @@ pikap            # follow what is playing
 pikap ~/Music    # or play files
 ```
 
+### Used by
+
+- [**residual**](https://git.merith.xyz/residual/) — a suite of terminal tools (editor, code editor,
+  spreadsheet, calculator, login), ported from Bubble Tea, with shared UI pieces in `core`.
+
 ---
 
 ## Two ways to write an app

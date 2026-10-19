@@ -41,7 +41,7 @@ v1.0 şu koşullar sağlanınca etiketlenecek:
 4. Deneysel paketler bu repo dışında en az bir uygulamada kullanılır ve bu
    kullanımdan gelen geri bildirimle API'leri bir kez gözden geçirilir.
    *Yarısı tamam:* Ekim 2026'da Bubble Tea'den taşınan terminal araçları takımı
-   [residual](https://git.merith.xyz/residual/core) ekranlarını `uitest` ile
+   [residual](https://git.merith.xyz/residual/) ekranlarını `uitest` ile
    test ediyor. O kullanımdan gelecek değişiklik turu henüz yapılmadı.
 
 v1.0'dan sonra kırıcı değişiklikler, Go modüllerinin gerektirdiği gibi yeni bir
