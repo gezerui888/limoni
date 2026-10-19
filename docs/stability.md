@@ -32,10 +32,13 @@ v1.0 will be tagged when:
    context-aware immediate mode (`RunWithContext`).~~ Done after v0.3.0.
 2. ~~Terminal capabilities are probed rather than guessed from environment
    variables.~~ Done after v0.3.0.
-3. ~~Widgets that truncate text are grapheme-cluster aware.~~ Done after v0.3.0,
-   except Markdown's word wrap.
+3. ~~Widgets that truncate text are grapheme-cluster aware.~~ Done after v0.3.0;
+   Markdown's word wrap followed (`WordWidths`, measured by cluster).
 4. The experimental packages have been used by at least one application outside
    this repository, and their API has had one round of changes from that use.
+   *Half done:* [residual](https://git.merith.xyz/residual/core), a suite of
+   terminal tools ported from Bubble Tea in October 2026, tests its screens
+   with `uitest`. The round of changes from that use is still to come.
 
 After v1.0, breaking changes need a new major version (`/v2`), as Go modules require.
 
