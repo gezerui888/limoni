@@ -180,7 +180,10 @@ func (s *session) mouse(m mouseEvent) {
 		s.sel.moved = true
 		s.sel.active = true
 		s.appDirty = true
+	case m.which() == 0 && !m.release && m.button&16 != 0: // Ctrl
+		s.openLink(m.x, m.y)
 	case m.which() == 0 && !m.release:
+		s.clickLive(m.x, m.y)
 		p := s.spotAt(m.x, m.y)
 		now := time.Now()
 		if p == s.sel.lastSpot && now.Sub(s.sel.lastClick) < doubleClick {
@@ -380,5 +383,30 @@ func (s *session) syncMouse() {
 	}
 	if !own {
 		s.sel.dragging = false
+	}
+}
+
+// openLink opens the link (OSC 8) under a Ctrl+click in the browser, as a
+// terminal does: the terminal cannot, since the wrapper has the mouse. Only
+// web addresses: anything printed can carry a link, a file being cat too.
+func (s *session) openLink(x, y int) {
+	c := s.cellAt(s.spotAt(x, y))
+	if c == nil {
+		return
+	}
+	if u := c.Link.URL; strings.HasPrefix(u, "https://") || strings.HasPrefix(u, "http://") {
+		openURL(u)
+	}
+}
+
+// openURL is the system's opener; tests replace it.
+var openURL = func(u string) {
+	name := "xdg-open"
+	if runtime.GOOS == "darwin" {
+		name = "open"
+	}
+	cmd := exec.Command(name, u)
+	if cmd.Start() == nil {
+		go func() { _ = cmd.Wait() }()
 	}
 }

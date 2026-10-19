@@ -15,6 +15,17 @@ a patch bump (`v0.x.y`) does not.
 - `backdrop-shell`: a program in `~/.config/limoni/scenes` is a scene by name,
   listed with the built-in ones: `fireflies.py` there is `-scene fireflies`, a
   folder holding a program of its own name (`cosmos/cosmos`) is `-scene cosmos`.
+- `backdrop-shell`: live regions. A program marks rows it printed with
+  `OSC 7799 ; live ; id ; width ; height` and streams frames for them over the
+  wrapper's socket (`$LIMONI_BACKDROP_SOCKET`, its user's alone), so they keep
+  moving after it exits and scroll with the output — a fetch's logo spins on
+  while you type. Left clicks on them are passed back. The program is stopped
+  while its rows are out of sight or covered, the rows are found again after a
+  resize, and it ends when they leave the history. The escape sequence starts
+  nothing by itself, so printing a file cannot run anything.
+- `backdrop-shell`: links (OSC 8) a program prints reach the terminal, and
+  Ctrl+click opens a web link in the browser — the terminal cannot, since the
+  wrapper has the mouse.
 
 ### Fixed
 

@@ -94,6 +94,10 @@ type session struct {
 	focused    bool     // the terminal window has focus
 	sceneFrame int      // the scene frame last rendered, -1 for none
 
+	live    *liveRegion // rows a program keeps drawing (live.go)
+	waiting *liveConn   // a program's connection that came before its region
+	liveOK  bool        // the region's rows still hold its print
+
 	app, bg, front, back *buffer.Buffer
 	appDirty             bool
 	pending              []byte // escape sequences for the real terminal, sent with the next frame
@@ -139,7 +143,7 @@ func run(opts options) (int, error) {
 	}
 	_ = pty.Setsize(ptmx, &pty.Winsize{Cols: uint16(s.w), Rows: uint16(s.h)})
 	exe, _ := os.Executable()
-	cmd.Env = append(withOwnDir(os.Environ(), exe), envNested+"="+tty.Name())
+	cmd.Env = append(withOwnDir(os.Environ(), exe), envNested+"="+tty.Name(), envSocket+"="+controlSocket())
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = tty, tty, tty
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true, Setctty: true}
 	if err := cmd.Start(); err != nil {
@@ -174,6 +178,7 @@ func run(opts options) (int, error) {
 		EnableMode:       func(m ansi.Mode) { s.setChildMode(m, true) },
 		DisableMode:      func(m ansi.Mode) { s.setChildMode(m, false) },
 	})
+	s.emu.RegisterOscHandler(oscLive, s.markLive)
 
 	s.app = buffer.NewBuffer(cell.NewRect(0, 0, uint16(s.w), uint16(s.h)))
 	s.bg = buffer.NewBuffer(s.app.Area)
@@ -205,9 +210,16 @@ func run(opts options) (int, error) {
 	// reset) arrive here. Without the socket the terminal still works; it
 	// only will not follow such changes until it is opened again.
 	reloads := make(chan struct{}, 1)
-	if stop, err := listenControl(reloads); err == nil {
+	lives := make(chan liveConn)
+	if stop, err := listenControl(reloads, lives); err == nil {
 		defer stop()
 	}
+	defer func() {
+		s.endLive()
+		if s.waiting != nil {
+			s.waiting.c.Close()
+		}
+	}()
 
 	s.start = time.Now()
 	var ticker *time.Ticker
@@ -233,6 +245,14 @@ func run(opts options) (int, error) {
 			p.Pause(!seen)
 			if seen {
 				drawn = p.Changed()
+			}
+		}
+		var liveDrawn <-chan struct{}
+		if s.live != nil && s.live.scene != nil {
+			shown := s.focused && s.liveSeen()
+			s.live.scene.Pause(!shown)
+			if shown {
+				liveDrawn = s.live.scene.Changed()
 			}
 		}
 		var tick <-chan time.Time
@@ -274,6 +294,10 @@ func run(opts options) (int, error) {
 		case <-drawn:
 			s.sceneFrame = -1 // a still scene is drawn again only then
 			s.draw()
+		case <-liveDrawn:
+			s.draw()
+		case lc := <-lives:
+			s.connectLive(lc)
 		case <-winch:
 			s.resize()
 		case <-reloads:
@@ -350,9 +374,13 @@ func (s *session) write1(data []byte) {
 		s.hist, s.splits, s.earned = nil, nil, 0
 		s.sel.active, s.sel.dragging = false, false
 		s.scroll = 0
+		s.endLive()
 		return
 	}
 	s.drainHistory()
+	if s.live != nil && s.live.print == nil {
+		s.live.print = s.liveCells(nil)
+	}
 }
 
 // drainHistory moves the lines the emulator scrolled off the screen into
@@ -398,6 +426,11 @@ func (s *session) dropHistory(n int) {
 	s.sel.lastSpot.line -= n
 	s.scroll = min(s.scroll, len(s.hist))
 	s.earned = max(0, s.earned-n)
+	if s.live != nil {
+		if s.live.line -= n; s.live.line < 0 {
+			s.endLive()
+		}
+	}
 }
 
 func (s *session) handleInput(msg inputMsg) {
@@ -457,6 +490,7 @@ func (s *session) resize() {
 	s.appDirty = true
 	s.scroll = 0
 	s.sel.active, s.sel.dragging = false, false // its lines have moved
+	s.relocateLive()                            // a reflow moves its rows
 	s.draw()
 }
 
@@ -479,6 +513,7 @@ func (s *session) draw() {
 		s.sceneFrame = f
 	}
 	copy(s.front.Content, s.app.Content)
+	s.drawLive()
 	terminal.ComposeBackdrop(s.front.Content, s.bg.Content)
 	s.highlight()
 	s.front.Invalidate()
@@ -492,6 +527,7 @@ func (s *session) draw() {
 		Colors256:  s.caps.Colors256,
 		EraseChar:  s.caps.EraseChar,
 		RepeatChar: s.caps.RepeatChar,
+		Hyperlinks: s.caps.Hyperlinks,
 	})
 	cx, cy := s.cursorAt()
 	out = append(out, "\x1b["...)
@@ -533,6 +569,7 @@ func (s *session) copyScreen() {
 			row[x] = convertCell(s.cellAt(spot{line: line, x: x}))
 		}
 	}
+	s.liveOK = s.liveIntact()
 }
 
 // sceneVisible reports whether any cell leaves the scene showing. A

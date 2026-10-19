@@ -13,7 +13,8 @@ import (
 // The colours the shell asked for are kept as it asked for them: a palette
 // colour stays a palette colour, so it is still drawn in the user's theme. A
 // cell with no background colour stays without one, which is what lets the
-// scene show through it (terminal.ComposeBackdrop).
+// scene show through it (terminal.ComposeBackdrop). A link (OSC 8) is kept,
+// for the terminal to show and for Ctrl+click (openLink).
 func convertCell(c *uv.Cell) cell.Cell {
 	if c == nil {
 		return cell.Cell{Content: ' '}
@@ -23,6 +24,9 @@ func convertCell(c *uv.Cell) cell.Cell {
 		Bg:       convertColor(c.Style.Bg),
 		Modifier: convertAttrs(c.Style),
 	}}
+	if c.Link.URL != "" {
+		out.Style.Link = cell.Link(c.Link.URL)
+	}
 	switch {
 	case c.Width == 0 && c.Content == "":
 		// The second column of a wide character.

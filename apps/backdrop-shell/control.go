@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"path/filepath"
@@ -36,9 +38,15 @@ func controlDir() string {
 	return filepath.Join(os.TempDir(), "limoni-backdrop-"+strconv.Itoa(os.Getuid()))
 }
 
-// listenControl serves this wrapper's socket, sending on reload for every
-// request, until stop is called.
-func listenControl(reload chan<- struct{}) (stop func(), err error) {
+// controlSocket is this wrapper's socket.
+func controlSocket() string {
+	return filepath.Join(controlDir(), strconv.Itoa(os.Getpid())+".sock")
+}
+
+// listenControl serves this wrapper's socket until stop is called: a
+// "reload" request sends on reload, and "live id pid" hands the connection,
+// which then brings a live region's frames, to live (live.go).
+func listenControl(reload chan<- struct{}, live chan<- liveConn) (stop func(), err error) {
 	dir := controlDir()
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, err
@@ -46,7 +54,7 @@ func listenControl(reload chan<- struct{}) (stop func(), err error) {
 	if st, err := os.Stat(dir); err != nil || st.Mode().Perm()&0o077 != 0 {
 		return nil, fmt.Errorf("%s is open to other users; not listening there", dir)
 	}
-	path := filepath.Join(dir, strconv.Itoa(os.Getpid())+".sock")
+	path := controlSocket()
 	_ = os.Remove(path) // left by an earlier process with this number
 	ln, err := net.Listen("unix", path)
 	if err != nil {
@@ -58,22 +66,37 @@ func listenControl(reload chan<- struct{}) (stop func(), err error) {
 			if err != nil {
 				return
 			}
-			buf := make([]byte, 16)
-			_ = conn.SetReadDeadline(time.Now().Add(time.Second))
-			n, _ := conn.Read(buf)
-			conn.Close()
-			if strings.TrimSpace(string(buf[:n])) == "reload" {
-				select {
-				case reload <- struct{}{}:
-				default: // one is pending already
-				}
-			}
+			go serveControl(conn, reload, live)
 		}
 	}()
 	return func() {
 		ln.Close()
 		_ = os.Remove(path)
 	}, nil
+}
+
+func serveControl(conn net.Conn, reload chan<- struct{}, live chan<- liveConn) {
+	_ = conn.SetReadDeadline(time.Now().Add(time.Second))
+	br := bufio.NewReaderSize(conn, 64)
+	first, _ := br.ReadSlice('\n')
+	f := strings.Fields(string(first))
+	switch {
+	case len(f) == 1 && f[0] == "reload":
+		conn.Close()
+		select {
+		case reload <- struct{}{}:
+		default: // one is pending already
+		}
+	case len(f) == 3 && f[0] == "live":
+		pid, _ := strconv.Atoi(f[2])
+		_ = conn.SetReadDeadline(time.Time{})
+		live <- liveConn{id: f[1], pid: pid, rw: struct {
+			io.Reader
+			io.Writer
+		}{br, conn}, c: conn}
+	default:
+		conn.Close()
+	}
 }
 
 // reloadRunning asks every running wrapper to read the settings again and

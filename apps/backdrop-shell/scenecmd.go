@@ -62,6 +62,11 @@ type cmdScene struct {
 	frame   []cell.Cell // the last whole frame, w×h
 	ready   bool        // frame holds one
 	changed chan struct{}
+
+	// cellOf converts the program's cells: sceneCell, or for a live region
+	// (live.go) convertCell, since those are the shell's own cells.
+	cellOf func(*uv.Cell) cell.Cell
+	conn   io.Closer // a live region's connection, which brings the frames
 }
 
 // quietGap is how long a program's output must pause before what it drew
@@ -82,7 +87,7 @@ func newCmdScene(path string) (*cmdScene, error) {
 	if !st.Mode().IsRegular() || st.Mode().Perm()&0o111 == 0 {
 		return nil, fmt.Errorf("%s is not an executable file; make it one with: chmod +x %s", path, path)
 	}
-	return &cmdScene{path: path, changed: make(chan struct{}, 1)}, nil
+	return &cmdScene{path: path, changed: make(chan struct{}, 1), cellOf: sceneCell}, nil
 }
 
 // Interval is zero: the scene is not drawn on a clock but when the program
@@ -178,6 +183,9 @@ func (c *cmdScene) Pause(p bool) {
 // Close ends the program for good.
 func (c *cmdScene) Close() error {
 	c.stop()
+	if c.conn != nil {
+		c.conn.Close()
+	}
 	return nil
 }
 
@@ -301,7 +309,7 @@ func (c *cmdScene) publish(gen int, emu *vt.Emulator, w, h int) {
 	}
 	for y := 0; y < h; y++ {
 		for x := 0; x < w; x++ {
-			c.frame[y*w+x] = sceneCell(emu.CellAt(x, y))
+			c.frame[y*w+x] = c.cellOf(emu.CellAt(x, y))
 		}
 	}
 	c.ready = true

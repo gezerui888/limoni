@@ -115,6 +115,13 @@ the scene, faded into the terminal's own background (asked for with OSC 11);
 a program that paints its own background — btop, a vim colour scheme — covers
 it.
 
+Owning the screen also lets a program keep what it printed moving after it
+exits, scrolling with the output: a system fetch's 3D logo can go on spinning
+while you type below it. The program marks its rows
+with `OSC 7799 ; live ; id ; width ; height` and streams frames for them over
+the wrapper's socket (`$LIMONI_BACKDROP_SOCKET`, readable by its user alone),
+as a `-scene-cmd` program draws; `live.go` has the details.
+
 ## What it costs
 
 What reaches the terminal is Limoni's cell diff, so a background costs only
@@ -141,6 +148,9 @@ idle. The full table is in the guide.
   the stars or the art behind it. **Double-click** takes a word (a whole path
   or address), **triple-click** a line. Typing drops the highlight.
 - **Middle-click** pastes what was copied last.
+- **Ctrl+click** opens a link (OSC 8) a program printed — a fetch's distro
+  name, say — in the browser, as the terminal would if it had the mouse.
+  Only web addresses: anything printed, a file being cat, can carry a link.
 - **The wheel**, and **Shift+PageUp / Shift+PageDown**, scroll back through
   history. The terminal's own scrollback is set aside while the wrapper runs
   (it draws on the alternate screen); typing returns to the live screen. In
