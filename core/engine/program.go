@@ -24,6 +24,10 @@ func (p *Program) RunTerminal(ctx context.Context, term *terminal.Terminal, b *d
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	// Only a mode asked for: the default must not undo one set on the backend.
+	if p.mouseMode != driver.MouseMotion {
+		_ = b.SetMouseMode(p.mouseMode)
+	}
 	if err := b.Setup(); err != nil {
 		return err
 	}
@@ -177,6 +181,7 @@ type programOptions struct {
 	altScreen    bool
 	catchCtrlC   bool
 	noMouse      bool
+	mouseMode    driver.MouseMode
 	observer     Observer
 	backdrop     terminal.Backdrop
 	overlay      bool
@@ -222,6 +227,12 @@ func WithCatchCtrlC(catch bool) Option {
 
 // WithoutMouse leaves the mouse to the terminal; see terminal.Terminal.SetMouse.
 func WithoutMouse() Option { return func(opts *programOptions) { opts.noMouse = true } }
+
+// WithMouseMode sets how much of the mouse is reported; see
+// driver.Backend.SetMouseMode.
+func WithMouseMode(mode driver.MouseMode) Option {
+	return func(opts *programOptions) { opts.mouseMode = mode }
+}
 
 // WithoutDefaultQuitKeys disables automatic termination on Ctrl+C in RunTerminal.
 func WithoutDefaultQuitKeys() Option {
@@ -285,6 +296,7 @@ type Program struct {
 	altScreen  bool
 	catchCtrlC bool
 	noMouse    bool
+	mouseMode  driver.MouseMode
 	backdrop   terminal.Backdrop
 
 	overlayPictures bool
@@ -334,6 +346,7 @@ func New(options ...Option) *Program {
 		altScreen:       opts.altScreen,
 		catchCtrlC:      opts.catchCtrlC,
 		noMouse:         opts.noMouse,
+		mouseMode:       opts.mouseMode,
 		overlayPictures: opts.overlay,
 		observer:        opts.observer,
 		stop:            make(chan struct{}),

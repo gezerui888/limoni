@@ -8,6 +8,22 @@ a patch bump (`v0.x.y`) does not.
 
 ## [Unreleased]
 
+### Added
+
+- Mouse modes: `WithMouseMode` / `WithProgramMouseMode` /
+  `Terminal.SetMouseMode` with `MouseMotion` (every move, the default),
+  `MouseDrag` (moves with a button held, DECSET 1002) and `MouseClicks`
+  (clicks and the wheel, 1000). Fewer reports are less input to read, and
+  less noise in the shell if a crash leaves reporting on. Checked in
+  xterm.js through `limoni serve` and headless Chromium: ten hover moves,
+  a click and a five-step drag arrive as 10/1/5, 0/1/5 and 0/1/0 events.
+  Asked for by residual (#84).
+
+### Changed
+
+- Turning the mouse off, and every teardown, now clears modes 1000 and 1002
+  as well as 1003.
+
 ## [v0.14.0] — 2026-10-20
 
 ### Added

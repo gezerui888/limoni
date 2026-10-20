@@ -34,6 +34,7 @@ type (
 	MouseEvent      = driver.MouseEvent
 	KeyType         = driver.KeyType
 	MouseButton     = driver.MouseButton
+	MouseMode       = driver.MouseMode
 	Layout          = layout.FlexLayout
 	FlexLayout      = layout.FlexLayout
 	Constraint      = layout.Constraint
@@ -164,6 +165,11 @@ const (
 	MouseScrollDown  = driver.MouseScrollDown
 	MouseScrollLeft  = driver.MouseScrollLeft
 	MouseScrollRight = driver.MouseScrollRight
+
+	// Mouse reporting modes
+	MouseMotion = driver.MouseMotion
+	MouseDrag   = driver.MouseDrag
+	MouseClicks = driver.MouseClicks
 )
 
 var (
@@ -194,15 +200,16 @@ func New() (*Terminal, error) {
 // many rows in the normal screen buffer instead of switching to the alternate
 // screen, leaving the scrollback and the drawn frame in place on exit.
 func NewInline(height uint16) (*Terminal, error) {
-	return newTerminal(height, true)
+	return newTerminal(height, true, MouseMotion)
 }
 
 // newTerminal is NewInline, with mouse reporting decided before the setup
 // sequence is sent.
-func newTerminal(height uint16, mouse bool) (*Terminal, error) {
+func newTerminal(height uint16, mouse bool, mode MouseMode) (*Terminal, error) {
 	b := driver.NewBackend(os.Stdin, os.Stdout)
 	b.SetInline(height)
 	_ = b.SetMouse(mouse)
+	_ = b.SetMouseMode(mode)
 	if err := b.Setup(); err != nil {
 		return nil, err
 	}

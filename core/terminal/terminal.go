@@ -384,6 +384,15 @@ func (t *Terminal) SetMouse(enabled bool) error {
 	return t.driver.SetMouse(enabled)
 }
 
+// SetMouseMode says how much of the mouse is reported: every move, moves
+// with a button held, or clicks and the wheel; see driver.Backend.SetMouseMode.
+func (t *Terminal) SetMouseMode(mode driver.MouseMode) error {
+	if t == nil || t.driver == nil {
+		return nil
+	}
+	return t.driver.SetMouseMode(mode)
+}
+
 // Release hands the terminal to fn — an editor, a pager, a shell — and takes
 // it back when fn returns, with raw mode and the screen set up again and the
 // next frame forced to repaint in full. Nothing may draw while fn runs; the

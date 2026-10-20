@@ -107,6 +107,7 @@ type appConfig struct {
 	automationPolicy AutomationPolicy
 	inlineHeight     uint16
 	noMouse          bool
+	mouseMode        MouseMode
 	suspendOnCtrlZ   bool
 	title            string
 	hasTitle         bool
@@ -202,6 +203,16 @@ func WithoutMouse() AppOption {
 	}
 }
 
+// WithMouseMode sets how much of the mouse is reported: every pointer move
+// (MouseMotion, the default; hover and pointer shapes need it), moves with a
+// button held (MouseDrag), or clicks and the wheel alone (MouseClicks).
+// Terminal.SetMouseMode changes it while running.
+func WithMouseMode(mode MouseMode) AppOption {
+	return func(c *appConfig) {
+		c.mouseMode = mode
+	}
+}
+
 // WithAutomation serves the application's semantic tree on a Unix socket, so
 // tests and agents can drive it by selector instead of by screen coordinate.
 // See the automation package for the protocol and its security caveats.
@@ -274,7 +285,7 @@ func RunWithContext(ctx context.Context, appFn func(f *Frame, ev *Event) bool, o
 		}
 	}
 
-	term, err := newTerminal(cfg.inlineHeight, !cfg.noMouse)
+	term, err := newTerminal(cfg.inlineHeight, !cfg.noMouse, cfg.mouseMode)
 	if err != nil {
 		return err
 	}

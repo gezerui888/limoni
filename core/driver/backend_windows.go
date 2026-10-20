@@ -87,7 +87,7 @@ func (b *Backend) Setup() error {
 	}
 	b.setUp = true
 	if b.portableIO != nil {
-		setupCmds := setupSequence(b.Inline(), b.mouse.enabled())
+		setupCmds := setupSequence(b.Inline(), &b.mouse)
 		b.mouse.active.Store(true)
 		setupCmds = b.replies.withProbe(setupCmds)
 		_, err := b.portableIO.Write([]byte(setupCmds))
@@ -100,7 +100,7 @@ func (b *Backend) Setup() error {
 	}
 	b.state = state
 
-	setupCmds := setupSequence(b.Inline(), b.mouse.enabled())
+	setupCmds := setupSequence(b.Inline(), &b.mouse)
 	b.mouse.active.Store(true)
 	setupCmds = b.replies.withProbe(setupCmds)
 	if _, err := b.out.WriteString(setupCmds); err != nil {

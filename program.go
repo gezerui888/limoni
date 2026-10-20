@@ -184,6 +184,11 @@ func WithProgramOverlayPictures() ProgramOption { return engine.WithOverlayPictu
 // alternate screen.
 func WithoutProgramMouse() ProgramOption { return engine.WithoutMouse() }
 
+// WithProgramMouseMode sets how much of the mouse is reported: every pointer
+// move (MouseMotion, the default), moves with a button held (MouseDrag), or
+// clicks and the wheel alone (MouseClicks).
+func WithProgramMouseMode(mode MouseMode) ProgramOption { return engine.WithMouseMode(mode) }
+
 // WithProgramFPS sets a continuous redraw rate for a Program, for a View that
 // changes without messages. Without it a Program draws only when something
 // happens (input, a redraw request, an Update) and uses no CPU while idle.
