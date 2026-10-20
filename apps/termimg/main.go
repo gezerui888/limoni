@@ -1,3 +1,5 @@
+//go:build unix
+
 // termimg runs a shell, or a command, so that the sixel pictures programs
 // print show in a terminal without sixel: in a window of their own inside
 // the terminal's X11 window, every pixel kept (internal/overlay), or in half

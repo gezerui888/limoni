@@ -1,3 +1,5 @@
+//go:build unix
+
 package main
 
 // maxCSI and maxStr cap a buffered escape sequence: past them it is passed

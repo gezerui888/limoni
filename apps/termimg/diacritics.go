@@ -1,3 +1,5 @@
+//go:build unix
+
 package main
 
 // diacritics are the combining marks kitty numbers placeholder rows and

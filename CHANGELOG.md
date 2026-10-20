@@ -10,6 +10,11 @@ a patch bump (`v0.x.y`) does not.
 
 ### Fixed
 
+- `go install …/apps/termimg@latest` on Windows stopped at a dozen compile
+  errors (`unix.Poll`, `Setsid`, `SIGWINCH`). termimg is Unix-only now by
+  build tag; on Windows it builds and says so, and that Windows Terminal
+  1.22 and later show sixel by themselves.
+
 - `apps/termimg`: the shadow screen started at the top left wherever the
   cursor really was, so until the first clear every sixel picture landed as
   many rows up as termimg was started down — over the command that printed
