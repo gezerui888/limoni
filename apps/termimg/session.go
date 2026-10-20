@@ -172,8 +172,8 @@ func (s *session) xtsmgraphics(body []byte) {
 func (s *session) reply(r string) { _, _ = s.ptmx.WriteString(r) }
 
 // sixel places a picture where a terminal with sixel would: at the cursor,
-// which then goes to the line under it; with DECSDM at the top left, the
-// cursor left where it was.
+// which then goes to its last row; with DECSDM at the top left, the cursor
+// left where it was.
 func (s *session) sixel(data []byte) {
 	img := decodeSixel(data)
 	b := img.Bounds()
@@ -191,7 +191,7 @@ func (s *session) sixel(data []byte) {
 
 // How the cursor moves after a picture, as each protocol has it.
 const (
-	moveBelow = iota // sixel: to the line under it, in the same column
+	moveBelow = iota // sixel: to its last row, in the same column, as in xterm
 	moveAfter        // kitty, iTerm2: past its right edge, on its last row
 	moveNone         // kitty with C=1
 )
@@ -204,8 +204,10 @@ func (s *session) put(img image.Image, cols, rows, move int, sticky bool) *pictu
 	top := at.Y
 	switch move {
 	case moveBelow:
-		s.text(bytes.Repeat([]byte{'\n'}, rows))
-		top = s.emu.CursorPosition().Y - rows
+		// xterm's rule, which fastfetch counts on to go back up beside it:
+		// text after a picture needs one newline more, or it cuts its last row.
+		s.text(bytes.Repeat([]byte{'\n'}, rows-1))
+		top = s.emu.CursorPosition().Y - (rows - 1)
 	case moveAfter:
 		s.text(bytes.Repeat([]byte{'\n'}, rows-1))
 		top = s.emu.CursorPosition().Y - (rows - 1)
@@ -280,10 +282,17 @@ func (s *session) show() {
 		if pic.alt != alt {
 			continue
 		}
+		img := pic.img
+		if h := pic.rows*s.cellH - pic.dy - pic.oy; h < img.Bounds().Dy() {
+			if h <= 0 {
+				continue
+			}
+			img = pic.cropped(h)
+		}
 		s.shown = append(s.shown, overlay.Picture{
-			Img: pic.img,
+			Img: img,
 			X:   pic.col*s.cellW + pic.dx + pic.ox, Y: pic.top*s.cellH + pic.dy + pic.oy,
-			W: pic.img.Bounds().Dx(), H: pic.img.Bounds().Dy(),
+			W: img.Bounds().Dx(), H: img.Bounds().Dy(),
 		})
 	}
 	if len(s.kitty.virtual) > 0 {

@@ -192,3 +192,32 @@ func TestZeroCountsAsOne(t *testing.T) {
 		t.Fatalf("passed on %q", got)
 	}
 }
+
+// After a sixel picture the cursor is on its last row, as in xterm; text
+// there cuts that row off and leaves the rows above.
+func TestSixelCursorAndCut(t *testing.T) {
+	s, _ := testSession(t)
+	s.parse.feed([]byte("\x1b[3;5H\x1bP0;1;0q\"1;1;20;45#1;2;100;0;0#1!20~-!20~-!20~-!20~-!20~-!20~-!20~-!20~\x1b\\"), s)
+	if at := s.emu.CursorPosition(); at.X != 4 || at.Y != 4 {
+		t.Fatalf("cursor at %v, want its last row 4,4", at) // 45px in 20px cells: rows 2, 3, 4
+	}
+	pic := only(t, &s.pics)
+	if pic.top != 2 || pic.rows != 3 {
+		t.Fatalf("at top %d, %d rows", pic.top, pic.rows)
+	}
+	s.parse.feed([]byte("\r$ ls -la"), s) // over columns 4 and 5
+	if pic = only(t, &s.pics); pic.rows != 2 || pic.top != 2 {
+		t.Fatalf("after a prompt on its last row: top %d, %d rows, want 2 rows", pic.top, pic.rows)
+	}
+	if strings.ContainsRune(s.emu.String(), mark(s.pics.idOf(pic), 2)) {
+		t.Fatal("the cut row's marks were left behind")
+	}
+	if got := pic.cropped(2 * s.cellH).Bounds().Dy(); got != 40 {
+		t.Fatalf("cropped to %d pixel rows, want 40", got)
+	}
+	s.parse.feed([]byte("\x1b[3;5Hx"), s)
+	s.pics.update()
+	if len(s.pics.byID) != 0 {
+		t.Fatal("written over in its first row, it was kept")
+	}
+}

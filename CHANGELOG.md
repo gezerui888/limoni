@@ -8,6 +8,24 @@ a patch bump (`v0.x.y`) does not.
 
 ## [Unreleased]
 
+### Fixed
+
+- `apps/termimg`: the shadow screen started at the top left wherever the
+  cursor really was, so until the first clear every sixel picture landed as
+  many rows up as termimg was started down — over the command that printed
+  it. It now asks the terminal where the cursor is (CSI 6n) and starts
+  there.
+- `apps/termimg`: after a sixel picture the cursor is on its last row, as in
+  xterm (`graphics_sixel.c`), not the line under it; fastfetch's sixel logo
+  went back up one row short and its info landed below the logo. Text
+  written over a sixel picture now cuts it off from that row down instead of
+  taking all of it, so a shell prompt after `magick x.png sixel:-` covers
+  only its last row.
+- Overlay pictures in a translucent terminal (Alacritty `opacity = 0.9`)
+  showed their transparent parts in an opaque square of the background
+  colour. The terminal's opacity is read from its window (one pixel, GetImage)
+  and transparent pixels take it.
+
 ## [v0.15.0] — 2026-10-20
 
 ### Added

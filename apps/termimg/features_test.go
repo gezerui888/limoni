@@ -232,3 +232,15 @@ func TestITermMultipartAndGIF(t *testing.T) {
 		t.Fatal("the GIF does not play")
 	}
 }
+
+// The cursor's answer comes out of what was typed, 0-based; no answer is the
+// top left.
+func TestCursorReply(t *testing.T) {
+	at, rest := cursorReply([]byte("a\x1b[1;2Ab\x1b[12;3Rc"))
+	if at != image.Pt(2, 11) || string(rest) != "a\x1b[1;2Abc" {
+		t.Fatalf("got %v %q", at, rest)
+	}
+	if at, rest := cursorReply([]byte("x")); at != (image.Point{}) || string(rest) != "x" {
+		t.Fatalf("no answer: %v %q", at, rest)
+	}
+}

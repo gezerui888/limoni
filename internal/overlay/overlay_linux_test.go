@@ -275,6 +275,21 @@ func TestBGRX(t *testing.T) {
 	if want := []byte{99, 0, 100, 255, 200, 0, 0, 255}; string(px) != string(want) {
 		t.Fatalf("over a background: %v, want %v", px, want)
 	}
+	// A translucent terminal's background (premultiplied, alpha 230) shows
+	// through transparent pixels as see-through as the terminal draws it.
+	px = bgrx(img, 2, 1, color.RGBA{0, 0, 180, 230})
+	if want := []byte{89, 0, 100, 242, 180, 0, 0, 230}; string(px) != string(want) {
+		t.Fatalf("over a translucent background: %v, want %v", px, want)
+	}
+}
+
+// SetBackground keeps the opacity measured from the terminal's window.
+func TestSetBackgroundKeepsAlpha(t *testing.T) {
+	o := &Overlay{bg: color.RGBA{A: 230}}
+	o.SetBackground(color.RGBA{32, 36, 53, 255})
+	if want := (color.RGBA{28, 32, 47, 230}); o.bg != want {
+		t.Fatalf("bg %v, want %v", o.bg, want)
+	}
 }
 
 func TestAncestors(t *testing.T) {

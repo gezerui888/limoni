@@ -2,8 +2,10 @@ package main
 
 import (
 	"bytes"
+	"image"
 	"image/color"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -11,14 +13,23 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// queryBackground asks the terminal for its background colour (OSC 11),
-// the colour transparent pixels are shown in. DA1 follows it, which every
-// terminal answers, so one without OSC 11 costs no wait. It runs before the
-// program's output goes anywhere, so neither question nor answer meets the
-// program's own. It returns the colour, whether the terminal said, and what
-// else came in meanwhile (keys typed), for the program.
+// queryTerminal asks the terminal for its background colour (OSC 11), the
+// colour transparent pixels are shown in, and where its cursor is (CSI 6n).
+// DA1 follows them, which every terminal answers, so one without OSC 11
+// costs no wait. It runs before the program's output goes anywhere, so
+// neither question nor answer meets the program's own. It returns the
+// colour, whether the terminal said, the cursor (0-based, the top left if
+// the terminal did not say), and what else came in meanwhile (keys typed),
+// for the program.
+func queryTerminal(in, out *os.File) (color.RGBA, bool, image.Point, []byte) {
+	c, ok, rest := queryBackground(in, out)
+	at, rest := cursorReply(rest)
+	return c, ok, at, rest
+}
+
+// queryBackground sends the questions and waits for the DA1 answer.
 func queryBackground(in, out *os.File) (color.RGBA, bool, []byte) {
-	if _, err := out.WriteString("\x1b]11;?\x1b\\\x1b[c"); err != nil {
+	if _, err := out.WriteString("\x1b]11;?\x1b\\\x1b[6n\x1b[c"); err != nil {
 		return color.RGBA{}, false, nil
 	}
 	var b []byte
@@ -88,6 +99,21 @@ func backgroundReply(b []byte) (c color.RGBA, ok bool, rest []byte, done bool) {
 	rest = append(rest[:start:start], body[end+term:]...)
 	return c, ok, rest, true
 }
+
+// cursorReply takes the answer to CSI 6n, ESC [ row ; col R, out of b.
+// shortcut: Shift+F3 in legacy encoding is ESC [ 1 ; 2 R too; typed in the
+// moment before the answer, it would be taken for it.
+func cursorReply(b []byte) (image.Point, []byte) {
+	m := cprRe.FindSubmatchIndex(b)
+	if m == nil {
+		return image.Point{}, b
+	}
+	row, _ := strconv.Atoi(string(b[m[2]:m[3]]))
+	col, _ := strconv.Atoi(string(b[m[4]:m[5]]))
+	return image.Pt(max(col-1, 0), max(row-1, 0)), append(b[:m[0]:m[0]], b[m[1]:]...)
+}
+
+var cprRe = regexp.MustCompile(`\x1b\[(\d{1,4});(\d{1,4})R`)
 
 // parseXColor reads rgb:R/G/B, each 1 to 4 hex digits, as terminals answer
 // OSC 11.

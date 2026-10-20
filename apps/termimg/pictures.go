@@ -2,8 +2,6 @@ package main
 
 import (
 	"image"
-	"maps"
-	"slices"
 	"strconv"
 	"unicode/utf8"
 
@@ -15,9 +13,10 @@ import (
 // rows it is. The marks go to the shadow screen only, never to the real
 // terminal. Scrolling, inserted lines and scroll regions carry them along,
 // so a picture is wherever its marks are; anything written over a cell,
-// even a space, replaces the mark, and the picture goes, as a sixel picture
-// does in a terminal that has them. A screen switched away hides its marks,
-// and with them its pictures.
+// even a space, replaces the mark, and the picture is cut off from that row
+// down: text written under a sixel picture, as a shell prompt is, covers its
+// last row in a terminal that has them. A screen switched away hides its
+// marks, and with them its pictures.
 const (
 	markBase = 0x100000 // plane 16, private use: id<<8 | row
 	maxRows  = 256
@@ -56,6 +55,18 @@ type picture struct {
 	// kitty: any of their marks left places them; they go when none is.
 	// shortcut: one written over in full goes, where kitty would keep it.
 	sticky bool
+	// crop is img cut to its rows left, made once per img (see cropped).
+	crop, cropOf image.Image
+}
+
+// cropped returns the top h pixel rows of img, the same value while img and
+// h stay: the overlay keeps a picture by its value.
+func (pic *picture) cropped(h int) image.Image {
+	if pic.cropOf != pic.img || pic.crop.Bounds().Dy() != h {
+		b := pic.img.Bounds()
+		pic.crop, pic.cropOf = subImage(pic.img, image.Rect(b.Min.X, b.Min.Y, b.Max.X, b.Min.Y+h)), pic.img
+	}
+	return pic.crop
 }
 
 // pictures are the pictures on the shadow screen, by id.
@@ -113,7 +124,7 @@ func (p *pictures) idOf(pic *picture) int {
 func (p *pictures) remove(id int) {
 	if p.byID[id] != nil {
 		delete(p.byID, id)
-		p.blank(map[int]bool{id: true})
+		p.blank(map[int]int{id: 0})
 	}
 }
 
@@ -131,10 +142,10 @@ func (p *pictures) freeID() int {
 // line y, or n < 0 if the row turned up in pieces.
 type seen struct{ y, x0, n int }
 
-// update finds every picture by its marks and drops those whose marks are
-// broken: a cell written over, or a row missing from the middle of the
-// screen. A dropped picture's leftover marks are blanked, so its id can be
-// used again.
+// update finds every picture by its marks and cuts those whose marks are
+// broken (a cell written over, or a row missing from the middle of the
+// screen) above the first broken row, dropping those broken in their first.
+// Marks left under the cut are blanked, so its id can be used again.
 func (p *pictures) update() {
 	if len(p.byID) == 0 {
 		return
@@ -165,7 +176,7 @@ func (p *pictures) update() {
 			}
 		}
 	}
-	stale := map[int]bool{}
+	stale := map[int]int{} // id → its first row to blank
 	alt := p.emu.IsAltScreen()
 	for id, pic := range p.byID {
 		if pic.alt != alt {
@@ -173,20 +184,27 @@ func (p *pictures) update() {
 		}
 		if !pic.locate(found[id], h) {
 			delete(p.byID, id)
-			stale[id] = found[id] != nil
 		}
 	}
-	for id := range found {
-		if p.byID[id] == nil {
-			stale[id] = true
+	for id, rows := range found {
+		keep := 0
+		if pic := p.byID[id]; pic != nil {
+			keep = pic.rows
+		}
+		for r := range rows {
+			if r >= keep {
+				stale[id] = keep
+				break
+			}
 		}
 	}
 	p.blank(stale)
 }
 
-// locate sets where pic is from the rows of marks found, and reports whether
-// they make a whole picture: every row that should be on the screen is
-// there, complete and in line with the others.
+// locate sets where pic is from the rows of marks found, and how many of its
+// rows are left: those down to the first that should be on the screen and is
+// not there, complete and in line with the others. It reports whether any
+// are.
 func (pic *picture) locate(rows map[int]*seen, h int) bool {
 	if len(rows) == 0 {
 		return false
@@ -204,35 +222,43 @@ func (pic *picture) locate(rows map[int]*seen, h int) bool {
 		return true
 	}
 	col, top := -1, 0
-	for r, s := range rows {
-		if r >= pic.rows || s.n != pic.cols {
-			return false
-		}
-		if col < 0 {
-			col, top = s.x0, s.y-r
-		} else if s.x0 != col || s.y-r != top {
-			return false
-		}
-	}
 	for r := range pic.rows {
-		if y := top + r; y >= 0 && y < h && rows[r] == nil {
-			return false
+		if s := rows[r]; s != nil && s.n == pic.cols {
+			col, top = s.x0, s.y-r
+			break
 		}
 	}
-	pic.col, pic.top = col, top
+	if col < 0 {
+		return false
+	}
+	keep := pic.rows
+	for r := range pic.rows {
+		s, y := rows[r], top+r
+		if s == nil && (y < 0 || y >= h) || s != nil && s.n == pic.cols && s.x0 == col && s.y == y {
+			continue
+		}
+		keep = r
+		break
+	}
+	if keep == 0 {
+		return false
+	}
+	pic.col, pic.top, pic.rows = col, top, keep
 	return true
 }
 
-// blank writes spaces over the marks of the ids that are true in ids.
-func (p *pictures) blank(ids map[int]bool) {
-	if !slices.Contains(slices.Collect(maps.Values(ids)), true) {
+// blank writes spaces over the marks of the ids in ids, from the row given
+// down.
+func (p *pictures) blank(ids map[int]int) {
+	if len(ids) == 0 {
 		return // nothing to blank: spare the scan
 	}
 	var b []byte
 	for y := range p.emu.Height() {
 		for x := range p.emu.Width() {
 			if c := p.emu.CellAt(x, y); c != nil {
-				if id, _, ok := unmark(c.Content); ok && ids[id] {
+				id, row, ok := unmark(c.Content)
+				if from, in := ids[id]; ok && in && row >= from {
 					b = append(cup(b, x, y), ' ')
 				}
 			}

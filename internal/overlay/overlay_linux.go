@@ -34,7 +34,9 @@ type Overlay struct {
 	pix      map[picKey]*pixmap
 	pixBytes int
 	maxBytes int
-	bg       color.RGBA // what transparent pixels are composed over
+	// bg is what transparent pixels are composed over, premultiplied: the
+	// terminal's background, as see-through as the terminal draws it.
+	bg color.RGBA
 }
 
 // maxPixBytes bounds the pictures kept in the X server. Past it the least
@@ -72,15 +74,17 @@ func Open() (*Overlay, error) {
 		x.c.Close()
 		return nil, err
 	}
-	return &Overlay{x: x, pix: make(map[picKey]*pixmap), maxBytes: maxPixBytes, bg: color.RGBA{A: 0xff}}, nil
+	return &Overlay{x: x, pix: make(map[picKey]*pixmap), maxBytes: maxPixBytes, bg: color.RGBA{A: x.alpha}}, nil
 }
 
 // SetBackground sets the colour transparent pixels show, black to start
 // with: a window cannot show the terminal through it, so the terminal's own
-// background colour is the nearest thing. Pictures already sent keep theirs.
+// background colour is the nearest thing, at the terminal's own opacity.
+// Pictures already sent keep theirs.
 func (o *Overlay) SetBackground(c color.Color) {
 	r, g, b, _ := c.RGBA()
-	o.bg = color.RGBA{uint8(r >> 8), uint8(g >> 8), uint8(b >> 8), 0xff}
+	a := uint32(o.bg.A)
+	o.bg = color.RGBA{uint8(r >> 8 * a / 255), uint8(g >> 8 * a / 255), uint8(b >> 8 * a / 255), o.bg.A}
 }
 
 // SetCache sets how many bytes of pictures not on screen are kept in the X
@@ -274,9 +278,9 @@ func (o *Overlay) Close() error {
 	return err
 }
 
-// bgrx scales img to w×h, its own shape (see ContainSize), composed over bg,
-// in the X server's 32-bit little-endian pixel layout. The fourth byte is
-// alpha for a 32-bit window and ignored otherwise.
+// bgrx scales img to w×h, its own shape (see ContainSize), composed over bg
+// (premultiplied), in the X server's 32-bit little-endian pixel layout. The
+// fourth byte is alpha for a 32-bit window and ignored otherwise.
 func bgrx(img image.Image, w, h int, bg color.RGBA) []byte {
 	// A picture already at its size (a video frame) is only converted:
 	// resampling it to itself costs more than the rest of the frame.
@@ -299,7 +303,7 @@ func bgrx(img image.Image, w, h int, bg color.RGBA) []byte {
 			out[i] = row[i+2] + uint8(uint32(bg.B)*t/255)
 			out[i+1] = row[i+1] + uint8(uint32(bg.G)*t/255)
 			out[i+2] = row[i] + uint8(uint32(bg.R)*t/255)
-			out[i+3] = 0xff
+			out[i+3] = row[i+3] + uint8(uint32(bg.A)*t/255)
 		}
 	}
 	return px

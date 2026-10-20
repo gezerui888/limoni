@@ -11,11 +11,13 @@ package main
 import (
 	"errors"
 	"fmt"
+	"image"
 	"image/color"
 	"io"
 	"os"
 	"os/exec"
 	"os/signal"
+	"strconv"
 	"syscall"
 
 	"github.com/creack/pty"
@@ -65,13 +67,16 @@ func run(argv []string) (int, error) {
 	var typed []byte // keys that came while asking the terminal
 	if state, err := driver.MakeRaw(in); err == nil {
 		defer driver.Restore(in, state)
-		if s.ov != nil {
-			var bg color.RGBA
-			var ok bool
-			if bg, ok, typed = queryBackground(os.Stdin, os.Stdout); ok {
-				s.ov.SetBackground(bg)
-			}
+		var bg color.RGBA
+		var ok bool
+		var at image.Point
+		bg, ok, at, typed = queryTerminal(os.Stdin, os.Stdout)
+		if ok && s.ov != nil {
+			s.ov.SetBackground(bg)
 		}
+		// The shadow screen starts where the real cursor is, not at the
+		// top: the program's first pictures go under what it prints there.
+		s.emu.Write([]byte("\x1b[" + strconv.Itoa(at.Y+1) + ";" + strconv.Itoa(at.X+1) + "H"))
 	}
 	winch := make(chan os.Signal, 1)
 	signal.Notify(winch, syscall.SIGWINCH)
