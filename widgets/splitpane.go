@@ -143,7 +143,7 @@ type SplitPane struct {
 	MinFirst, MinSecond uint16
 
 	DividerStyle        cell.Style
-	FocusedDividerStyle cell.Style
+	FocusedDividerStyle cell.Style // unset: reverse bold
 	// DividerRune replaces │ (side by side) or ─ (stacked).
 	DividerRune rune
 }
@@ -198,7 +198,7 @@ func (p SplitPane) Draw(ctx cell.Context, buf *buffer.Buffer) {
 
 	style := ctx.Style.Merge(p.DividerStyle)
 	if ctx.IsFocused(p.ID) {
-		style = style.Merge(p.FocusedDividerStyle)
+		style = style.Merge(focusStyle(p.FocusedDividerStyle))
 	}
 	glyph := p.DividerRune
 	if glyph == 0 {

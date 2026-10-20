@@ -84,9 +84,9 @@ type Slider struct {
 	TrackStyle    cell.Style
 	FilledStyle   cell.Style
 	ThumbStyle    cell.Style
-	FocusedStyle  cell.Style
-	DisableScroll bool // Turns off changing the value with the mouse wheel
-	DisableFocus  bool // Turns off taking the focus on click
+	FocusedStyle  cell.Style // unset: the thumb is drawn reverse bold
+	DisableScroll bool       // Turns off changing the value with the mouse wheel
+	DisableFocus  bool       // Turns off taking the focus on click
 	OnChange      func(value int)
 }
 
@@ -99,7 +99,8 @@ func (s Slider) Draw(ctx cell.Context, buf *buffer.Buffer) {
 		ctx.RegisterFocus(s.ID)
 	}
 	style := ctx.Style.Merge(s.Style)
-	if ctx.IsFocused(s.ID) {
+	focused := ctx.IsFocused(s.ID)
+	if focused {
 		style = style.Merge(s.FocusedStyle)
 	}
 	track := ctx.Style.Merge(s.TrackStyle)
@@ -113,6 +114,9 @@ func (s Slider) Draw(ctx cell.Context, buf *buffer.Buffer) {
 	}
 	if thumb == (cell.Style{}) {
 		thumb = style
+	}
+	if focused && s.FocusedStyle == (cell.Style{}) {
+		thumb = thumb.Merge(focusMark)
 	}
 
 	width := int(ctx.Area.Width)

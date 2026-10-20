@@ -13,7 +13,7 @@ type RadioButton struct {
 	Value        string
 	Label        string
 	Style        cell.Style
-	FocusedStyle cell.Style
+	FocusedStyle cell.Style // unset: reverse bold
 }
 
 // Draw draws the radio button as ( ) or (*); when clicked it takes the focus and updates the group's selected value.
@@ -47,7 +47,7 @@ func (rb RadioButton) Draw(ctx cell.Context, buf *buffer.Buffer) {
 	// Merge the styles
 	textStyle := ctx.Style.Merge(rb.Style)
 	if isFocused {
-		textStyle = textStyle.Merge(rb.FocusedStyle)
+		textStyle = textStyle.Merge(focusStyle(rb.FocusedStyle))
 	}
 
 	// Prepare the ( ) or (*) state text

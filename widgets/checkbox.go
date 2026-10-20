@@ -12,7 +12,7 @@ type Checkbox struct {
 	Checked      *bool
 	Label        string
 	Style        cell.Style
-	FocusedStyle cell.Style
+	FocusedStyle cell.Style // unset: reverse bold
 }
 
 // Draw draws the checkbox as [ ] or [x]; when clicked it takes the focus and toggles its state.
@@ -46,7 +46,7 @@ func (cb Checkbox) Draw(ctx cell.Context, buf *buffer.Buffer) {
 	// Merge the styles
 	textStyle := ctx.Style.Merge(cb.Style)
 	if isFocused {
-		textStyle = textStyle.Merge(cb.FocusedStyle)
+		textStyle = textStyle.Merge(focusStyle(cb.FocusedStyle))
 	}
 
 	// Prepare the [ ] or [x] state text

@@ -49,11 +49,7 @@ func (b Button) Draw(ctx cell.Context, buf *buffer.Buffer) {
 	case b.Disabled:
 		style.Modifier |= cell.ModifierDim
 	case ctx.IsFocused(b.ID):
-		fs := b.FocusedStyle
-		if fs == (cell.Style{}) {
-			fs = cell.Style{Modifier: cell.ModifierReverse | cell.ModifierBold}
-		}
-		style = style.Merge(fs)
+		style = style.Merge(focusStyle(b.FocusedStyle))
 	}
 	n := buf.SetStringWithin(area.X, area.Y, "[ ", style, area.Width)
 	n += buf.SetStringWithin(area.X+n, area.Y, b.Label, style, area.Width-min(n, area.Width))
@@ -87,4 +83,16 @@ func (b Button) AccessibilityNode(bounds cell.Rect, focused bool) accessibility.
 		state |= accessibility.StateDisabled
 	}
 	return accessibility.AccessibilityNode{ID: b.ID, Role: accessibility.RoleButton, Label: b.Label, State: state, Bounds: bounds}
+}
+
+// focusMark is what a focused widget is drawn with when it sets no focused
+// style of its own, so the focus always shows.
+var focusMark = cell.Style{Modifier: cell.ModifierReverse | cell.ModifierBold}
+
+// focusStyle is s, or focusMark when s is unset.
+func focusStyle(s cell.Style) cell.Style {
+	if s == (cell.Style{}) {
+		return focusMark
+	}
+	return s
 }

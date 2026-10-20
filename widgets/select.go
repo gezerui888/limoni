@@ -129,7 +129,7 @@ type Select struct {
 	Options       []string
 	State         *SelectState
 	Style         cell.Style
-	FocusedStyle  cell.Style
+	FocusedStyle  cell.Style // unset: reverse bold
 	OptionStyle   cell.Style
 	SelectedStyle cell.Style
 	HoverStyle    cell.Style
@@ -152,7 +152,7 @@ func (s Select) Draw(ctx cell.Context, buf *buffer.Buffer) {
 
 	fieldStyle := ctx.Style.Merge(s.Style)
 	if ctx.IsFocused(s.ID) {
-		fieldStyle = fieldStyle.Merge(s.FocusedStyle)
+		fieldStyle = fieldStyle.Merge(focusStyle(s.FocusedStyle))
 	}
 	for x := uint16(0); x < ctx.Area.Width; x++ {
 		px := ctx.Area.X + x

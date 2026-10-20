@@ -41,3 +41,36 @@ func TestListRowStylesAndHighlightSpacing(t *testing.T) {
 		t.Error("the selected row lost the selection style")
 	}
 }
+
+// A focused list without a FocusedStyle still shows its focus, on the
+// selected row; a FocusedStyle of its own replaces that mark.
+func TestFocusedListShowsItsFocus(t *testing.T) {
+	state := NewListState()
+	state.Select(1)
+	area := cell.NewRect(0, 0, 10, 2)
+	draw := func(l List, focused string) *buffer.Buffer {
+		buf := buffer.NewBuffer(area)
+		ctx := cell.NewContext(area, cell.Style{})
+		ctx.FocusedID = focused
+		l.Draw(ctx, buf)
+		return buf
+	}
+	mark := cell.ModifierReverse | cell.ModifierBold
+	l := List{ID: "l", Items: []string{"one", "two"}, State: state}
+
+	if got := draw(l, "").CellAt(0, 1).Style.Modifier; got&mark != 0 {
+		t.Errorf("unfocused selected row drawn with %b", got)
+	}
+	buf := draw(l, "l")
+	if got := buf.CellAt(0, 1).Style.Modifier; got&mark != mark {
+		t.Errorf("focused selected row drawn with %b, want reverse bold", got)
+	}
+	if got := buf.CellAt(0, 0).Style.Modifier; got&mark != 0 {
+		t.Errorf("an unselected row took the focus mark: %b", got)
+	}
+
+	l.FocusedStyle = cell.Style{Modifier: cell.ModifierUnderline}
+	if got := draw(l, "l").CellAt(0, 1).Style.Modifier; got&cell.ModifierReverse != 0 || got&cell.ModifierUnderline == 0 {
+		t.Errorf("with a FocusedStyle the row is drawn with %b", got)
+	}
+}

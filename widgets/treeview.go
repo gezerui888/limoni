@@ -341,7 +341,7 @@ type TreeView struct {
 	Roots         []TreeNode
 	State         *TreeViewState
 	Style         cell.Style
-	FocusedStyle  cell.Style
+	FocusedStyle  cell.Style // unset: the selected row is drawn reverse bold
 	SelectedStyle cell.Style
 	GuideStyle    cell.Style
 	ShowGuides    bool
@@ -366,6 +366,9 @@ func (t TreeView) Draw(ctx cell.Context, buf *buffer.Buffer) {
 	selStyle := baseStyle.Merge(t.SelectedStyle)
 	if t.SelectedStyle == (cell.Style{}) && ctx.ThemeStyle != nil {
 		selStyle = baseStyle.Merge(ctx.ThemeStyle("selection"))
+	}
+	if ctx.IsFocused(t.ID) && t.FocusedStyle == (cell.Style{}) {
+		selStyle = selStyle.Merge(focusMark)
 	}
 	guideStyle := baseStyle.Merge(t.GuideStyle)
 	if t.GuideStyle == (cell.Style{}) {

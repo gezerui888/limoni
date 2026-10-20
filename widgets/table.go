@@ -332,7 +332,7 @@ type Table struct {
 	State         *TableState
 	GridStyle     cell.Style
 	SelectedStyle cell.Style
-	FocusedStyle  cell.Style
+	FocusedStyle  cell.Style // the selected row's, when focused; unset: reverse bold
 	DrawGrid      bool
 	SortEnabled   bool                                              // Enables sorting rows by clicking the header cells.
 	MultiSelect   bool                                              // Enables selecting several rows with Space.
@@ -1137,7 +1137,7 @@ func (t Table) drawSpanRow(
 	if isSelected {
 		rowStyle = rowStyle.Merge(t.SelectedStyle)
 		if ctx.IsFocused(t.ID) {
-			rowStyle = rowStyle.Merge(t.FocusedStyle)
+			rowStyle = rowStyle.Merge(focusStyle(t.FocusedStyle))
 		}
 	}
 
