@@ -244,6 +244,31 @@ cols := limoni.SplitHorizontal(area, limoni.Percentage(25), limoni.Percentage(75
 
 ---
 
+## 🧪 Test Etmek (`uitest`)
+
+`uitest` bir uygulamayı Playwright'ın bir web sayfasını test ettiği gibi test
+eder: widget'ı rolüyle, etiketiyle ya da ID'siyle bulur, üzerinde işlem yapar
+ve uygulamanın yetişmesini bekleyen kontrollerle doğrular. Terminal gerekmez,
+hiçbir şey `sleep` ile beklemez.
+
+```go
+func TestAddTask(t *testing.T) {
+	page := uitest.Run(t, 80, 24, app.draw)    // TEA için uitest.Program(t, 80, 24, &model{})
+
+	page.GetByRole("input", "New task").Type("Tag v1.0")
+	page.GetByRole("button", "Add task").Click()
+
+	page.Expect(page.GetByRole("list-item", "Tag v1.0")).ToBeVisible()
+	page.Expect(page.GetByID("tasks")).ToBeFocused()
+	page.Expect(page.GetByID("status")).ToContainLabel("Added")
+}
+```
+
+`page.Screen()` ham metin ızgarasını verir, ama ona yapılan kontrol beklemez;
+önce bir locator deneyin. Ayrıntılar: [Semantik otomasyon](automation.md).
+
+---
+
 ## 🌐 Tarayıcıda Göstermek (`limoni serve`)
 
 `limoni serve` bir programı her tarayıcı sekmesi için gerçek bir sözde

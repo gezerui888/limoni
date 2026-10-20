@@ -256,6 +256,30 @@ sections := limoni.SplitVertical(area, limoni.Ratio(2), limoni.Ratio(1)) // 2/3 
 
 ---
 
+## 🧪 Test It (`uitest`)
+
+`uitest` tests an app the way Playwright tests a web page: find a widget by
+its role, label or ID, act on it, and assert with checks that wait for the
+app to catch up. No terminal is needed and nothing sleeps.
+
+```go
+func TestAddTask(t *testing.T) {
+	page := uitest.Run(t, 80, 24, app.draw)    // uitest.Program(t, 80, 24, &model{}) for TEA
+
+	page.GetByRole("input", "New task").Type("Tag v1.0")
+	page.GetByRole("button", "Add task").Click()
+
+	page.Expect(page.GetByRole("list-item", "Tag v1.0")).ToBeVisible()
+	page.Expect(page.GetByID("tasks")).ToBeFocused()
+	page.Expect(page.GetByID("status")).ToContainLabel("Added")
+}
+```
+
+`page.Screen()` returns the raw text grid, but a check on it does not wait;
+reach for a locator first. More in [Semantic automation](automation.md).
+
+---
+
 ## 🌐 Show It in a Browser (`limoni serve`)
 
 `limoni serve` runs a program once per browser tab, in a real

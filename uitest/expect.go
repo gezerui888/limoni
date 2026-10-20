@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/thebanri/limoni/core/accessibility"
+	"github.com/thebanri/limoni/core/cell"
 )
 
 // Assertion checks a locator against the application, retrying until the
@@ -103,6 +104,74 @@ func (a Assertion) ToBeChecked() {
 func (a Assertion) ToBeDisabled() {
 	a.locator.page.t.Helper()
 	a.state("be disabled", accessibility.StateDisabled)
+}
+
+// ToHaveStyle passes when every on-screen cell of the one matching widget is
+// drawn with want: its foreground and background where want sets them, and at
+// least its modifiers. With Not, when some cell is not. The tree only says a
+// widget has the focus; this checks that the focus can be seen:
+//
+//	page.Expect(page.GetByRole("list-item", "Two")).ToHaveStyle(cell.Style{Modifier: cell.ModifierReverse})
+//
+// Styles are read from the frame in process (Run and Program); the automation
+// socket sends text only, so a page from Connect fails the test.
+func (a Assertion) ToHaveStyle(want cell.Style) {
+	page := a.locator.page
+	page.t.Helper()
+	styles, ok := page.app.(cellStyles)
+	if !ok {
+		page.t.Fatalf("uitest: %s: styles can only be checked in process (Run or Program); the automation socket sends text", a.locator)
+	}
+	a.one("have style "+describeStyle(want), func(n accessibility.AccessibilityNode) (bool, string) {
+		cells := 0
+		for y := n.Bounds.Y; y < n.Bounds.Y+n.Bounds.Height; y++ {
+			for x := n.Bounds.X; x < n.Bounds.X+n.Bounds.Width; x++ {
+				got, ok := styles.styleAt(x, y)
+				if !ok {
+					continue
+				}
+				cells++
+				if (want.Fg.Type() != cell.ColorDefault && got.Fg != want.Fg) ||
+					(want.Bg.Type() != cell.ColorDefault && got.Bg != want.Bg) ||
+					got.Modifier&want.Modifier != want.Modifier {
+					return false, fmt.Sprintf("cell %d,%d drawn %s", x, y, describeStyle(got))
+				}
+			}
+		}
+		if cells == 0 {
+			return false, "no cells on screen"
+		}
+		return true, fmt.Sprintf("all %d cell(s) drawn with it", cells)
+	})
+}
+
+var modifierNames = [...]string{"bold", "dim", "italic", "underline", "blink", "reverse", "hidden", "strikethrough", "double-underline", "undercurl"}
+
+func describeStyle(s cell.Style) string {
+	var parts []string
+	if s.Fg.Type() != cell.ColorDefault {
+		parts = append(parts, "fg "+describeColor(s.Fg))
+	}
+	if s.Bg.Type() != cell.ColorDefault {
+		parts = append(parts, "bg "+describeColor(s.Bg))
+	}
+	for i, name := range modifierNames {
+		if s.Modifier&(1<<i) != 0 {
+			parts = append(parts, name)
+		}
+	}
+	if len(parts) == 0 {
+		return "plain"
+	}
+	return strings.Join(parts, " ")
+}
+
+func describeColor(c cell.Color) string {
+	if c.Type() == cell.ColorANSI {
+		return fmt.Sprintf("ansi %d", c.ANSI())
+	}
+	r, g, b := c.RGB()
+	return fmt.Sprintf("#%02x%02x%02x", r, g, b)
 }
 
 func (a Assertion) state(what string, flag accessibility.NodeState) {

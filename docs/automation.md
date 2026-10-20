@@ -96,6 +96,8 @@ last frame:
 
 Every action is logged, so a failure arrives with the steps that led to it, and `uitest.WithSlowMo` paces a test for someone watching. Pointed at a running application with `uitest.Connect`, the same test drives it on screen — `TestLiveDemo` in [`examples/agent_checklist`](../examples/agent_checklist) does exactly that.
 
+The tree says a widget has the focus; it does not say anyone can see it. `ToHaveStyle` checks the cells: `page.Expect(rows.Nth(1)).ToHaveStyle(cell.Style{Modifier: cell.ModifierReverse})` passes when every cell of that row is drawn in reverse video (colours where the style sets them, modifiers at least). It reads the frame in process, so it works with `uitest.Run` and `uitest.Program`; the socket behind `uitest.Connect` sends text only.
+
 One API, three targets: `uitest.Run` for an immediate-mode draw function, `uitest.Program` for a declarative model running through its real message loop (commands included), and `uitest.Connect` for a running binary over its automation socket. [`examples/agent_checklist`](../examples/agent_checklist) is tested with it, and is the same application an agent drives through `limoni-mcp`.
 
 Structured widgets expose what is visible as children, so an item is addressed by its text rather than by counting key presses: a list's rows are `list-item`s, a table's rows are `row`s (labelled by their first cell, with a `cell` child per column), a tab bar is a `tab-list` of `tab`s (pass `State: &widgets.TabsState{}`), and a tree's visible items are `tree-item`s, marked expanded or not.

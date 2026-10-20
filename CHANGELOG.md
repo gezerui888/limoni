@@ -8,6 +8,26 @@ a patch bump (`v0.x.y`) does not.
 
 ## [Unreleased]
 
+### Added
+
+- `uitest`: `Expect(...).ToHaveStyle(style)` checks the cells a widget is
+  drawn with, so a test can tell a focus the tree reports from one the user
+  can see. In process only (`Run`, `Program`); the socket sends text. Asked
+  for by residual (#84).
+- `Keybinding.Alt`, shown as `Alt+` in the command palette.
+
+### Changed
+
+- `KeybindingManager` matches Alt as it matches Ctrl: a binding without
+  `Alt` no longer fires on Alt+key. An application can keep the Alt layer
+  for itself (a multiplexer in front of its guests).
+- Focus always shows. Without a focused style of their own, a focused
+  `Checkbox`, `RadioButton`, `Select` and `SplitPane` divider are drawn in
+  reverse bold, as `Button` was; `List`, `Table`, `TreeView` and
+  `VirtualDataView` mark their selected row that way and `Slider` its thumb.
+  Before, all of them looked the same with the focus as without it.
+  `TestFocusAlwaysShows`.
+
 ## [v0.13.2] — 2026-10-19
 
 ### Fixed

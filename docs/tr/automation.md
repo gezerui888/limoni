@@ -96,6 +96,8 @@ last frame:
 
 Her aksiyon loglanır; bir hata, ona götüren adımlarla birlikte gelir. `uitest.WithSlowMo` ise testi izleyen biri için yavaşlatır. `uitest.Connect` ile çalışan bir uygulamaya yöneltilen aynı test onu ekranda canlı sürer — [`examples/agent_checklist`](../../examples/agent_checklist) içindeki `TestLiveDemo` tam olarak bunu yapar.
 
+Ağaç bir widget'ın odakta olduğunu söyler; odağın görünüp görünmediğini söylemez. `ToHaveStyle` hücrelere bakar: `page.Expect(rows.Nth(1)).ToHaveStyle(cell.Style{Modifier: cell.ModifierReverse})`, o satırın her hücresi ters video çizildiğinde geçer (renkler stilde verildiyse onlar, modifier'lar en az o kadarı). Kareyi süreç içinde okur; bu yüzden `uitest.Run` ve `uitest.Program` ile çalışır, `uitest.Connect`'in arkasındaki soket yalnızca metin gönderir.
+
 Tek API, üç hedef: immediate-mode çizim fonksiyonu için `uitest.Run`, gerçek mesaj döngüsünden (komutlar dahil) geçen declarative model için `uitest.Program`, otomasyon soketi üzerinden çalışan bir binary için `uitest.Connect`. [`examples/agent_checklist`](../../examples/agent_checklist) bununla test ediliyor ve bir ajanın `limoni-mcp` üzerinden sürdüğü uygulamanın ta kendisi.
 
 Listeler görünür satırlarını `list-item` alt düğümleri olarak sunar; bir satıra tuş basışı sayarak değil, metniyle ulaşılır.

@@ -51,6 +51,7 @@ import (
 
 	"github.com/thebanri/limoni/automation"
 	"github.com/thebanri/limoni/core/accessibility"
+	"github.com/thebanri/limoni/core/cell"
 	"github.com/thebanri/limoni/core/driver"
 	"github.com/thebanri/limoni/core/engine"
 	"github.com/thebanri/limoni/core/terminal"
@@ -114,6 +115,20 @@ type app interface {
 	key(ev driver.KeyEvent, name string) error
 	typeText(text string) error
 	screen() (string, error)
+}
+
+// cellStyles is what an in-process page has and a remote one lacks: the
+// style of a cell in the frame the last tree came from.
+type cellStyles interface {
+	styleAt(x, y uint16) (cell.Style, bool)
+}
+
+func styleAt(term *testkit.Terminal, x, y uint16) (cell.Style, bool) {
+	c := term.Frame().Buffer.Get(x, y)
+	if c == nil {
+		return cell.Style{}, false
+	}
+	return c.Style, true
 }
 
 // errExited is returned once an in-process application has quit.
@@ -210,6 +225,12 @@ func (a *runApp) screen() (string, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.term.Snapshot(), nil
+}
+
+func (a *runApp) styleAt(x, y uint16) (cell.Style, bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return styleAt(a.term, x, y)
 }
 
 // Program starts a declarative application in process: model's Init runs, its
@@ -324,6 +345,12 @@ func (a *programApp) screen() (string, error) {
 	return a.term.Snapshot(), nil
 }
 
+func (a *programApp) styleAt(x, y uint16) (cell.Style, bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return styleAt(a.term, x, y)
+}
+
 // Connect drives a running application through its automation socket. The
 // application must be built with -tags limoni_debug and started with
 // limoni.WithAutomation; its policy decides what the page can see and do.
@@ -388,6 +415,9 @@ func (p *Page) Tree() []accessibility.AccessibilityNode {
 }
 
 // Screen returns the rendered text grid, for what the tree cannot express.
+// It does not wait: a check on its text sees the frame as it is now. For a
+// widget's text, state or style use a locator and Expect, which retry until
+// the application has caught up.
 func (p *Page) Screen() string {
 	p.t.Helper()
 	text, err := p.app.screen()

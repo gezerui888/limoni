@@ -112,9 +112,13 @@ func TestRunDrivesAnImmediateModeApplication(t *testing.T) {
 	page.Expect(page.GetByRole("list", "Tasks")).ToBeFocused()
 	page.Expect(rows.Nth(1)).ToBeSelected()
 	page.Expect(rows.Nth(0)).Not().ToBeSelected()
+	// The list sets no FocusedStyle; its focus must still show on screen.
+	focus := cell.Style{Modifier: cell.ModifierReverse | cell.ModifierBold}
+	page.Expect(rows.Nth(1)).ToHaveStyle(focus)
 
 	page.Press("tab")
 	page.Expect(page.GetByID("name")).ToBeFocused()
+	page.Expect(rows.Nth(1)).Not().ToHaveStyle(focus)
 
 	page.Press("esc")
 	if !page.Exited() {
@@ -312,6 +316,23 @@ func TestFailuresSayWhatWasExpectedAndShowTheFrame(t *testing.T) {
 
 	if msg := failure(t, func(page *Page) { page.Press("hyper+x") }); !strings.Contains(msg, `unknown modifier "hyper"`) {
 		t.Errorf("bad chord:\n%s", msg)
+	}
+
+	msg = failure(t, func(page *Page) {
+		page.Expect(page.GetByID("status")).ToHaveStyle(cell.Style{Fg: cell.NewColorRGB(255, 0, 0), Modifier: cell.ModifierBold})
+	})
+	for _, want := range []string{`expected id="status" to have style fg #ff0000 bold`, "got cell 0,20 drawn plain"} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("style failure lacks %q:\n%s", want, msg)
+		}
+	}
+
+	msg = failure(t, func(page *Page) {
+		remote := newPage(page.t, &remoteApp{}, nil)
+		remote.Expect(remote.GetByID("status")).ToHaveStyle(cell.Style{})
+	})
+	if !strings.Contains(msg, "styles can only be checked in process") {
+		t.Errorf("a remote page checked styles:\n%s", msg)
 	}
 
 	// A passing body leaves no message.
