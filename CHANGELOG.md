@@ -8,6 +8,8 @@ a patch bump (`v0.x.y`) does not.
 
 ## [Unreleased]
 
+## [v0.14.0] — 2026-10-20
+
 ### Added
 
 - `uitest`: `Expect(...).ToHaveStyle(style)` checks the cells a widget is
@@ -955,7 +957,8 @@ a patch bump (`v0.x.y`) does not.
 ## v0.1.0 – v0.1.8
 See the [GitHub releases](https://github.com/thebanri/limoni/releases).
 
-[Unreleased]: https://github.com/thebanri/limoni/compare/v0.13.2...HEAD
+[Unreleased]: https://github.com/thebanri/limoni/compare/v0.14.0...HEAD
+[v0.14.0]: https://github.com/thebanri/limoni/compare/v0.13.2...v0.14.0
 [v0.13.2]: https://github.com/thebanri/limoni/compare/v0.13.1...v0.13.2
 [v0.13.1]: https://github.com/thebanri/limoni/compare/v0.13.0...v0.13.1
 [v0.13.0]: https://github.com/thebanri/limoni/compare/v0.12.1...v0.13.0
