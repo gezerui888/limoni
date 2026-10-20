@@ -40,9 +40,10 @@ v1.0 şu koşullar sağlanınca etiketlenecek:
    (`WordWidths`, cluster'a göre ölçülür).
 4. Deneysel paketler bu repo dışında en az bir uygulamada kullanılır ve bu
    kullanımdan gelen geri bildirimle API'leri bir kez gözden geçirilir.
-   *Yarısı tamam:* Ekim 2026'da Bubble Tea'den taşınan terminal araçları takımı
-   [residual](https://git.merith.xyz/residual/) ekranlarını `uitest` ile
-   test ediyor. O kullanımdan gelecek değişiklik turu henüz yapılmadı.
+   *Yarısı tamam:* terminal araçları Ekim 2026'da Bubble Tea'den taşınan,
+   geliştirilmekte olan işletim sistemi [residual](https://git.merith.xyz/residual/)
+   ekranlarını `uitest` ile test ediyor. Geri bildirimi `uitest`'e
+   `ToHaveStyle`'ı getirdi; turun geri kalanı açık.
 
 v1.0'dan sonra kırıcı değişiklikler, Go modüllerinin gerektirdiği gibi yeni bir
 major sürüm (`/v2`) ister.

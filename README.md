@@ -296,8 +296,8 @@ pikap ~/Music    # or play files
 
 ### Used by
 
-- [**residual**](https://git.merith.xyz/residual/) — a suite of terminal tools (editor, code editor,
-  spreadsheet, calculator, login), ported from Bubble Tea, with shared UI pieces in `core`.
+- [**residual**](https://git.merith.xyz/residual/) — a work-in-progress Alpine-based OS with a
+  from-scratch Go userspace.
 
 ---
 

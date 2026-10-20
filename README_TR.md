@@ -280,8 +280,8 @@ pikap ~/Music    # ya da dosyaları çal
 
 ### Kullananlar
 
-- [**residual**](https://git.merith.xyz/residual/) — Bubble Tea'den taşınmış bir terminal araçları takımı
-  (editör, kod editörü, tablo, hesap makinesi, giriş ekranı); ortak arayüz parçaları `core`'da.
+- [**residual**](https://git.merith.xyz/residual/) — Go ile sıfırdan yazılmış kullanıcı alanına sahip,
+  Alpine tabanlı, geliştirilmekte olan bir işletim sistemi.
 
 ---
 
