@@ -50,6 +50,9 @@ type session struct {
 		args  string
 		parts []byte
 	}
+	// margins is set while a scroll region may be in force, lrmm while left
+	// and right margins may: lines then scroll through part of the screen.
+	margins, lrmm bool
 }
 
 func newSession(out, ptmx *os.File) *session {
@@ -104,7 +107,7 @@ func (s *session) output(b []byte) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.buf, s.dirty = s.buf[:0], false
-	s.parse.feed(b, s)
+	s.parse.feed(s.skipScrolled(b), s)
 	if s.dirty {
 		s.pics.update()
 	}
@@ -117,6 +120,88 @@ func (s *session) output(b []byte) error {
 	}
 	_, err := s.out.Write(s.buf)
 	return err
+}
+
+// skipScrolled spares the shadow screen the lines that would only scroll
+// through it: x/vt copies the whole screen for each line it scrolls, which
+// made cat of a large file 23 times slower than in Alacritty alone. When b
+// starts with a screenful of plain lines (text and SGR) after others, those
+// others scroll off whatever was there; they go on to the real terminal,
+// and the shadow screen gets their colours and a clear screen instead. It
+// returns what is left for the parser.
+func (s *session) skipScrolled(b []byte) []byte {
+	// A sequence the last read cut in two is finished first.
+	for len(b) > 0 && (s.parse.state == stEsc || s.parse.state == stCSI) {
+		s.parse.feed(b[:1], s)
+		b = b[1:]
+	}
+	if s.parse.state != stText || s.margins || s.lrmm {
+		return b
+	}
+	end := 0 // the plain start of b
+	for end < len(b) {
+		c := b[end]
+		if c == 0x1b {
+			n := sgrLen(b[end:])
+			if n == 0 {
+				break
+			}
+			end += n
+			continue
+		}
+		if c < 0x20 && c != '\r' && c != '\n' && c != '\t' || c == 0x7f ||
+			c == 0xc2 && end+1 < len(b) && b[end+1] >= 0x80 && b[end+1] <= 0x9f { // C1 controls, which x/vt obeys
+			break
+		}
+		end++
+	}
+	// The last rows-1 lines stay; the ones before, at least a screenful
+	// so the cursor is on the bottom row at the cut, scroll off.
+	cut := end
+	for range s.rows {
+		if cut = bytes.LastIndex(b[:cut], []byte("\r\n")); cut < 0 {
+			return b
+		}
+	}
+	cut += 2
+	if bytes.Count(b[:cut], []byte("\r\n")) < s.rows {
+		return b
+	}
+	// The rest of a character the last read cut in two comes first: x/vt
+	// would take the clear for part of it.
+	i := 0
+	for i < cut && b[i]&0xc0 == 0x80 {
+		i++
+	}
+	pen := append(b[:i:i], "\x1b[H\x1b[2J"...)
+	// colours set before the last reset are gone anyway
+	i = max(i, bytes.LastIndex(b[:cut], []byte("\x1b[0m")), bytes.LastIndex(b[:cut], []byte("\x1b[m")))
+	for ; i < cut; i++ {
+		if n := sgrLen(b[i:]); n > 0 {
+			pen = append(pen, b[i:i+n]...)
+			i += n - 1
+		}
+	}
+	s.emu.Write(pen)
+	s.buf = append(s.buf, b[:cut]...)
+	s.dirty = true
+	return b[cut:]
+}
+
+// sgrLen is the length of the SGR sequence b starts with, or 0.
+func sgrLen(b []byte) int {
+	if len(b) < 3 || b[0] != 0x1b || b[1] != '[' {
+		return 0
+	}
+	for i := 2; i < len(b); i++ {
+		switch c := b[i]; {
+		case c == 'm':
+			return i + 1
+		case c != ';' && c != ':' && (c < '0' || c > '9'):
+			return 0
+		}
+	}
+	return 0
 }
 
 func (s *session) text(b []byte) {
@@ -149,10 +234,20 @@ func (s *session) csi(seq []byte) bool {
 		return true
 	case (final == 'h' || final == 'l') && bytes.HasPrefix(body, []byte("?")):
 		for _, m := range bytes.Split(body[1:], []byte(";")) {
-			if string(m) == "80" {
+			switch string(m) {
+			case "80":
 				s.sdm = final == 'h'
+			case "69": // DECLRMM; x/vt keeps the margins when it is reset
+				s.lrmm = s.lrmm || final == 'h'
 			}
 		}
+	case final == 'r' && (len(body) == 0 || body[0] < '<'): // DECSTBM, not a private one
+		// shortcut: a reset (RIS, DECSTR) leaves margins set, which only
+		// costs speed until the next DECSTBM.
+		top, bottom, _ := bytes.Cut(body, []byte(";"))
+		t, _ := strconv.Atoi(string(top))
+		b, _ := strconv.Atoi(string(bottom))
+		s.margins = t > 1 || b > 0 && b < s.rows
 	}
 	return false
 }

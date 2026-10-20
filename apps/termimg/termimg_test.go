@@ -6,9 +6,13 @@ import (
 	"image"
 	"image/color"
 	"io"
+	"math/rand/v2"
+	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/charmbracelet/x/vt"
 )
@@ -221,5 +225,135 @@ func TestSixelCursorAndCut(t *testing.T) {
 	s.pics.update()
 	if len(s.pics.byID) != 0 {
 		t.Fatal("written over in its first row, it was kept")
+	}
+}
+
+// The shadow screen ends the same, cursor and colours too, when lines that
+// scroll off are skipped: whatever the output is, and however it is cut.
+func TestSkipScrolledKeepsTheScreen(t *testing.T) {
+	null, err := os.OpenFile(os.DevNull, os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer null.Close()
+	rng := rand.New(rand.NewPCG(1, 2))
+	pen := []string{"\x1b[31m", "\x1b[0m", "\x1b[38;5;42;1m"}
+	plain := []string{"\r\n", "\r\n", "\r\n", "界", "ab\tc", "\r"}
+	rare := []string{"\x1b[5A", "\x1b[3;9H", "\n", "\x1b[2;10r", "\x1b[r", "\xc2\x9b2A", "\a", "\x1b[?69h\x1b[1;40s", "\x1b[?69l"}
+	skipped := 0
+	for run := range 1000 {
+		var out strings.Builder
+		penRate, rareRate, width := 2+rng.IntN(200), 20+rng.IntN(300), 1+rng.IntN(100)
+		for range 400 + rng.IntN(800) {
+			switch {
+			case rng.IntN(rareRate) == 0:
+				out.WriteString(rare[rng.IntN(len(rare))])
+			case rng.IntN(penRate) == 0:
+				out.WriteString(pen[rng.IntN(len(pen))])
+			case rng.IntN(2) == 0:
+				out.WriteString(plain[rng.IntN(len(plain))])
+			default:
+				out.WriteString(strings.Repeat("x", rng.IntN(width)))
+			}
+		}
+		b := []byte(out.String())
+		s, _ := testSession(t)
+		s.ov, s.out = nil, null
+		want := vt.NewEmulator(80, 24)
+		go io.Copy(io.Discard, want)
+		var wantParse parser // x/vt itself loses a sequence cut in two
+		start := []byte("\x1b[" + strconv.Itoa(1+rng.IntN(24)) + "H")
+		want.Write(start)
+		s.emu.Write(start)
+		for len(b) > 0 {
+			n := min(len(b), 1<<rng.IntN(16)+rng.IntN(64))
+			rest := s.skipScrolled(b[:n])
+			if len(rest) < n {
+				skipped++
+			}
+			s.parse.feed(rest, s)
+			wantParse.feed(b[:n], emuSink{want})
+			if g, w := screenOf(s.emu), screenOf(want); g != w {
+				t.Fatalf("run %d: screen\n%s\nwant\n%s", run, g, w)
+			}
+			// the cursor and the pen too, by what it writes, but not into
+			// a character cut in two
+			at := want.CursorPosition()
+			if s.emu.CursorPosition() != at {
+				t.Fatalf("run %d: cursor %v, want %v", run, s.emu.CursorPosition(), at)
+			}
+			if r, _ := utf8.DecodeLastRune(b[:n]); r == utf8.RuneError {
+				b = b[n:]
+				continue
+			}
+			s.emu.Write([]byte("\x1b7Z\x1b8"))
+			want.Write([]byte("\x1b7Z\x1b8"))
+			g, w := s.emu.CellAt(at.X, at.Y), want.CellAt(at.X, at.Y)
+			if s.emu.CursorPosition() != at || (g == nil) != (w == nil) || g != nil && !g.Style.Equal(&w.Style) {
+				t.Fatalf("run %d: cursor %v, want %v; pen %+v, want %+v", run, s.emu.CursorPosition(), at, g, w)
+			}
+			b = b[n:]
+		}
+	}
+	if skipped < 100 {
+		t.Fatalf("skipped lines in only %d writes", skipped)
+	}
+}
+
+// emuSink hands everything to an emulator, sequences whole.
+type emuSink struct{ e *vt.Emulator }
+
+func (s emuSink) text(b []byte)      { s.e.Write(b) }
+func (emuSink) csi([]byte) bool      { return false }
+func (emuSink) sixel([]byte)         {}
+func (emuSink) osc(body []byte) bool { return false }
+func (emuSink) apc(body []byte) bool { return false }
+
+func screenOf(e *vt.Emulator) string {
+	var b strings.Builder
+	for y := range e.Height() {
+		for x := range e.Width() {
+			if c := e.CellAt(x, y); c != nil && c.Content != "" {
+				b.WriteString(c.Content)
+			} else {
+				b.WriteByte(' ')
+			}
+		}
+		b.WriteByte('\n')
+	}
+	return b.String()
+}
+
+// Lines are not skipped in the middle of a string, inside a scroll
+// region, or past a C1 control.
+func TestSkipScrolledWaits(t *testing.T) {
+	lines := []byte(strings.Repeat("x\r\n", 60))
+	skips := func(s *session, b []byte) bool { return len(s.skipScrolled(b)) < len(b) }
+	s, _ := testSession(t)
+	if !skips(s, lines) {
+		t.Fatal("a screenful of lines and more was not skipped")
+	}
+	s.parse.feed([]byte("\x1b]0;title"), s)
+	if skips(s, lines) {
+		t.Error("skipped inside a string")
+	}
+	s.parse.feed([]byte("\a\x1b[3"), s)
+	if rest := s.skipScrolled(append([]byte("1m"), lines...)); len(rest) >= len(lines) || s.parse.state != stText {
+		t.Error("a sequence cut in two was not finished, then lines skipped")
+	}
+	for _, region := range []string{"\x1b[2;24r", "\x1b[;10r"} {
+		s.csi([]byte("\x1b[r"))
+		s.csi([]byte(region))
+		if skips(s, lines) {
+			t.Errorf("skipped inside the scroll region %q", region)
+		}
+	}
+	s.csi([]byte("\x1b[r"))
+	if !skips(s, lines) {
+		t.Error("not skipped once the scroll region is reset")
+	}
+	c1 := append(append(lines[:90:90], "\xc2\x9bA"...), lines...)
+	if skips(s, c1) {
+		t.Error("skipped past a C1 control")
 	}
 }

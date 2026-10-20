@@ -23,6 +23,7 @@ import (
 	"syscall"
 
 	"github.com/creack/pty"
+	"golang.org/x/sys/unix"
 
 	"github.com/thebanri/limoni/core/driver"
 )
@@ -111,6 +112,13 @@ func run(argv []string) (int, error) {
 	buf := make([]byte, 64<<10)
 	for {
 		n, err := ptmx.Read(buf)
+		// A program writing fast comes in reads of 4 KB; taken together, a
+		// screenful and more of them can skip the shadow screen (skipScrolled).
+		for err == nil && n < len(buf) && readable(ptmx) {
+			var m int
+			m, err = ptmx.Read(buf[n:])
+			n += m
+		}
 		if n > 0 {
 			if werr := s.output(buf[:n]); werr != nil {
 				break
@@ -130,4 +138,19 @@ func run(argv []string) (int, error) {
 		err = nil
 	}
 	return 0, err
+}
+
+// readable says whether f has something to read at once.
+func readable(f *os.File) bool {
+	rc, err := f.SyscallConn()
+	if err != nil {
+		return false
+	}
+	ok := false
+	_ = rc.Control(func(fd uintptr) {
+		p := []unix.PollFd{{Fd: int32(fd), Events: unix.POLLIN}}
+		n, _ := unix.Poll(p, 0)
+		ok = n > 0 && p[0].Revents&unix.POLLIN != 0
+	})
+	return ok
 }

@@ -15,6 +15,13 @@ a patch bump (`v0.x.y`) does not.
   build tag; on Windows it builds and says so, and that Windows Terminal
   1.22 and later show sixel by themselves.
 
+- `apps/termimg` made large output 23 times slower in Alacritty: `cat` of
+  100 MB took 26 s instead of 1.1 s. The shadow screen (`x/vt`) copies the
+  whole screen for every line it scrolls. Lines that would only scroll
+  through it are now skipped, with reads that are ready taken together, so
+  the same `cat` takes 2.6 s against Alacritty's 1.4 s, and 67 MB of
+  coloured lines 1.3 s against 0.7 s (137×31, measured with `time cat` in
+  Alacritty under Xwayland).
 - `apps/termimg`: the shadow screen started at the top left wherever the
   cursor really was, so until the first clear every sixel picture landed as
   many rows up as termimg was started down — over the command that printed
