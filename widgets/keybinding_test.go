@@ -190,3 +190,25 @@ func TestFormatKeybinding(t *testing.T) {
 		})
 	}
 }
+
+// Alt is matched like Ctrl: a binding without it does not fire on Alt+key,
+// so an application can keep the Alt layer for itself.
+func TestKeybindingManagerMatchesAlt(t *testing.T) {
+	km := NewKeybindingManager()
+	var fired string
+	km.Register(Keybinding{Key: driver.KeyRune, Ch: 't', Alt: true, Handler: func() { fired = "alt+t" }})
+	km.Register(Keybinding{Key: driver.KeyRune, Ch: 'x', Handler: func() { fired = "x" }})
+
+	if !km.Handle(driver.KeyEvent{Type: driver.KeyRune, Ch: 't', Alt: true}) || fired != "alt+t" {
+		t.Fatalf("Alt+t fired %q", fired)
+	}
+	if km.Handle(driver.KeyEvent{Type: driver.KeyRune, Ch: 't'}) {
+		t.Error("t without Alt fired the Alt+t binding")
+	}
+	if km.Handle(driver.KeyEvent{Type: driver.KeyRune, Ch: 'x', Alt: true}) {
+		t.Error("Alt+x fired the binding for x")
+	}
+	if got := formatKeybinding(Keybinding{Key: driver.KeyRune, Ch: 'k', Ctrl: true, Alt: true}); got != "Ctrl+Alt+K" {
+		t.Errorf("formatKeybinding = %q", got)
+	}
+}
