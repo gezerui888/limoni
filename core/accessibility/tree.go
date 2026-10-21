@@ -43,6 +43,13 @@ const (
 	StateSensitive
 )
 
+// AccessibilityNode is Node's old name.
+//
+// Deprecated: use Node. It stays for one release, so an application pinned
+// to an older Limoni (apps/globe) builds against this one too; it goes
+// before v1.0.
+type AccessibilityNode = Node
+
 type Node struct {
 	ID          string
 	Role        Role

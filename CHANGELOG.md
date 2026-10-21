@@ -17,7 +17,8 @@ already existed; nothing here changes what an application can do.
 - Renamed: `graphics.GetCachedEscapeSequence` → `CachedEscapeSequence`,
   `graphics.GetImageID` → `ImageID`, `driver.GetPlatformCapabilities` →
   `PlatformCapabilities`, `VirtualDataState.GetCachedRowText` →
-  `CachedRowText`, `accessibility.AccessibilityNode` → `accessibility.Node`,
+  `CachedRowText`, `accessibility.AccessibilityNode` → `accessibility.Node`
+  (the old name stays one release as a deprecated alias),
   `layout.LayoutDiagnostic` → `layout.Diagnostic`,
   `layout.LegacyMeasurable` → `layout.SizeHinter`, and
   `CommandPalette.SelStyle` → `SelectedStyle`, as in every other widget.
@@ -33,7 +34,8 @@ already existed; nothing here changes what an application can do.
 - `Frame` no longer exports its bookkeeping: `ImageRegions`,
   `DebugRegions`, `WidgetStats`, `Accessibility`, `Theme`, `ThemeSet` and
   `EventRegions` (whose element type was already unexported) are private.
-  Use `RegisterImageRegion` to place a picture (new),
+  Use `RegisterImageRegion` to place a picture (new; or, as pikap now
+  does, a widget calling `ctx.RegisterImage`, which works on both sides),
   `ImageRegionsSnapshot`, `AccessibilityTree` and `SetTheme`. `Buffer`,
   `FocusManager`, `ClickRegions`, `Layers`, `Hyperlinks` and
   `ImageProtocol` stay, because applications and testkit read them.
