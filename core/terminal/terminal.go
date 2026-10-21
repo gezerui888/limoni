@@ -495,7 +495,7 @@ func (t *Terminal) present(t0 time.Time) error {
 	// skip the synchronised update, the image pass and the diff altogether.
 	sizeChanged := t.front.Area.Width != t.back.Area.Width || t.front.Area.Height != t.back.Area.Height
 	if !sizeChanged && !t.front.IsDirty && !t.transitionActive && !t.debugMode &&
-		len(t.frame.ImageRegions) == 0 && t.lastImageCount == 0 {
+		len(t.frame.imageRegions) == 0 && t.lastImageCount == 0 {
 		t.lastFrameDuration = time.Since(t0)
 		t.copyWidgetStats()
 		return nil
@@ -662,13 +662,13 @@ func (t *Terminal) present(t0 time.Time) error {
 
 // copyWidgetStats copies the frame profiling statistics into a reused slice.
 func (t *Terminal) copyWidgetStats() {
-	if cap(t.lastWidgetStats) >= len(t.frame.WidgetStats) {
-		t.lastWidgetStats = t.lastWidgetStats[:len(t.frame.WidgetStats)]
-		copy(t.lastWidgetStats, t.frame.WidgetStats)
+	if cap(t.lastWidgetStats) >= len(t.frame.widgetStats) {
+		t.lastWidgetStats = t.lastWidgetStats[:len(t.frame.widgetStats)]
+		copy(t.lastWidgetStats, t.frame.widgetStats)
 		return
 	}
-	t.lastWidgetStats = make([]WidgetStat, len(t.frame.WidgetStats))
-	copy(t.lastWidgetStats, t.frame.WidgetStats)
+	t.lastWidgetStats = make([]WidgetStat, len(t.frame.widgetStats))
+	copy(t.lastWidgetStats, t.frame.widgetStats)
 }
 
 // repaintOver marks for the diff the cells in the pictures' areas that are
@@ -721,7 +721,7 @@ func (t *Terminal) clippedImageRegions() []ImageRegion {
 	if t == nil || t.frame == nil {
 		return nil
 	}
-	return t.frame.ImageRegions
+	return t.frame.imageRegions
 }
 
 // LastImageRegions returns a copy of image regions registered during the last frame.
@@ -898,7 +898,7 @@ func (t *Terminal) drawDebugOverlay() {
 		Modifier: cell.ModifierBold,
 	}
 
-	for regionIndex, reg := range t.frame.DebugRegions {
+	for regionIndex, reg := range t.frame.debugRegions {
 		area := reg.Area
 		if area.Width == 0 || area.Height == 0 {
 			continue
@@ -906,13 +906,13 @@ func (t *Terminal) drawDebugOverlay() {
 
 		// Horizontal dashed lines
 		for col := area.X; col < area.X+area.Width; col++ {
-			if !isObscured(col, area.Y, reg.ZIndex, regionIndex, t.frame.DebugRegions) {
+			if !isObscured(col, area.Y, reg.ZIndex, regionIndex, t.frame.debugRegions) {
 				if c := t.front.Get(col, area.Y); c != nil {
 					c.Content = '╌'
 					c.Style = borderStyle
 				}
 			}
-			if !isObscured(col, area.Y+area.Height-1, reg.ZIndex, regionIndex, t.frame.DebugRegions) {
+			if !isObscured(col, area.Y+area.Height-1, reg.ZIndex, regionIndex, t.frame.debugRegions) {
 				if c := t.front.Get(col, area.Y+area.Height-1); c != nil {
 					c.Content = '╌'
 					c.Style = borderStyle
@@ -921,13 +921,13 @@ func (t *Terminal) drawDebugOverlay() {
 		}
 		// Vertical dashed lines
 		for row := area.Y; row < area.Y+area.Height; row++ {
-			if !isObscured(area.X, row, reg.ZIndex, regionIndex, t.frame.DebugRegions) {
+			if !isObscured(area.X, row, reg.ZIndex, regionIndex, t.frame.debugRegions) {
 				if c := t.front.Get(area.X, row); c != nil {
 					c.Content = '╎'
 					c.Style = borderStyle
 				}
 			}
-			if !isObscured(area.X+area.Width-1, row, reg.ZIndex, regionIndex, t.frame.DebugRegions) {
+			if !isObscured(area.X+area.Width-1, row, reg.ZIndex, regionIndex, t.frame.debugRegions) {
 				if c := t.front.Get(area.X+area.Width-1, row); c != nil {
 					c.Content = '╎'
 					c.Style = borderStyle
@@ -936,25 +936,25 @@ func (t *Terminal) drawDebugOverlay() {
 		}
 
 		// Join the corners
-		if !isObscured(area.X, area.Y, reg.ZIndex, regionIndex, t.frame.DebugRegions) {
+		if !isObscured(area.X, area.Y, reg.ZIndex, regionIndex, t.frame.debugRegions) {
 			if c := t.front.Get(area.X, area.Y); c != nil {
 				c.Content = '┌'
 				c.Style = borderStyle
 			}
 		}
-		if !isObscured(area.X+area.Width-1, area.Y, reg.ZIndex, regionIndex, t.frame.DebugRegions) {
+		if !isObscured(area.X+area.Width-1, area.Y, reg.ZIndex, regionIndex, t.frame.debugRegions) {
 			if c := t.front.Get(area.X+area.Width-1, area.Y); c != nil {
 				c.Content = '┐'
 				c.Style = borderStyle
 			}
 		}
-		if !isObscured(area.X, area.Y+area.Height-1, reg.ZIndex, regionIndex, t.frame.DebugRegions) {
+		if !isObscured(area.X, area.Y+area.Height-1, reg.ZIndex, regionIndex, t.frame.debugRegions) {
 			if c := t.front.Get(area.X, area.Y+area.Height-1); c != nil {
 				c.Content = '└'
 				c.Style = borderStyle
 			}
 		}
-		if !isObscured(area.X+area.Width-1, area.Y+area.Height-1, reg.ZIndex, regionIndex, t.frame.DebugRegions) {
+		if !isObscured(area.X+area.Width-1, area.Y+area.Height-1, reg.ZIndex, regionIndex, t.frame.debugRegions) {
 			if c := t.front.Get(area.X+area.Width-1, area.Y+area.Height-1); c != nil {
 				c.Content = '┘'
 				c.Style = borderStyle
@@ -970,7 +970,7 @@ func (t *Terminal) drawDebugOverlay() {
 		for idx, r := range label {
 			col := area.X + 1 + uint16(idx)
 			if col < area.X+area.Width-1 {
-				if !isObscured(col, area.Y, reg.ZIndex, regionIndex, t.frame.DebugRegions) {
+				if !isObscured(col, area.Y, reg.ZIndex, regionIndex, t.frame.debugRegions) {
 					if c := t.front.Get(col, area.Y); c != nil {
 						c.Content = r
 						c.Style = textStyle

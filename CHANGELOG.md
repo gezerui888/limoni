@@ -8,6 +8,36 @@ a patch bump (`v0.x.y`) does not.
 
 ## [Unreleased]
 
+### Breaking
+
+The API review before v1.0: one name for each thing, and the frame's
+internals out of the public surface. Every removal has a replacement that
+already existed; nothing here changes what an application can do.
+
+- Renamed: `graphics.GetCachedEscapeSequence` → `CachedEscapeSequence`,
+  `graphics.GetImageID` → `ImageID`, `driver.GetPlatformCapabilities` →
+  `PlatformCapabilities`, `VirtualDataState.GetCachedRowText` →
+  `CachedRowText`, `accessibility.AccessibilityNode` → `accessibility.Node`,
+  `layout.LayoutDiagnostic` → `layout.Diagnostic`,
+  `layout.LegacyMeasurable` → `layout.SizeHinter`, and
+  `CommandPalette.SelStyle` → `SelectedStyle`, as in every other widget.
+- Removed duplicates: `limoni.HAlignLeft/Center/Right` (use
+  `AlignLeft/Center/Right`), `limoni.Layout` (`FlexLayout`),
+  `driver.Driver` and `limoni.Driver` (`driver.Backend`),
+  `Terminal.Backend()` (`Driver()`), `Program.SendBackend` (`SendDriver`),
+  `engine.MessageFromBackend` (`MessageFromDriver`),
+  `Frame.RenderComponent` (`RenderWidget`).
+- Removed the old modal API: `Frame.ActiveModal` and the `Modal` type
+  mirrored the topmost modal layer. `RegisterModal` still works; read
+  `Frame.TopmostModal()` instead of the field.
+- `Frame` no longer exports its bookkeeping: `ImageRegions`,
+  `DebugRegions`, `WidgetStats`, `Accessibility`, `Theme`, `ThemeSet` and
+  `EventRegions` (whose element type was already unexported) are private.
+  Use `RegisterImageRegion` to place a picture (new),
+  `ImageRegionsSnapshot`, `AccessibilityTree` and `SetTheme`. `Buffer`,
+  `FocusManager`, `ClickRegions`, `Layers`, `Hyperlinks` and
+  `ImageProtocol` stay, because applications and testkit read them.
+
 ### Added
 
 - `Frame.BeginArea(r)` / `EndArea()`: a view written for the whole
@@ -19,6 +49,8 @@ a patch bump (`v0.x.y`) does not.
   Modals and layers are not scoped to an area yet. Asked for by
   residual's tabbed multiplexer. Writes check the clip, which costs 1–4% in
   the widget draw benchmarks (0 allocations, unchanged).
+- `Frame.RegisterImageRegion(region)`: place a picture with its own
+  z-index, for applications that draw their own pixels.
 
 ### Changed
 

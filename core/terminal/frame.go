@@ -89,10 +89,10 @@ type Frame struct {
 
 	// ClickRegions holds interactive click areas registered by widgets.
 	ClickRegions []ClickRegion
-	EventRegions []eventRegion
+	eventRegions []eventRegion
 
-	// ImageRegions holds image draw regions registered during this pass.
-	ImageRegions []ImageRegion
+	// imageRegions holds image draw regions registered during this pass.
+	imageRegions []ImageRegion
 
 	// FocusManager manages focus state and tab navigation for this frame.
 	FocusManager *FocusManager
@@ -103,8 +103,8 @@ type Frame struct {
 	// activeLayerID stores the ID of the active layer during drawing.
 	activeLayerID string
 
-	// DebugRegions records the layout boundaries of rendered widgets.
-	DebugRegions []DebugRegion
+	// debugRegions records the layout boundaries of rendered widgets.
+	debugRegions []DebugRegion
 
 	// mouseCaptureRequest is a mouse capture callback requested by a widget while drawing.
 	mouseCaptureRequest func(ev driver.MouseEvent)
@@ -114,8 +114,8 @@ type Frame struct {
 	lastEventTrace      []string
 	lastTraceEntries    []TraceEntry
 
-	Theme    widgets.Theme
-	ThemeSet bool
+	theme    widgets.Theme
+	themeSet bool
 
 	// Hyperlinks mirrors the terminal's OSC 8 capability into every draw
 	// context; see cell.Context.Hyperlinks.
@@ -128,11 +128,11 @@ type Frame struct {
 	// areas is the stack of BeginArea rectangles; the last is in force.
 	areas []cell.Rect
 
-	// WidgetStats holds how long each widget drawn in this frame took to render.
-	WidgetStats []WidgetStat
-	// Accessibility holds this frame's semantic nodes. Children may point into
+	// widgetStats holds how long each widget drawn in this frame took to render.
+	widgetStats []WidgetStat
+	// accessibility holds this frame's semantic nodes. Children may point into
 	// buffers widgets reuse next frame; use AccessibilityTree to keep a copy.
-	Accessibility []accessibility.Node
+	accessibility []accessibility.Node
 
 	// Pre-allocated context parameters and closures to avoid heap allocation
 	currentArea           cell.Rect
@@ -166,8 +166,8 @@ func (f *Frame) DispatchClick(ev driver.MouseEvent, at time.Time) bool {
 		return false
 	}
 	var target *eventRegion
-	for i := len(f.EventRegions) - 1; i >= 0; i-- {
-		region := &f.EventRegions[i]
+	for i := len(f.eventRegions) - 1; i >= 0; i-- {
+		region := &f.eventRegions[i]
 		if region.Phase == TargetPhase && !region.Disabled && region.Area.Contains(ev.X, ev.Y) {
 			target = region
 			break
@@ -210,15 +210,15 @@ func NewFrame(buf *buffer.Buffer, focusMgr *FocusManager) *Frame {
 	f := &Frame{
 		Buffer:           buf,
 		ClickRegions:     make([]ClickRegion, 0, 128),
-		EventRegions:     make([]eventRegion, 0, 128),
-		ImageRegions:     make([]ImageRegion, 0, 16),
+		eventRegions:     make([]eventRegion, 0, 128),
+		imageRegions:     make([]ImageRegion, 0, 16),
 		FocusManager:     focusMgr,
 		Layers:           make([]Layer, 0, 128),
-		DebugRegions:     make([]DebugRegion, 0, 64),
+		debugRegions:     make([]DebugRegion, 0, 64),
 		lastEventTrace:   make([]string, 0, 32),
 		lastTraceEntries: make([]TraceEntry, 0, 32),
-		WidgetStats:      make([]WidgetStat, 0, 32),
-		Accessibility:    make([]accessibility.Node, 0, 32),
+		widgetStats:      make([]WidgetStat, 0, 32),
+		accessibility:    make([]accessibility.Node, 0, 32),
 	}
 	f.initClosures()
 	return f
@@ -416,7 +416,7 @@ func (f *Frame) initClosures() {
 			}
 		}
 
-		f.ImageRegions = append(f.ImageRegions, ImageRegion{
+		f.imageRegions = append(f.imageRegions, ImageRegion{
 			Area:        imageArea,
 			Img:         img,
 			ZIndex:      zIndex,
@@ -467,27 +467,27 @@ func (f *Frame) IsFocused(id string) bool {
 
 // SetTheme sets the semantic theme inherited by widgets rendered in this frame.
 func (f *Frame) SetTheme(theme widgets.Theme) {
-	f.Theme = theme
-	f.ThemeSet = true
+	f.theme = theme
+	f.themeSet = true
 }
 
 func (f *Frame) Reset() {
 	f.ClickRegions = f.ClickRegions[:0]
 	f.clickActions = f.clickActions[:0]
 	f.pointerRegions = f.pointerRegions[:0]
-	f.EventRegions = f.EventRegions[:0]
-	f.ImageRegions = f.ImageRegions[:0]
+	f.eventRegions = f.eventRegions[:0]
+	f.imageRegions = f.imageRegions[:0]
 	f.Layers = f.Layers[:0]
 	f.activeLayerID = ""
-	f.DebugRegions = f.DebugRegions[:0]
+	f.debugRegions = f.debugRegions[:0]
 	f.mouseCaptureRequest = nil
 	f.hoveredRegionID = ""
 	f.lastClickID = ""
 	f.lastClickAt = time.Time{}
 	f.lastEventTrace = f.lastEventTrace[:0]
 	f.lastTraceEntries = f.lastTraceEntries[:0]
-	f.WidgetStats = f.WidgetStats[:0]
-	f.Accessibility = f.Accessibility[:0]
+	f.widgetStats = f.widgetStats[:0]
+	f.accessibility = f.accessibility[:0]
 	f.endAreas()
 }
 
@@ -503,7 +503,7 @@ func (f *Frame) endAreas() {
 // RegisterAccessibility adds a semantic node to the current frame tree.
 func (f *Frame) RegisterAccessibility(node accessibility.Node) {
 	if f != nil {
-		f.Accessibility = append(f.Accessibility, node)
+		f.accessibility = append(f.accessibility, node)
 	}
 }
 
@@ -518,7 +518,7 @@ func (f *Frame) AccessibilityTree() []accessibility.Node {
 	if f == nil {
 		return nil
 	}
-	return cloneNodes(f.Accessibility)
+	return cloneNodes(f.accessibility)
 }
 
 func cloneNodes(nodes []accessibility.Node) []accessibility.Node {
@@ -538,7 +538,17 @@ func (f *Frame) ValidateAccessibility() error {
 	if f == nil {
 		return nil
 	}
-	return accessibility.ValidateTree(f.Accessibility)
+	return accessibility.ValidateTree(f.accessibility)
+}
+
+// RegisterImageRegion places a picture this frame, as widgets do through
+// cell.Context.RegisterImage, but with the region's ZIndex and flags taken
+// as given: an application drawing its own pixels decides where they go.
+func (f *Frame) RegisterImageRegion(region ImageRegion) {
+	if f == nil || region.Img == nil {
+		return
+	}
+	f.imageRegions = append(f.imageRegions, region)
 }
 
 // ImageRegionsSnapshot returns a copy of image registrations for assertions.
@@ -546,8 +556,8 @@ func (f *Frame) ImageRegionsSnapshot() []ImageRegion {
 	if f == nil {
 		return nil
 	}
-	regions := make([]ImageRegion, len(f.ImageRegions))
-	copy(regions, f.ImageRegions)
+	regions := make([]ImageRegion, len(f.imageRegions))
+	copy(regions, f.imageRegions)
 	return regions
 }
 
@@ -557,7 +567,7 @@ func (f *Frame) AccessibilityLineMode(mode accessibility.Mode) string {
 	if f == nil {
 		return ""
 	}
-	return mode.LineMode(f.Accessibility)
+	return mode.LineMode(f.accessibility)
 }
 
 // WriteAccessibilityLineMode streams the current semantic tree to a
@@ -566,7 +576,7 @@ func (f *Frame) WriteAccessibilityLineMode(w io.Writer, mode accessibility.Mode)
 	if f == nil {
 		return accessibility.Mode{}.WriteLineMode(w, nil)
 	}
-	return mode.WriteLineMode(w, f.Accessibility)
+	return mode.WriteLineMode(w, f.accessibility)
 }
 
 // RegisterModal records an active modal layer drawn in this frame.
@@ -686,7 +696,7 @@ func (f *Frame) RegisterEventRegion(region EventRegion) {
 	if region.Area, ok = f.inArea(region.Area); !ok {
 		return
 	}
-	f.EventRegions = append(f.EventRegions, eventRegion{
+	f.eventRegions = append(f.eventRegions, eventRegion{
 		Area: region.Area, ID: region.ID, LayerID: region.LayerID,
 		ZIndex: region.ZIndex, Disabled: region.Disabled,
 		Phase: region.Phase, Handler: region.Handler,
@@ -709,8 +719,8 @@ func (f *Frame) DispatchPointerMove(ev driver.MouseEvent) bool {
 		return false
 	}
 	var target *eventRegion
-	for i := len(f.EventRegions) - 1; i >= 0; i-- {
-		region := &f.EventRegions[i]
+	for i := len(f.eventRegions) - 1; i >= 0; i-- {
+		region := &f.eventRegions[i]
 		if region.Phase == TargetPhase && !region.Disabled && region.Area.Contains(ev.X, ev.Y) {
 			target = region
 			break
@@ -724,8 +734,8 @@ func (f *Frame) DispatchPointerMove(ev driver.MouseEvent) bool {
 		return target != nil
 	}
 	if f.hoveredRegionID != "" {
-		for i := range f.EventRegions {
-			region := &f.EventRegions[i]
+		for i := range f.eventRegions {
+			region := &f.eventRegions[i]
 			if region.ID == f.hoveredRegionID && region.OnLeave != nil {
 				f.lastEventTrace = append(f.lastEventTrace, region.ID+":leave")
 				f.lastTraceEntries = append(f.lastTraceEntries, TraceEntry{
@@ -774,8 +784,8 @@ func (f *Frame) DispatchEventRegions(ev driver.MouseEvent) bool {
 	for _, phase := range []driver.EventPhase{driver.CapturePhase, driver.TargetPhase, driver.BubblePhase} {
 		f.eventCtx.Phase = phase
 		if phase == driver.TargetPhase {
-			for i := len(f.EventRegions) - 1; i >= 0; i-- {
-				region := f.EventRegions[i]
+			for i := len(f.eventRegions) - 1; i >= 0; i-- {
+				region := f.eventRegions[i]
 				if region.Disabled {
 					continue
 				}
@@ -794,8 +804,8 @@ func (f *Frame) DispatchEventRegions(ev driver.MouseEvent) bool {
 				}
 			}
 		} else {
-			for i := 0; i < len(f.EventRegions); i++ {
-				region := f.EventRegions[i]
+			for i := 0; i < len(f.eventRegions); i++ {
+				region := f.eventRegions[i]
 				if region.Disabled {
 					continue
 				}
@@ -900,7 +910,7 @@ func (f *Frame) RenderWidget(w widgets.Widget, area cell.Rect) {
 	} else if m := f.TopmostModal(); m != nil && ContainsRect(m.Area, area) {
 		zIndex = 10
 	}
-	f.DebugRegions = append(f.DebugRegions, DebugRegion{
+	f.debugRegions = append(f.debugRegions, DebugRegion{
 		Area:       debugArea,
 		WidgetType: wType,
 		ZIndex:     zIndex,
@@ -911,8 +921,8 @@ func (f *Frame) RenderWidget(w widgets.Widget, area cell.Rect) {
 
 	var defStyle cell.Style
 	defStyle.Reset()
-	if f.ThemeSet {
-		defStyle = f.Theme.RoleStyle("surface")
+	if f.themeSet {
+		defStyle = f.theme.RoleStyle("surface")
 	}
 	if f.Buffer != nil && area.Width > 0 && area.Height > 0 {
 		if c := f.Buffer.Get(area.X, area.Y); c != nil && c.Style.Bg.Type() != cell.ColorDefault {
@@ -963,11 +973,11 @@ func (f *Frame) RenderWidget(w widgets.Widget, area cell.Rect) {
 	ctx := cell.NewContext(area, defStyle)
 	ctx.Hyperlinks = f.Hyperlinks
 	ctx.ImageProtocol = f.ImageProtocol
-	if f.ThemeSet {
+	if f.themeSet {
 		// Built once: a closure made here was an allocation per widget per
 		// frame whenever a theme was set.
 		if f.themeStyleClosure == nil {
-			f.themeStyleClosure = func(role string) cell.Style { return f.Theme.RoleStyle(role) }
+			f.themeStyleClosure = func(role string) cell.Style { return f.theme.RoleStyle(role) }
 		}
 		ctx.ThemeStyle = f.themeStyleClosure
 	}
@@ -1004,7 +1014,7 @@ func (f *Frame) RenderWidget(w widgets.Widget, area cell.Rect) {
 	}
 	dur := time.Since(t0)
 
-	f.WidgetStats = append(f.WidgetStats, WidgetStat{
+	f.widgetStats = append(f.widgetStats, WidgetStat{
 		Type:     wType,
 		Duration: dur,
 	})
