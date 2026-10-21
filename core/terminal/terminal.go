@@ -603,7 +603,7 @@ func (t *Terminal) present(t0 time.Time) error {
 					if proto == graphics.ProtocolKitty && zIndex == 0 {
 						zIndex = -1
 					}
-					escSeq := graphics.GetCachedEscapeSequence(reg.Img, reg.Area.Width, reg.Area.Height, cellW, cellH, proto, zIndex, reg.Transparent)
+					escSeq := graphics.CachedEscapeSequence(reg.Img, reg.Area.Width, reg.Area.Height, cellW, cellH, proto, zIndex, reg.Transparent)
 					if escSeq != "" {
 						t.writeBuf = buffer.AppendCursor(t.writeBuf, reg.Area.X, reg.Area.Y)
 						t.writeBuf = append(t.writeBuf, escSeq...)

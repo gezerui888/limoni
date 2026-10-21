@@ -71,7 +71,7 @@ func (o *recordingObserver) Message(step uint64, msg Msg) {
 	o.mu.Unlock()
 }
 
-func (o *recordingObserver) Frame(step uint64, tree []accessibility.AccessibilityNode) {
+func (o *recordingObserver) Frame(step uint64, tree []accessibility.Node) {
 	o.mu.Lock()
 	o.frames++
 	o.mu.Unlock()

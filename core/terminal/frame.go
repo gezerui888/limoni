@@ -135,7 +135,7 @@ type Frame struct {
 	WidgetStats []WidgetStat
 	// Accessibility holds this frame's semantic nodes. Children may point into
 	// buffers widgets reuse next frame; use AccessibilityTree to keep a copy.
-	Accessibility []accessibility.AccessibilityNode
+	Accessibility []accessibility.Node
 
 	// Pre-allocated context parameters and closures to avoid heap allocation
 	currentArea           cell.Rect
@@ -222,7 +222,7 @@ func NewFrame(buf *buffer.Buffer, focusMgr *FocusManager) *Frame {
 		lastEventTrace:   make([]string, 0, 32),
 		lastTraceEntries: make([]TraceEntry, 0, 32),
 		WidgetStats:      make([]WidgetStat, 0, 32),
-		Accessibility:    make([]accessibility.AccessibilityNode, 0, 32),
+		Accessibility:    make([]accessibility.Node, 0, 32),
 	}
 	f.initClosures()
 	return f
@@ -517,7 +517,7 @@ func (f *Frame) endAreas() {
 }
 
 // RegisterAccessibility adds a semantic node to the current frame tree.
-func (f *Frame) RegisterAccessibility(node accessibility.AccessibilityNode) {
+func (f *Frame) RegisterAccessibility(node accessibility.Node) {
 	if f != nil {
 		f.Accessibility = append(f.Accessibility, node)
 	}
@@ -530,18 +530,18 @@ func (f *Frame) RegisterAccessibility(node accessibility.AccessibilityNode) {
 // does, to stay allocation-free — so f.Accessibility is only valid until the
 // next draw. The copy is what the automation gateway, session recording and
 // tests hold on to.
-func (f *Frame) AccessibilityTree() []accessibility.AccessibilityNode {
+func (f *Frame) AccessibilityTree() []accessibility.Node {
 	if f == nil {
 		return nil
 	}
 	return cloneNodes(f.Accessibility)
 }
 
-func cloneNodes(nodes []accessibility.AccessibilityNode) []accessibility.AccessibilityNode {
+func cloneNodes(nodes []accessibility.Node) []accessibility.Node {
 	if nodes == nil {
 		return nil
 	}
-	result := make([]accessibility.AccessibilityNode, len(nodes))
+	result := make([]accessibility.Node, len(nodes))
 	copy(result, nodes)
 	for i := range result {
 		result[i].Children = cloneNodes(result[i].Children)

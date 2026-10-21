@@ -189,7 +189,7 @@ scrolls the whole screen a line, under a diff that does not know. It showed
 as a smeared left pane next to a pixel-mode Viewer3D. iTerm2 gets
 `doNotMoveCursor=1`. `TestImagePlacementsKeepTheCursor`.
 
-**Images are cached by value.** `GetCachedEscapeSequence` keys on the
+**Images are cached by value.** `CachedEscapeSequence` keys on the
 `image.Image`; one whose pixels change in place must be `graphics.ForgetImage`d
 and should be a different value per frame, or the terminal is sent the old
 picture — or nothing, since the terminal compares images by identity.

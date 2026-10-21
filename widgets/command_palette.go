@@ -218,7 +218,7 @@ type CommandPalette struct {
 	Style       cell.Style // Background style
 	InputStyle  cell.Style // Search input style
 	ItemStyle   cell.Style // Normal item style
-	SelStyle    cell.Style // Selected item style
+	SelectedStyle    cell.Style // Selected item style
 	DetailStyle cell.Style // Shortcut/detail style
 
 	// Title is drawn in the top border. Empty means " ⌘ Commands ".
@@ -505,7 +505,7 @@ func (cp CommandPalette) Draw(ctx cell.Context, buf *buffer.Buffer) {
 		itemStyle.Fg = cell.NewColorRGB(200, 200, 210)
 		itemStyle.Bg = bgStyle.Bg
 	}
-	selStyle := cp.SelStyle
+	selStyle := cp.SelectedStyle
 	if selStyle.Fg == 0 {
 		selStyle.Fg = cell.NewColorRGB(255, 255, 255)
 		selStyle.Bg = cell.NewColorRGB(50, 100, 200)
