@@ -22,7 +22,7 @@ type Buffer struct {
 	// This flag lets Clear() avoid scanning the entire cell array during empty frame passes.
 	clean bool
 
-	// clip limits writes to a rectangle while clipOn is set (SetClip).
+	// clip limits writes to a rectangle while clipOn is set (SetClip, Frame.BeginArea).
 	clip   cell.Rect
 	clipOn bool
 }

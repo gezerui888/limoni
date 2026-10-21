@@ -1271,7 +1271,7 @@ func (t Table) drawSpanRow(
 
 // drawTextClipped draws text on a buffer with precise left and right pixel clipping boundaries.
 func drawTextClipped(buf *buffer.Buffer, startX, y uint16, s string, style cell.Style, clipLeft, clipRight uint16) uint16 {
-	// The buffer's clip (a Frame viewport) narrows the widget's own.
+	// The buffer's clip (Frame.BeginArea) narrows the widget's own.
 	clip := buf.Clip()
 	if clipLeft < clip.X {
 		clipLeft = clip.X

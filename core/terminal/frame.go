@@ -128,8 +128,8 @@ type Frame struct {
 	// draw context; see cell.Context.ImageProtocol.
 	ImageProtocol uint8
 
-	// viewports is the stack of BeginViewport rectangles; the last is in force.
-	viewports []cell.Rect
+	// areas is the stack of BeginArea rectangles; the last is in force.
+	areas []cell.Rect
 
 	// WidgetStats holds how long each widget drawn in this frame took to render.
 	WidgetStats []WidgetStat
@@ -300,7 +300,7 @@ func (f *Frame) runClickAction(a cell.ClickAction) {
 
 func (f *Frame) initClosures() {
 	f.clickClosure = func(clickArea cell.Rect, handler func()) {
-		clickArea, ok := f.inViewport(clickArea)
+		clickArea, ok := f.inArea(clickArea)
 		if !ok {
 			return
 		}
@@ -335,7 +335,7 @@ func (f *Frame) initClosures() {
 	}
 
 	f.clickActionClosure = func(clickArea cell.Rect, action cell.ClickAction) {
-		clickArea, ok := f.inViewport(clickArea)
+		clickArea, ok := f.inArea(clickArea)
 		if !ok {
 			return
 		}
@@ -356,7 +356,7 @@ func (f *Frame) initClosures() {
 	}
 
 	f.scrollClosure = func(area cell.Rect, offset *int, max int) {
-		area, ok := f.inViewport(area)
+		area, ok := f.inArea(area)
 		if !ok {
 			return
 		}
@@ -504,13 +504,13 @@ func (f *Frame) Reset() {
 	f.lastTraceEntries = f.lastTraceEntries[:0]
 	f.WidgetStats = f.WidgetStats[:0]
 	f.Accessibility = f.Accessibility[:0]
-	f.endViewports()
+	f.endAreas()
 }
 
-// endViewports closes any viewport left open, so what is drawn after the
+// endAreas closes any area left open, so what is drawn after the
 // application (the debug overlay, transitions) reaches the whole screen.
-func (f *Frame) endViewports() {
-	f.viewports = f.viewports[:0]
+func (f *Frame) endAreas() {
+	f.areas = f.areas[:0]
 	if f.Buffer != nil {
 		f.Buffer.ClearClip()
 	}
@@ -692,7 +692,7 @@ func (f *Frame) IsInsideAnyLayer(x, y uint16) bool {
 // clicked. The mouse event router uses these registrations.
 // layerID is the layer the click region belongs to.
 func (f *Frame) RegisterClickHandler(area cell.Rect, handler func(ev driver.MouseEvent)) {
-	area, ok := f.inViewport(area)
+	area, ok := f.inArea(area)
 	if handler == nil || !ok {
 		return
 	}
@@ -705,7 +705,7 @@ func (f *Frame) RegisterClickHandler(area cell.Rect, handler func(ev driver.Mous
 }
 
 func (f *Frame) registerMouseHandler(area cell.Rect, handler func(ev driver.MouseEvent), layerID string) {
-	area, ok := f.inViewport(area)
+	area, ok := f.inArea(area)
 	if handler == nil || !ok {
 		return
 	}
@@ -728,7 +728,7 @@ func (f *Frame) RegisterEventRegion(region EventRegion) {
 		return
 	}
 	var ok bool
-	if region.Area, ok = f.inViewport(region.Area); !ok {
+	if region.Area, ok = f.inArea(region.Area); !ok {
 		return
 	}
 	f.EventRegions = append(f.EventRegions, eventRegion{
@@ -1085,62 +1085,62 @@ func (f *Frame) EventTraceEntries() []TraceEntry {
 }
 
 // Area returns the rectangle the frame draws into: the whole screen, or the
-// innermost viewport between BeginViewport and EndViewport.
+// innermost area between BeginArea and EndArea.
 func (f *Frame) Area() cell.Rect {
 	if f == nil || f.Buffer == nil {
 		return cell.Rect{}
 	}
-	if n := len(f.viewports); n > 0 {
-		return f.viewports[n-1]
+	if n := len(f.areas); n > 0 {
+		return f.areas[n-1]
 	}
 	return f.Buffer.Area
 }
 
-// BeginViewport makes r the frame until EndViewport, so a view written for
+// BeginArea makes r the frame's area until EndArea, so a view written for
 // the whole screen can be drawn in part of it — a tab, a pane, a preview:
 //
-//	f.BeginViewport(pane)
+//	f.BeginArea(pane)
 //	child.View(f) // f.Area() is pane
-//	f.EndViewport()
+//	f.EndArea()
 //
 // Area returns r, nothing is drawn outside it, and click, scroll and event
 // regions are cut to it, so a child cannot take clicks meant for its
 // neighbours. Coordinates stay the screen's: r.X and r.Y are where the
-// child's area starts, not zero. Viewports nest; an inner one is cut to the
+// child's area starts, not zero. Areas nest; an inner one is cut to the
 // outer.
 //
-// Modals and layers are not scoped yet: a modal registered inside a viewport
+// Modals and layers are not scoped yet: a modal registered inside an area
 // still blocks the whole screen.
-func (f *Frame) BeginViewport(r cell.Rect) {
+func (f *Frame) BeginArea(r cell.Rect) {
 	if f == nil || f.Buffer == nil {
 		return
 	}
 	r = r.Intersection(f.Area())
-	f.viewports = append(f.viewports, r)
+	f.areas = append(f.areas, r)
 	f.Buffer.SetClip(r)
 }
 
-// EndViewport returns to the area that was in force before the matching
-// BeginViewport.
-func (f *Frame) EndViewport() {
-	if f == nil || f.Buffer == nil || len(f.viewports) == 0 {
+// EndArea returns to the area that was in force before the matching
+// BeginArea.
+func (f *Frame) EndArea() {
+	if f == nil || f.Buffer == nil || len(f.areas) == 0 {
 		return
 	}
-	f.viewports = f.viewports[:len(f.viewports)-1]
-	if n := len(f.viewports); n > 0 {
-		f.Buffer.SetClip(f.viewports[n-1])
+	f.areas = f.areas[:len(f.areas)-1]
+	if n := len(f.areas); n > 0 {
+		f.Buffer.SetClip(f.areas[n-1])
 	} else {
 		f.Buffer.ClearClip()
 	}
 }
 
-// inViewport cuts a region being registered to the current viewport, and
+// inArea cuts a region being registered to the current area, and
 // reports false when nothing of it is left.
-func (f *Frame) inViewport(area cell.Rect) (cell.Rect, bool) {
-	n := len(f.viewports)
+func (f *Frame) inArea(area cell.Rect) (cell.Rect, bool) {
+	n := len(f.areas)
 	if n == 0 {
 		return area, true
 	}
-	area = area.Intersection(f.viewports[n-1])
+	area = area.Intersection(f.areas[n-1])
 	return area, area.Width > 0 && area.Height > 0
 }

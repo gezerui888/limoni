@@ -10,13 +10,13 @@ a patch bump (`v0.x.y`) does not.
 
 ### Added
 
-- `Frame.BeginViewport(r)` / `EndViewport()`: a view written for the whole
+- `Frame.BeginArea(r)` / `EndArea()`: a view written for the whole
   screen drawn in part of it — a tab, a pane, a preview. Between the two,
   `f.Area()` is `r`, nothing is drawn outside it, and click, scroll and
   event regions are cut to it, so a pane cannot take its neighbour's clicks.
-  Viewports nest; one left open is closed after the frame. Underneath,
+  Areas nest; one left open is closed after the frame. Underneath,
   `Buffer.SetClip` / `ClearClip` / `Clip` limit every write, `Get` included.
-  Modals and layers are not scoped to a viewport yet. Asked for by
+  Modals and layers are not scoped to an area yet. Asked for by
   residual's tabbed multiplexer. Writes check the clip, which costs 1–4% in
   the widget draw benchmarks (0 allocations, unchanged).
 

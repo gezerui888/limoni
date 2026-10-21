@@ -10,12 +10,12 @@ import (
 
 // A view written for the whole screen, drawn into a pane: it sees the pane as
 // its area, and nothing it draws or registers reaches outside.
-func TestViewportHoldsAViewInItsPane(t *testing.T) {
+func TestAreaHoldsAViewInItsPane(t *testing.T) {
 	f := textFrame(12, 4)
 	f.initClosures()
 	pane := cell.NewRect(6, 1, 6, 3)
 
-	f.BeginViewport(pane)
+	f.BeginArea(pane)
 	if got := f.Area(); got != pane {
 		t.Fatalf("Area() = %+v, want the pane", got)
 	}
@@ -24,10 +24,10 @@ func TestViewportHoldsAViewInItsPane(t *testing.T) {
 	f.Text(int(child.X)-3, int(child.Y)+1, "overflowing", cell.Style{})           // starts left of the pane
 	f.RegisterClickHandler(cell.NewRect(0, 0, 12, 4), func(driver.MouseEvent) {}) // the whole screen
 	f.RegisterClickHandler(cell.NewRect(0, 0, 3, 1), func(driver.MouseEvent) {})  // only outside
-	f.EndViewport()
+	f.EndArea()
 
 	if got := f.Area(); got != cell.NewRect(0, 0, 12, 4) {
-		t.Fatalf("after EndViewport Area() = %+v", got)
+		t.Fatalf("after EndArea Area() = %+v", got)
 	}
 	want := []string{"", "      ┌────┐", "      rflowi", "      └────┘"}
 	for y, w := range want {
@@ -40,32 +40,32 @@ func TestViewportHoldsAViewInItsPane(t *testing.T) {
 	}
 }
 
-func TestViewportsNest(t *testing.T) {
+func TestAreasNest(t *testing.T) {
 	f := textFrame(20, 10)
-	f.BeginViewport(cell.NewRect(2, 2, 10, 5))
-	f.BeginViewport(cell.NewRect(8, 0, 10, 4)) // reaches out of the outer one
+	f.BeginArea(cell.NewRect(2, 2, 10, 5))
+	f.BeginArea(cell.NewRect(8, 0, 10, 4)) // reaches out of the outer one
 	if got := f.Area(); got != cell.NewRect(8, 2, 4, 2) {
-		t.Fatalf("inner Area() = %+v, want it cut to the outer viewport", got)
+		t.Fatalf("inner Area() = %+v, want it cut to the outer area", got)
 	}
-	f.EndViewport()
+	f.EndArea()
 	if got := f.Area(); got != cell.NewRect(2, 2, 10, 5) {
-		t.Fatalf("after the inner EndViewport Area() = %+v", got)
+		t.Fatalf("after the inner EndArea Area() = %+v", got)
 	}
 	f.Text(0, 3, "abcdefghijklmnop", cell.Style{})
 	if got := row(f, 3); got != "  cdefghijkl" {
 		t.Fatalf("outer clip after the inner ended: %q", got)
 	}
-	f.EndViewport()
-	f.EndViewport() // one too many does nothing
+	f.EndArea()
+	f.EndArea() // one too many does nothing
 	f.Text(0, 0, "free", cell.Style{})
 	if got := row(f, 0); got != "free" {
 		t.Fatalf("row 0 = %q", got)
 	}
 }
 
-func TestViewportLeftOpenIsClosedByReset(t *testing.T) {
+func TestAreaLeftOpenIsClosedByReset(t *testing.T) {
 	f := textFrame(10, 2)
-	f.BeginViewport(cell.NewRect(5, 0, 5, 1))
+	f.BeginArea(cell.NewRect(5, 0, 5, 1))
 	f.Reset()
 	f.Text(0, 1, "all", cell.Style{})
 	if got := row(f, 1); got != "all" || f.Area() != cell.NewRect(0, 0, 10, 2) {
@@ -73,15 +73,15 @@ func TestViewportLeftOpenIsClosedByReset(t *testing.T) {
 	}
 }
 
-func TestViewportDoesNotAllocate(t *testing.T) {
+func TestAreaDoesNotAllocate(t *testing.T) {
 	f := textFrame(40, 10)
 	pane := cell.NewRect(10, 2, 20, 6)
 	allocs := testing.AllocsPerRun(100, func() {
-		f.BeginViewport(pane)
+		f.BeginArea(pane)
 		f.Text(10, 2, "hello", cell.Style{})
-		f.EndViewport()
+		f.EndArea()
 	})
 	if allocs != 0 {
-		t.Fatalf("BeginViewport/EndViewport allocated %.0f times per frame", allocs)
+		t.Fatalf("BeginArea/EndArea allocated %.0f times per frame", allocs)
 	}
 }

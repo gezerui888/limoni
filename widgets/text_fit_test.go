@@ -46,7 +46,7 @@ func TestTableCutsCellsAtClusters(t *testing.T) {
 }
 
 // Table writes its cells into the buffer directly; it must still stop at the
-// buffer's clip (a Frame viewport), or a table in one pane draws over the next.
+// buffer's clip (Frame.BeginArea), or a table in one pane draws over the next.
 func TestTableStopsAtTheBuffersClip(t *testing.T) {
 	table := Table{
 		Rows:        []TableRow{NewRow("abcdefgh")},
