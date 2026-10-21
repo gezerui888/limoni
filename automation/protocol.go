@@ -233,6 +233,6 @@ type Response struct {
 	ExposeInputValues bool `json:"expose_input_values,omitempty"`
 
 	Nodes    []accessibility.Node `json:"nodes,omitempty"`
-	Snapshot string                            `json:"snapshot,omitempty"`
-	Focused  string                            `json:"focused,omitempty"`
+	Snapshot string               `json:"snapshot,omitempty"`
+	Focused  string               `json:"focused,omitempty"`
 }

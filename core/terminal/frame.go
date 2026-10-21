@@ -97,9 +97,6 @@ type Frame struct {
 	// FocusManager manages focus state and tab navigation for this frame.
 	FocusManager *FocusManager
 
-	// ActiveModal holds information on the active topmost modal layer, if any.
-	ActiveModal *Modal
-
 	// Layers contains the z-index sorted list of active rendering layers.
 	Layers []Layer
 
@@ -216,7 +213,6 @@ func NewFrame(buf *buffer.Buffer, focusMgr *FocusManager) *Frame {
 		EventRegions:     make([]eventRegion, 0, 128),
 		ImageRegions:     make([]ImageRegion, 0, 16),
 		FocusManager:     focusMgr,
-		ActiveModal:      nil,
 		Layers:           make([]Layer, 0, 128),
 		DebugRegions:     make([]DebugRegion, 0, 64),
 		lastEventTrace:   make([]string, 0, 32),
@@ -251,9 +247,6 @@ func (f *Frame) clickLayer(area cell.Rect) (string, bool) {
 	}
 	if topModal := f.TopmostModal(); topModal != nil && ContainsRect(topModal.Area, area) {
 		return topModal.ID, true
-	}
-	if f.ActiveModal != nil && ContainsRect(f.ActiveModal.Area, area) {
-		return f.ActiveModal.ID, true
 	}
 	return "", false
 }
@@ -309,8 +302,6 @@ func (f *Frame) initClosures() {
 			topModal := f.TopmostModal()
 			if topModal != nil && ContainsRect(topModal.Area, clickArea) {
 				layerID = topModal.ID
-			} else if f.ActiveModal != nil && ContainsRect(f.ActiveModal.Area, clickArea) {
-				layerID = f.ActiveModal.ID
 			} else {
 				return
 			}
@@ -373,8 +364,6 @@ func (f *Frame) initClosures() {
 			topModal := f.TopmostModal()
 			if topModal != nil && ContainsRect(topModal.Area, mouseArea) {
 				layerID = topModal.ID
-			} else if f.ActiveModal != nil && ContainsRect(f.ActiveModal.Area, mouseArea) {
-				layerID = f.ActiveModal.ID
 			} else {
 				return
 			}
@@ -384,12 +373,8 @@ func (f *Frame) initClosures() {
 
 	f.eventClosure = func(eventArea cell.Rect, phase driver.EventPhase, handler func(*driver.EventContext)) {
 		if f.currentIsOutsideModal {
-			topModal := f.TopmostModal()
-			if topModal != nil && ContainsRect(topModal.Area, eventArea) {
-				// Allow events inside the modal
-			} else if f.ActiveModal != nil && ContainsRect(f.ActiveModal.Area, eventArea) {
-				// Allow events inside the modal
-			} else {
+			// Only events inside the modal are allowed.
+			if topModal := f.TopmostModal(); topModal == nil || !ContainsRect(topModal.Area, eventArea) {
 				return
 			}
 		}
@@ -492,7 +477,6 @@ func (f *Frame) Reset() {
 	f.pointerRegions = f.pointerRegions[:0]
 	f.EventRegions = f.EventRegions[:0]
 	f.ImageRegions = f.ImageRegions[:0]
-	f.ActiveModal = nil
 	f.Layers = f.Layers[:0]
 	f.activeLayerID = ""
 	f.DebugRegions = f.DebugRegions[:0]
@@ -587,14 +571,7 @@ func (f *Frame) WriteAccessibilityLineMode(w io.Writer, mode accessibility.Mode)
 
 // RegisterModal records an active modal layer drawn in this frame.
 // Only one active modal is supported; the one registered last (the topmost) wins.
-// For backwards compatibility it also sets ActiveModal, the old API.
 func (f *Frame) RegisterModal(id string, area cell.Rect, onClickOutside func()) {
-	f.ActiveModal = &Modal{
-		ID:           id,
-		Area:         area,
-		ClickOutside: onClickOutside,
-	}
-	// Also add to the new layer system
 	f.Layers = append(f.Layers, Layer{
 		ID:           id,
 		Type:         LayerModal,
@@ -615,15 +592,6 @@ func (f *Frame) RegisterLayer(id string, layerType LayerType, area cell.Rect, zI
 		ZIndex:       zIndex,
 	}
 	f.Layers = append(f.Layers, layer)
-
-	// Backwards compatibility: for a modal layer, update ActiveModal too
-	if layerType == LayerModal {
-		f.ActiveModal = &Modal{
-			ID:           id,
-			Area:         area,
-			ClickOutside: onClickOutside,
-		}
-	}
 }
 
 // RemoveLayer removes the layer with the given ID.
@@ -632,19 +600,6 @@ func (f *Frame) RemoveLayer(id string) {
 		if f.Layers[i].ID == id {
 			f.Layers = append(f.Layers[:i], f.Layers[i+1:]...)
 			i--
-		}
-	}
-	// Update ActiveModal: for modal layers only
-	if f.ActiveModal != nil {
-		found := false
-		for _, l := range f.Layers {
-			if l.ID == f.ActiveModal.ID && l.Type == LayerModal {
-				found = true
-				break
-			}
-		}
-		if !found {
-			f.ActiveModal = nil
 		}
 	}
 }
@@ -918,11 +873,6 @@ func (f *Frame) RegisterClickHandlerInLayer(area cell.Rect, handler func(ev driv
 	})
 }
 
-// RenderComponent renders a composable Component or Widget within the specified area.
-func (f *Frame) RenderComponent(c widgets.Widget, area cell.Rect) {
-	f.RenderWidget(c, area)
-}
-
 // RenderWidget renders the given stateless widget into the buffer within the allocated bounds.
 // It initializes the cascading context and invokes the widget's Draw method.
 func (f *Frame) RenderWidget(w widgets.Widget, area cell.Rect) {
@@ -947,7 +897,7 @@ func (f *Frame) RenderWidget(w widgets.Widget, area cell.Rect) {
 				break
 			}
 		}
-	} else if f.ActiveModal != nil && ContainsRect(f.ActiveModal.Area, area) {
+	} else if m := f.TopmostModal(); m != nil && ContainsRect(m.Area, area) {
 		zIndex = 10
 	}
 	f.DebugRegions = append(f.DebugRegions, DebugRegion{
@@ -999,10 +949,7 @@ func (f *Frame) RenderWidget(w widgets.Widget, area cell.Rect) {
 		if !allowed {
 			isOutsideModal = true
 		}
-	} else if f.ActiveModal != nil && !ContainsRect(f.ActiveModal.Area, area) && !(debugArea.Width > 0 && ContainsRect(f.ActiveModal.Area, debugArea)) {
-		// Backwards compatibility with the old modal system
-		isOutsideModal = true
-	} else if len(f.Layers) > 0 && f.ActiveModal == nil {
+	} else if len(f.Layers) > 0 {
 		// Widgets drawn in the root layer must be blocked while layers exist.
 		isOutsideModal = true
 	}

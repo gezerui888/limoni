@@ -257,8 +257,8 @@ func TestMessageFromDriverCoversEveryEventKind(t *testing.T) {
 		t.Errorf("an unknown event produced %#v", got)
 	}
 	// The old name is still the same function.
-	if got := MessageFromBackend(driver.Event{Type: driver.EventKey, Key: key}); got != (KeyPressMsg{Key: key}) {
-		t.Errorf("MessageFromBackend = %#v", got)
+	if got := MessageFromDriver(driver.Event{Type: driver.EventKey, Key: key}); got != (KeyPressMsg{Key: key}) {
+		t.Errorf("MessageFromDriver = %#v", got)
 	}
 }
 

@@ -14,7 +14,7 @@ import (
 func render(t *testing.T, w, h uint16, c Component) []string {
 	t.Helper()
 	term := testkit.NewTerminal(w, h)
-	term.Draw(func(f *Frame) { f.RenderComponent(c, f.Area()) })
+	term.Draw(func(f *Frame) { f.RenderWidget(c, f.Area()) })
 	return strings.Split(strings.TrimRight(term.Snapshot(), "\n"), "\n")
 }
 

@@ -306,8 +306,8 @@ func TestResetClearsLayers(t *testing.T) {
 	if frame.activeLayerID != "" {
 		t.Errorf("After Reset, activeLayerID = %q; '' bekleniyordu", frame.activeLayerID)
 	}
-	if frame.ActiveModal != nil {
-		t.Errorf("After Reset, ActiveModal = nil değildi")
+	if frame.TopmostModal() != nil {
+		t.Errorf("after Reset a modal is still registered")
 	}
 }
 

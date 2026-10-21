@@ -18,7 +18,7 @@ import (
 // the synchronised update protocol (?2026) and routing mouse events to the right targets.
 type Terminal struct {
 	// driver is the layer that handles low-level TTY raw mode and I/O.
-	driver *driver.Driver
+	driver *driver.Backend
 
 	// cast records the frames as asciicast while it is set (RecordCast,
 	// LIMONI_CAST); nil otherwise, which costs the draw path one check.
@@ -221,12 +221,7 @@ func (t *Terminal) Close() error {
 }
 
 // Driver returns the underlying driver instance.
-func (t *Terminal) Driver() *driver.Driver {
-	return t.driver
-}
-
-// Backend returns the underlying driver instance (backward compatibility alias).
-func (t *Terminal) Backend() *driver.Driver {
+func (t *Terminal) Driver() *driver.Backend {
 	return t.driver
 }
 
@@ -841,33 +836,7 @@ func (t *Terminal) RouteMouseEvent(ev driver.MouseEvent) bool {
 		}
 	}
 
-	// 2. Backwards compatibility: ActiveModal (may have been set with the old RegisterModal API)
-	if t.frame.ActiveModal != nil {
-		modal := t.frame.ActiveModal
-		if modal.Area.Contains(ev.X, ev.Y) {
-			// Inside the modal: search only the regions with the modal's ID
-			for i := len(t.frame.ClickRegions) - 1; i >= 0; i-- {
-				reg := t.frame.ClickRegions[i]
-				if reg.LayerID == modal.ID && reg.Area.Contains(ev.X, ev.Y) && (reg.MouseOnly && (ev.Button == driver.MouseNone || ev.Button == driver.MouseScrollUp || ev.Button == driver.MouseScrollDown) || ev.Button == driver.MouseLeft) {
-					reg.Fire(ev, t.frame)
-					if t.frame.mouseCaptureRequest != nil {
-						t.mouseCaptureHandler = t.frame.mouseCaptureRequest
-						t.frame.mouseCaptureRequest = nil
-					}
-					return true
-				}
-			}
-			return true // Inside the modal but on empty space: swallow the event
-		} else {
-			// Click outside the modal (on left button presses only)
-			if ev.Button == driver.MouseLeft && !ev.Drag && modal.ClickOutside != nil {
-				modal.ClickOutside()
-			}
-			return true
-		}
-	}
-
-	// 3. The normal (layerless) click routing loop
+	// 2. The normal (layerless) click routing loop
 	for i := len(t.frame.ClickRegions) - 1; i >= 0; i-- {
 		reg := t.frame.ClickRegions[i]
 		if reg.LayerID == "" && reg.Area.Contains(ev.X, ev.Y) && (reg.MouseOnly && (ev.Button == driver.MouseNone || ev.Button == driver.MouseScrollUp || ev.Button == driver.MouseScrollDown) || ev.Button == driver.MouseLeft) {
@@ -1034,9 +1003,6 @@ func (t *Terminal) layersHash() string {
 	res := ""
 	for _, l := range t.frame.Layers {
 		res += fmt.Sprintf("%s:%d,%d,%d,%d;", l.ID, l.Area.X, l.Area.Y, l.Area.Width, l.Area.Height)
-	}
-	if t.frame.ActiveModal != nil {
-		res += fmt.Sprintf("modal:%s:%d,%d,%d,%d;", t.frame.ActiveModal.ID, t.frame.ActiveModal.Area.X, t.frame.ActiveModal.Area.Y, t.frame.ActiveModal.Area.Width, t.frame.ActiveModal.Area.Height)
 	}
 	return res
 }

@@ -546,7 +546,7 @@ func main() {
 			modalLayer,
 		)
 
-		f.RenderComponent(rootView, f.Area())
+		f.RenderWidget(rootView, f.Area())
 		return true
 	})
 

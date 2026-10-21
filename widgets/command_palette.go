@@ -212,14 +212,14 @@ func NewCommandPalettePosition() *CommandPalettePosition {
 
 // CommandPalette is the command palette overlay widget.
 type CommandPalette struct {
-	ID          string
-	State       *CommandPaletteState
-	Position    *CommandPalettePosition
-	Style       cell.Style // Background style
-	InputStyle  cell.Style // Search input style
-	ItemStyle   cell.Style // Normal item style
-	SelectedStyle    cell.Style // Selected item style
-	DetailStyle cell.Style // Shortcut/detail style
+	ID            string
+	State         *CommandPaletteState
+	Position      *CommandPalettePosition
+	Style         cell.Style // Background style
+	InputStyle    cell.Style // Search input style
+	ItemStyle     cell.Style // Normal item style
+	SelectedStyle cell.Style // Selected item style
+	DetailStyle   cell.Style // Shortcut/detail style
 
 	// Title is drawn in the top border. Empty means " ⌘ Commands ".
 	Title string
