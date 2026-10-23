@@ -103,9 +103,10 @@ func TestEveryActiveActsByItself(t *testing.T) {
 		for _, f := range foes {
 			hurt += 1e6 - g.enemies[f].hp
 		}
-		// A core ability: at least fifteen of the gun's shots' worth.
+		// A core ability: at least fifteen shots' worth of the first gun's
+		// 9 (ten of today's, which come slower and hit harder).
 		t.Logf("%-16s %6.0f (%.0f a shot)", augs[a].name, hurt, g.st.dmg)
-		if hurt < 15*g.st.dmg {
+		if hurt < 15*g.st.dmg*9/baseDmg {
 			t.Errorf("%s did %.1f damage in 8 s, under 15 shots' worth", augs[a].name, hurt)
 		}
 	}
@@ -178,7 +179,8 @@ func TestTheBuildShowsInThePanel(t *testing.T) {
 	pickN(g, augHotPath, 1)
 	b := buffer.NewBuffer(cell.Rect{Width: 160, Height: 46})
 	g.render(b)
-	lines := strings.Split(snapshot(b), "\n")
+	// The picture shows between the words: read its half blocks as gaps.
+	lines := strings.Split(strings.ReplaceAll(snapshot(b), "▀", " "), "\n")
 	find := func(s string) (int, int) {
 		for y, l := range lines {
 			if x := strings.Index(string([]rune(l)), s); x >= 0 {
@@ -258,6 +260,10 @@ func TestEveryActiveAllocatesNothing(t *testing.T) {
 	b := buffer.NewBuffer(cell.Rect{Width: 160, Height: 46})
 	g.render(b)
 	n, rings, arcs := 0, 0, 0
+	for i := 0; i < 60 && !g.ringOut(); i++ { // rings come every second or so
+		g.step(tick)
+		g.ammo, g.hp = g.st.mag, 1e9
+	}
 	for _, p := range g.parts {
 		if p.alive && p.puff > 0 {
 			n++
@@ -284,4 +290,13 @@ func TestEveryActiveAllocatesNothing(t *testing.T) {
 	}); avg != 0 {
 		t.Errorf("%.2f allocations per frame with every active at work, want 0", avg)
 	}
+}
+
+func (g *game) ringOut() bool {
+	for _, r := range g.rings {
+		if r.alive {
+			return true
+		}
+	}
+	return false
 }

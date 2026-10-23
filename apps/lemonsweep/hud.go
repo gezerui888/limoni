@@ -340,18 +340,10 @@ func (g *game) slotRow(c canvas, y int, a augID) {
 	if au.el == elNone {
 		el = hex(rarityCol[au.rar])
 	}
-	over := g.over[a]
 	w := width(au.name) + 1 + au.max + 2
-	if over > 0 {
-		w += 2 + digits(over)
-	}
 	x := c.w - w - 1
 	shadePanel(c, x-1, y, w+2, 1)
 	x = c.fg(x, y, au.name, hex(rarityCol[au.rar]).mix(rgb{1, 1, 1}, 0.5)) + 1
-	if over > 0 {
-		x = c.fg(x, y, "+", hudWarn)
-		x = c.fgNumber(x, y, over, hudWarn) + 1
-	}
 	for k := 0; k < au.max; k++ {
 		pip, pc := "•", hex(0x39405a)
 		if k < g.rank[a] {
@@ -389,16 +381,9 @@ func (g *game) drawBuild(c canvas, y, rows int, act bool) int {
 		}
 		name := augs[a].name
 		n := width(name) + 3 + digits(g.rank[a])
-		if g.over[a] > 0 {
-			n += 1 + digits(g.over[a])
-		}
 		shadePanel(c, 0, y, n+1, 1)
 		x := c.fg(2, y, name, hex(rarityCol[augs[a].rar]))
-		x = c.fgNumber(x+1, y, g.rank[a], hudText)
-		if g.over[a] > 0 {
-			x = c.fg(x, y, "+", hudWarn)
-			c.fgNumber(x, y, g.over[a], hudWarn)
-		}
+		c.fgNumber(x+1, y, g.rank[a], hudText)
 		y++
 	}
 	return y
@@ -430,7 +415,7 @@ func (g *game) bar(c canvas, x, y, w int, frac float64, on, off rgb) {
 func (g *game) drawBossBar(c canvas) {
 	for i := range g.enemies {
 		e := &g.enemies[i]
-		if !e.alive || !kinds[e.k].boss {
+		if !e.alive || !kinds[e.k].boss || e.decoy {
 			continue
 		}
 		name := kinds[e.k].name
@@ -440,16 +425,31 @@ func (g *game) drawBossBar(c canvas) {
 		shadePanel(c, x0-1, 2, w+2, 1)
 		c.fg(x0, 2, name, col)
 		g.bar(c, x0+width(name)+1, 2, w-width(name)-1, e.hp/e.max, col, hex(0x1d1020))
+		what, warn := "", true
+		switch {
+		case e.under > 0:
+			what, warn = "UNDERGROUND: it comes up where the floor glows", false
+		case e.guards > 0:
+			what, warn = "MODAL OPEN: break [Y] and [N] to hurt her", false
+		case g.pullT > 0 && g.pullBy == i:
+			what = "STRAW: walk away from it, or dash"
+		}
 		if e.windT > 0 {
 			// Its attack, named while it winds up.
-			what := "CLAW SALVO: get behind cover"
+			what, warn = "CLAW SALVO: get behind cover", true
 			switch {
-			case e.k == kQueen && e.slam:
-				what = "SUMMONS: her buttons are coming"
+			case e.sig && e.k == kBobaPrime:
+				what = "STRAW: it is going to pull you in"
+			case e.sig && e.k == kFerris:
+				what = "BURROW: it goes under the floor"
+			case e.sig && e.k == kQueen:
+				what = "MODAL: break her buttons, or she mends"
+			case e.sig && e.k == kTextual:
+				what = "CSS GRID: step across, then step back"
 			case e.k == kQueen:
 				what = "DIALOG WALL: find the gap in it"
 			case e.k == kReconciler && e.slam:
-				what = "RE-RENDER: it lands where the floor glows"
+				what = "RE-RENDER: it lands by you, and leaves a copy"
 			case e.k == kReconciler:
 				what = "PROPS DRILL: they follow you, dash"
 			case e.k == kTextual && e.slam:
@@ -461,11 +461,16 @@ func (g *game) drawBossBar(c canvas) {
 			case e.k == kBobaPrime:
 				what = "PEARL RING: find the gap"
 			}
+		}
+		if what != "" {
 			ww := width(what) + 2
 			shadePanel(c, (c.w-ww)/2, 3, ww, 1)
-			wc := hudWarn
-			if int(g.clock*8)%2 == 0 {
-				wc = hudBad
+			wc := hudCyan
+			if warn {
+				wc = hudWarn
+				if int(g.clock*8)%2 == 0 {
+					wc = hudBad
+				}
 			}
 			c.fg((c.w-ww)/2+1, 3, what, wc)
 		}
@@ -604,28 +609,34 @@ func (g *game) drawCard(c canvas, i int) {
 	if au.what2 != "" {
 		c.text(x+2, yy+3, au.what2, style(hudDim, bg))
 	}
+	if rc, ok := g.comboHint(a); ok && w >= 20 {
+		// A recipe this card goes on with: its name, and how far it gets.
+		n := g.has(rc)
+		if g.rank[a] == 0 {
+			n++
+		}
+		hw := 2 + width(rc.name) + 1 + digits(n) + 1 + digits(len(rc.cards))
+		hx := c.text(x+(w-hw)/2, yy+4, "★ ", style(hudWarn, bg))
+		hx = c.text(hx, yy+4, rc.name, style(hudWarn, bg))
+		hx = c.number(hx+1, yy+4, n, style(hudGood, bg))
+		hx = c.text(hx, yy+4, "/", style(hudDim, bg))
+		c.number(hx, yy+4, len(rc.cards), style(hudDim, bg))
+	}
 	r := g.rank[a]
 	ry := y + h - 4
-	if r < au.max {
-		xx := x + 2
-		for k := 0; k < au.max; k++ {
-			pip, col := '○', hudDim
-			if k < r {
-				pip, col = '●', rc
-			} else if k == r {
-				pip, col = '◉', hudWarn
-			}
-			c.set(xx, ry, pip, style(col, bg))
-			xx += 2
+	xx := x + 2
+	for k := 0; k < au.max; k++ {
+		pip, col := '○', hudDim
+		if k < r {
+			pip, col = '●', rc
+		} else if k == r {
+			pip, col = '◉', hudWarn
 		}
-		xx = c.text(xx, ry, "rank ", style(hudDim, bg))
-		c.number(xx, ry, r+1, st)
-	} else {
-		xx := c.text(x+2, ry, "OVERCLOCK ", style(hudWarn, bg))
-		xx = c.text(xx, ry, "x", style(hudWarn, bg))
-		xx = c.number(xx, ry, g.over[a]+1, style(hudWarn, bg))
-		c.text(xx+1, ry, "+12%", style(hudGood, bg))
+		c.set(xx, ry, pip, style(col, bg))
+		xx += 2
 	}
+	xx = c.text(xx, ry, "rank ", style(hudDim, bg))
+	c.number(xx, ry, r+1, st)
 	kind, kc := "PASSIVE", hudDim
 	switch {
 	case au.act && g.rank[a] == 0:
@@ -673,8 +684,8 @@ func veil(c canvas, k float32, tint rgb) {
 }
 
 var (
-	titleItems = [...]string{"SWEEP: THREE MAPS", "ENDLESS: /dev/zero", "SETTINGS", "QUIT"}
-	pauseItems = [...]string{"RESUME", "SETTINGS", "QUIT"}
+	titleItems = [...]string{"SWEEP: THREE MAPS", "ENDLESS: /dev/zero", "RECIPES", "SETTINGS", "QUIT"}
+	pauseItems = [...]string{"RESUME", "RECIPES", "SETTINGS", "QUIT"}
 )
 
 // card draws a framed card w by h at (x, y), in the colour of its frame.
@@ -749,7 +760,7 @@ func (g *game) drawTitle(c canvas) {
 	case c.w >= 56:
 		need += len(arenas) + 1
 	}
-	tall := need+9 < c.h
+	tall := need+9 <= c.h
 	if tall {
 		need += 9
 	}
@@ -810,6 +821,7 @@ func (g *game) drawTitle(c canvas) {
 var titleAbout = [len(titleItems)]string{
 	"three maps, ten minutes on each, then its warden",
 	"one open map, no warden and no end: how long?",
+	"which cards work together",
 	"sound, and the crosshair",
 	"back to the shell",
 }
@@ -908,7 +920,7 @@ func (g *game) mapLine(c canvas, x, y, i int) {
 
 func (g *game) drawPause(c canvas) {
 	veil(c, 0.6, hex(0x03040a))
-	w, h := 44, 15
+	w, h := 44, 16
 	x, y := (c.w-w)/2, (c.h-h)/2
 	card(c, x, y, w, h, hex(cardBorder))
 	bg := hex(cardBg)
@@ -1033,10 +1045,14 @@ func (g *game) drawSettings(c canvas) {
 		}
 		val := ""
 		switch name {
-		case "SOUND":
+		case "SOUND", "SENSITIVITY":
+			n := g.volume
+			if name == "SENSITIVITY" {
+				n = g.sens
+			}
 			for k := 0; k < 10; k++ {
 				r, col := '▮', hudCyan
-				if k >= g.volume {
+				if k >= n {
 					r, col = '▯', hex(cardBorder)
 				}
 				if p := c.at(vx+k, yy); p != nil {

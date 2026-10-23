@@ -29,30 +29,26 @@ func TestEveryGlyphIsOneColumn(t *testing.T) {
 	}
 }
 
-func TestReloadIsManual(t *testing.T) {
+func TestEmptyHeapReloadsItself(t *testing.T) {
 	g := playing()
-	g.ammo = 0
+	g.ammo = 1
 	g.press(actFire)
 	g.step(tick)
-	if g.ammo != 0 || g.dryT <= 0 {
-		t.Fatalf("an empty heap fired or said nothing: ammo %d, dry %.2f", g.ammo, g.dryT)
-	}
-	for i := 0; i < 60; i++ {
-		g.step(tick)
-	}
-	if g.ammo != 0 {
-		t.Fatal("the heap refilled by itself; collecting is the player's job")
-	}
-	g.release(actFire)
-	g.reload()
-	if g.reloadT <= 0 {
-		t.Fatal("R did not start the collector")
+	if g.ammo != 0 || g.reloadT <= 0 {
+		t.Fatalf("the last round left ammo %d, collector %.2f; want 0 and collecting", g.ammo, g.reloadT)
 	}
 	for g.reloadT > 0 {
 		g.step(tick)
 	}
 	if g.ammo != g.st.mag {
 		t.Fatalf("after collecting the heap holds %d, want %d", g.ammo, g.st.mag)
+	}
+	g.release(actFire)
+	g.ammo = 0
+	g.press(actFire) // an empty heap from elsewhere: the trigger collects
+	g.step(tick)
+	if g.reloadT <= 0 {
+		t.Fatal("the trigger on an empty heap did not start the collector")
 	}
 }
 
@@ -112,24 +108,38 @@ func TestCardsAreDifferentAndFollowTheirNeeds(t *testing.T) {
 	}
 }
 
-func TestPastTheLastRankAugmentsOverclock(t *testing.T) {
+// A card at its last rank is not offered again; with every slot full and
+// every card held at its last rank, a level is a random stat, at once.
+func TestMaxedBuildsTakeRandomStats(t *testing.T) {
 	g := playing()
 	pickN(g, augHotPath, augs[augHotPath].max)
-	if g.rank[augHotPath] != augs[augHotPath].max || g.over[augHotPath] != 0 {
-		t.Fatalf("rank %d over %d", g.rank[augHotPath], g.over[augHotPath])
+	if g.offerable(augHotPath) {
+		t.Fatal("a card at its last rank is offered again")
 	}
-	before := g.st.dmg
-	pickN(g, augHotPath, 1)
-	if g.over[augHotPath] != 1 || g.rank[augHotPath] != augs[augHotPath].max {
-		t.Fatalf("the pick past the last rank did not overclock: rank %d over %d", g.rank[augHotPath], g.over[augHotPath])
+	held := 0
+	for a := augID(0); a < nAug && held < 2*slots; a++ {
+		if g.offerable(a) {
+			pickN(g, a, augs[a].max)
+			held++
+		}
 	}
-	if got := g.st.dmg / before; math.Abs(got-1.12) > 1e-9 {
-		t.Fatalf("an overclock multiplied damage by %.3f, want 1.12", got)
+	for a := augID(0); a < nAug; a++ {
+		if g.offerable(a) {
+			t.Fatalf("%s is still offered to a full, maxed build", augs[a].name)
+		}
 	}
-	// It keeps going, without end.
-	pickN(g, augHotPath, 20)
-	if g.over[augHotPath] != 21 {
-		t.Fatalf("over %d after 21 overclocks", g.over[augHotPath])
+	dmg, hp := g.st.dmg, g.st.maxHP
+	g.pending = 1
+	g.openCards()
+	if g.phase != phPlay || g.pending != 0 {
+		t.Fatalf("phase %v, %d pending: want the run going on", g.phase, g.pending)
+	}
+	n := 0
+	for _, b := range g.bonus {
+		n += b
+	}
+	if n != 1 || g.st.dmg == dmg && g.st.maxHP == hp && (g.bonus[bonDamage] > 0 || g.bonus[bonHealth] > 0) {
+		t.Fatalf("%d random stats taken, or not applied: %v", n, g.bonus)
 	}
 }
 
@@ -316,7 +326,7 @@ func TestTheMouseLooks(t *testing.T) {
 	for i := 0; i < 30; i++ {
 		g.step(tick)
 	}
-	want := before + 14*lookPerCell(140)
+	want := before + 14*lookPerCell(140)*lookScale(g.sens) // at the default sensitivity
 	if math.Abs(g.ang-want) > 1e-6 {
 		t.Fatalf("turned to %.4f, want %.4f", g.ang, want)
 	}
@@ -435,7 +445,7 @@ func TestWallTextIsInTheFont(t *testing.T) {
 }
 
 func TestRecordsRoundTrip(t *testing.T) {
-	r := records{bests: bests{runs: 3, secs: 754, level: 31, kills: 2041, peak: 612, bigHit: 1880}, endless: bests{runs: 2, secs: 1500, level: 50, kills: 9000, peak: 700, bigHit: 3000}, volume: 4,
+	r := records{bests: bests{runs: 3, secs: 754, level: 31, kills: 2041, peak: 612, bigHit: 1880}, endless: bests{runs: 2, secs: 1500, level: 50, kills: 9000, peak: 700, bigHit: 3000}, volume: 4, sens: 6,
 		maps: [nStages]mapBest{{runs: 3, swept: 2, fastest: 41, kills: 820}, {runs: 2, swept: 1, fastest: 77, kills: 1100}}}
 	got := decodeRecords(encodeRecords(r))
 	if got != r {
@@ -586,5 +596,47 @@ func TestArmourBluntsSmallHits(t *testing.T) {
 	g.damage(i, 100, false)
 	if lost := 1000 - e.hp; lost < 90 {
 		t.Fatalf("a 100-damage hit took only %.2f", lost)
+	}
+}
+
+// A trigger held down as the cards come up picks nothing: the button must
+// come up first, and the cards stay a moment before a click counts.
+func TestHeldTriggerDoesNotPickACard(t *testing.T) {
+	g := playing()
+	g.pointerButton(0, true) // firing
+	g.pending = 1
+	g.step(tick)
+	if g.phase != phCards {
+		t.Fatal("no cards")
+	}
+	g.cardHov = 0
+	g.pointerButton(0, true) // a second press of the burst, still firing
+	if g.phase != phCards {
+		t.Fatal("the held trigger took a card")
+	}
+	g.pointerButton(0, false)
+	g.pointerButton(0, true) // a click at once: still the burst
+	if g.phase != phCards {
+		t.Fatal("a click the moment the cards came took one")
+	}
+	g.pointerButton(0, false)
+	for i := 0; i < 15; i++ {
+		g.step(tick)
+	}
+	g.pointerButton(0, true)
+	if g.phase != phPlay {
+		t.Fatal("a click after the cards had settled took nothing")
+	}
+
+	g = playing() // not firing: a click takes after the moment, no release needed
+	g.pending = 1
+	g.step(tick)
+	g.cardHov = 1
+	for i := 0; i < 15; i++ {
+		g.step(tick)
+	}
+	g.pointerButton(0, true)
+	if g.phase != phPlay {
+		t.Fatal("a fresh click took nothing")
 	}
 }

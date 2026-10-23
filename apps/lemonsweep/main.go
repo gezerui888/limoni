@@ -8,9 +8,9 @@
 // You are Limoni's garbage collector. Bubble Tea, Ratatui, tview, Ink and
 // ncurses have come for the heap, each drawn the way its own apps look.
 // Aim with the mouse, sweep with the button, collect (reload) with R or the
-// right button. Every level brings three augment cards; past an augment's
-// last rank it overclocks. After ten minutes the pressure builds, and no
-// build holds it for long.
+// right button. Every level brings three augment cards; once every card
+// held is at its last rank, a random stat. After ten minutes the pressure
+// builds, and no build holds it for long.
 package main
 
 import (
@@ -67,6 +67,9 @@ func main() {
 		g.best = g.store.load()
 		if g.best.hasRet {
 			g.ret = g.best.ret
+		}
+		if g.best.sens > 0 {
+			g.sens = g.best.sens
 		}
 		if g.best.volume >= 0 {
 			g.volume = g.best.volume
@@ -183,6 +186,11 @@ func (g *game) key(k limoni.KeyEvent) {
 			g.settingsKey(k, isRune, ch)
 		}
 		return
+	case phRecipes:
+		if down {
+			g.bookKey(k, isRune, ch)
+		}
+		return
 	case phDead:
 		if down && (isRune && ch == 'r' || k.Type == limoni.KeyEnter) {
 			g.reset()
@@ -291,8 +299,10 @@ func (g *game) titlePick(i int) {
 		g.reset()
 		g.sound(sfxPick)
 	case 2:
-		g.openSettings()
+		g.openBook()
 	case 3:
+		g.openSettings()
+	case 4:
 		g.quit = true
 	}
 }
@@ -302,8 +312,10 @@ func (g *game) pausePick(i int) {
 	case 0:
 		g.phase = phPlay
 	case 1:
-		g.openSettings()
+		g.openBook()
 	case 2:
+		g.openSettings()
+	case 3:
 		g.quit = true
 	}
 }
@@ -312,7 +324,7 @@ func (g *game) mouse(m limoni.MouseEvent) {
 	// A jump of a third of the window is the pointer coming back in from
 	// somewhere else, not a turn.
 	if dx := int(m.X) - g.mouseX; g.phase == phPlay && g.mouseIn && g.viewW > 0 && 3*abs(dx) < g.viewW {
-		g.lookPend += float64(dx) * lookPerCell(g.viewW)
+		g.lookPend += float64(dx) * lookPerCell(g.viewW) * lookScale(g.sens)
 	}
 	g.mouseX, g.mouseY, g.mouseIn = int(m.X), int(m.Y), true
 	c := canvas{w: g.scrW, h: g.scrH}
@@ -330,8 +342,11 @@ func (g *game) mouse(m limoni.MouseEvent) {
 		}
 	case phCards:
 		g.cardHov = g.cardAt(c, g.mouseX, g.mouseY)
-		if m.Button == limoni.MouseLeft && !m.Drag && g.cardHov >= 0 {
-			g.take(g.cardHov)
+		switch {
+		case m.Button == limoni.MouseRelease:
+			g.clickOK = true
+		case m.Button == limoni.MouseLeft && !m.Drag && g.cardHov >= 0:
+			g.click(g.cardHov)
 			g.release(actFire)
 		}
 	case phTitle, phPause:
@@ -365,6 +380,13 @@ func (g *game) mouse(m limoni.MouseEvent) {
 			g.adjust(row, 1)
 		case m.Button == limoni.MouseRight && !m.Drag:
 			g.adjust(row, -1)
+		}
+	case phRecipes:
+		switch m.Button {
+		case limoni.MouseScrollUp:
+			g.scrollBook(-1)
+		case limoni.MouseScrollDown:
+			g.scrollBook(1)
 		}
 	case phDead:
 		if press && g.clock-g.deadAt > 1 {
@@ -408,10 +430,11 @@ func (g *game) pointerButton(button int, down bool) {
 		case g.phase == phPlay:
 			g.press(actFire)
 		case g.phase == phCards && g.cardHov >= 0:
-			g.take(g.cardHov) // the locked mouse chose it (nudgeCard)
+			g.click(g.cardHov) // the locked mouse chose it (nudgeCard)
 		}
 	case button == 0:
 		g.release(actFire)
+		g.clickOK = true
 	case button == 2 && down:
 		g.reload()
 	}

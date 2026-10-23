@@ -33,12 +33,13 @@ window of its own with kitty's `mouse_hide_wait` set so the pointer goes once th
 | :--- | :--- |
 | mouse | look, as in any first-person game: moving it turns the view, and the crosshair stays in the middle. In the browser the pointer is locked. A terminal cannot lock it, so with the pointer at the window's edge the view keeps turning that way; move back in to stop |
 | left button | sweep (hold to keep firing). `F` does the same from the keyboard |
-| `R` or right button | collect. The heap (magazine) never refills on its own |
+| `R` or right button | collect early. An empty heap (magazine) collects by itself |
 | `W` `A` `S` `D` | move. `←` `→` or `Q` `E` turn |
 | `Space` | dash: a short burst no hit lands through. Two charges (◆◆ over the health), each back in 1.6 s |
-| `1` `2` `3` or a click | take a card |
+| `1` `2` `3` or a click | take a card. A click counts only once the cards have stood a moment and the button that was firing has come up, so a held trigger takes nothing |
 | `Esc` or `P` | pause. In the browser, Esc also lets the pointer go |
 | `M` | sound on and off |
+| RECIPES | in the title and the pause menus: the recipe book (below) |
 | SETTINGS | in the title and the pause menus: the sound, and the crosshair: style, colour, size, outline |
 
 Kitty, Ghostty, WezTerm and foot report key releases, so movement keys stay down exactly as long as you
@@ -67,15 +68,18 @@ Kinds come in by level — spinner and boba from the start, termbox from 2, `</>
 crossterm 6, modal 8, Lip Gloss 9, caret 10, progress 11, elder 15 — and a kind not yet met this run
 comes four times as often until it has, its arrival announced.
 
-Every tenth level a boss comes, in turn, then round again, tougher:
+Every tenth level a boss comes, in turn, then round again, tougher. Each has a move that is its own
+(`bosses.go`), and under half health a **second phase**: it says so, and comes faster.
 
-| | from | |
-| :--- | :--- | :--- |
-| **Boba Prime** | Bubble Tea | rings of pearls, and spinners |
-| **Ferris, Crab King** | Ratatui | a claw salvo, five bars in a fan; every third time a claw slam, a ring of fire over the floor, to dash through |
-| **The Modal Queen** | tview | a dialog wall, eleven bars side by side with a gap in it; every second time her buttons and a modal |
-| **Ink, the Reconciler** | Ink | props drilled down to you, three shots that turn after you; every second time a re-render: it lands beside you where the floor glows |
-| **Textual, the Cascade** | Textual | a CSS cascade, blocks falling on you and round you on marked floor; every third time a storm of carets and cursors |
+| | from | | its own move |
+| :--- | :--- | :--- | :--- |
+| **Boba Prime** | Bubble Tea | rings of pearls (sixteen in phase 2), and spinners | **straw**: it drinks, and you are pulled in; walk away or dash |
+| **Ferris, Crab King** | Ratatui | a claw salvo, five bars in a fan; a claw slam, a ring of fire over the floor, to dash through | **burrow**: under the floor, unseen and unhurt, it comes up where you stood, the floor marked first |
+| **The Modal Queen** | tview | a dialog wall, eleven bars side by side with a gap in it (two walls in phase 2, every other time) | **modal**: a dialog opens with [Y] and [N] buttons circling her; until both break nothing hurts her, and left open twelve seconds it closes and she mends |
+| **Ink, the Reconciler** | Ink | props drilled down to you, three shots that turn after you | **re-render**: it lands beside you where the floor glows, and leaves a virtual copy that looks the same and is nothing (two in phase 2) |
+| **Textual, the Cascade** | Textual | a CSS cascade, blocks falling on you and round you (eight in phase 2); a storm of carets and cursors | **CSS grid**: the floor in stripes, every other one; step across, then step back |
+
+A boss that keeps its distance keeps you in sight: out of it, it walks round the wall to you.
 
 Every ranged enemy shows its attack before
 it: it glows and a rising tone plays, and a boss's attack is named under its health bar. Marked floor
@@ -95,7 +99,15 @@ is new.
 
 **Actives** are the build's core: abilities that act by themselves, each on its own clock, for a share of
 the gun's damage, so whatever makes the gun stronger makes them stronger too. A rank makes one sooner,
-bigger or more of it.
+bigger or more of it. They act a third as often as their clocks say, never sooner than every 1.5 s, and
+hit 1.3 times as hard: a few casts a minute each, so six of them read as six things happening rather than
+a screen full of effects.
+
+**RECIPES**, in the title and the pause, is a book of 18 cards-that-work-together: Fragmentation (REP,
+fork(), Recursion), Thermal Shock, Pandemic, Hit and Run, Boss Hunter and the rest, each a rule the game
+really has — a card that needs another, stacks one card adds and another reads, a blast that catches a
+crowd another card pulled together. In a run the cards held are lit and each recipe says how far it is
+(2/3). An offered card that goes on with a recipe already begun says so on its face: ★ Wildfire 3/4.
 
 | | |
 | :--- | :--- |
@@ -130,16 +142,19 @@ The elements live on the enemies as stacks, with a mark over each one carrying t
 | **and the rest** | REP, Scroll Region, Diff Engine, fork(), panic(), Recursion, Cascading Diff, Hot Path, Tight Loop, Bigger Heap, Zero-Alloc, Concurrent GC, Escape Analysis, Stack Overflow, kill -9, Mode 2026, Graceful Shutdown, recover(), Mutex, Watchdog, Vampire Thread, GOGC=200, Weak Refs, Reference Counting, Retry, Batch Job, Headroom, Last Resort, Generational GC, Big O, Polyglot (damage for every element), Thermal Shock (fire on the frozen is a blast) |
 
 Some need another first: Wildfire needs Thermal Throttle, Recursion needs fork(), Thermal Shock needs fire
-and ice both. A card can come back. Past its last rank it **overclocks**: +12% to what it does, without
-end. The broken builds are the ones that multiply each other. fork() children that bounce off walls,
+and ice both. A card can come back until its last rank. Once every slot is full and every card held is
+at its last rank there is nothing left to offer, and a level is a **random stat** instead — damage, fire
+rate, health, speed, crits, rounds, regeneration or armour — taken at once, with no card screen. The broken builds are the ones that multiply each other. fork() children that bounce off walls,
 explode and throw shrapnel fill the arena with more shots than it can hold. The pool simply stays full.
 
 ## Three maps, and /dev/zero
 
 **SWEEP** is a run through three maps, each a part of the machine with its own walls and light:
-**The Heap** (open, a few windows standing in it), **The Stack** (frames in lanes, each with a gap) and
+**The Heap** (open, a few windows standing in it), **The Stack** (frames in lanes, each with a gap wide enough for a boss) and
 **Kernel Space** (a grid of pins). The heap grows with time on each. At ten minutes the map's **warden**
-comes — the Modal Queen, Ink's Reconciler, Textual's Cascade — with less of the crowd round it. Sweep it
+comes — the Modal Queen, Ink's Reconciler, Textual's Cascade — with less of the crowd round it, as every
+boss has. The crowd is thick: many enemies, each one softer, so a sweep mows lines down, and twice as
+thick again at the start of a run, thinning to that by five minutes in. Sweep it
 and the next map opens a moment later: the build comes along, health is full again, and the new map
 starts as hard as five minutes into the last. Sweep the third and the run is won.
 
@@ -153,11 +168,15 @@ slower, since no map ends there to give the health back; its pressure comes at f
 at a third of the pace, but it does not stop.
 
 Enemies walk round walls (`flow.go`): a count of steps from the player's tile over the whole map, made
-again when the player moves to another tile; one with a wall in its way follows it downhill.
+again when the player moves to another tile; one with a wall in its way follows it downhill. A boss is
+wider than a tile and has a count of its own, over tiles with room on every side, so it is never led into
+a gap it sticks in; and a body wider than a tile is tested against the walls no more than a tile apart,
+or its corners could stand either side of a thin wall with the wall inside it.
 
 A bot with perfect aim (`sim_test.go`, `SIM=1`, ten seeds a build of six actives and six passives) gets
-to a median of 26 to 38 minutes on the three maps, and wins about one run in twenty; most runs end at
-the last warden. On `/dev/zero` it lasts 18 to 20 minutes. It heeds the warnings — a step aside on a
+to a median of 11 to 32 minutes on the three maps, depending on the build, and wins about one run in
+four; the Modal Queen, the first warden, ends most of the others. On `/dev/zero` it lasts 17 to 19
+minutes. It heeds the warnings — a step aside on a
 wind-up, a dash through a slam or a shot about to land — and turns to a boss in sight, and nothing else,
 so the dash cards do little for it.
 
@@ -172,7 +191,9 @@ The room is a raycaster in half-block pixels, two to a cell, one ray a column. A
 terminal window drawn in a 3×5 pixel font; it is mip-mapped, and the smaller levels draw each character as
 a bar of its colour, the way an editor's minimap shows code, because letters averaged down are grey noise.
 So text reads up close and far walls stay clean lines. The floor is polished and shows the walls standing
-on it; the floor's seams and the ceiling's trays thin out before they would shimmer.
+on it; the floor's seams and the ceiling's trays thin out before they would shimmer. Two pixels a cell is
+few, so the room's pixels go through an unsharp mask before they become cells, which gives the averaged
+walls their edges back; the sprites and the gun, already crisp, do not.
 
 The enemies are pixel creatures over that (`sprites.go`), painted in code at start-up, each with a dark
 outline so it reads against any wall, and scaled by picking the nearest pixel. When one dies it comes
