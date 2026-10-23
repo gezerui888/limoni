@@ -47,6 +47,12 @@ func main() {
 		return
 	}
 
+	// Apple's Terminal has no synchronized output and falls behind a fast
+	// full-screen picture, so frames show half drawn; fewer frames tear less.
+	if os.Getenv("TERM_PROGRAM") == "Apple_Terminal" && !flagSet("fps") {
+		*fps = 30
+	}
+
 	var mix *mixer
 	if !*mute {
 		mix = newMixer()
@@ -438,4 +444,11 @@ func (g *game) pointerButton(button int, down bool) {
 	case button == 2 && down:
 		g.reload()
 	}
+}
+
+// flagSet reports whether the flag was given on the command line.
+func flagSet(name string) bool {
+	set := false
+	flag.Visit(func(f *flag.Flag) { set = set || f.Name == name })
+	return set
 }
