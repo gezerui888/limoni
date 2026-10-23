@@ -1,0 +1,55 @@
+//go:build !js
+
+package main
+
+import (
+	"os"
+	"os/exec"
+	"strings"
+)
+
+// No program running in a terminal can hide the mouse pointer: kitty has no
+// escape for it, and on Wayland nothing inside the terminal may lock it.
+// kitty's own mouse_hide_wait can, though: hidden once the mouse rests for
+// 50 ms, and shown again only after a billion mouse events. -window opens
+// the game in a kitty window of its own, full screen, with that set.
+const hiddenPointer = "mouse_hide_wait=0.05 1000 1000000 no"
+
+// fastRepaint lets kitty draw as often as a fast screen refreshes: its
+// default waits 10 ms between frames, about 100 a second at most.
+const fastRepaint = "repaint_delay=4"
+
+// inOwnWindow reports whether this is the game -window opened.
+func inOwnWindow() bool { return os.Getenv("LEMONSWEEP_WINDOW") == "1" }
+
+// kittyHint is the line the title screen shows in kitty, where -window
+// would hide the pointer.
+func kittyHint() string {
+	if inOwnWindow() || !strings.Contains(os.Getenv("TERM"), "kitty") {
+		return ""
+	}
+	if _, err := exec.LookPath("kitty"); err != nil {
+		return ""
+	}
+	return "lemonsweep -window: its own kitty window, full screen, no mouse pointer"
+}
+
+// openWindow starts the game again in a kitty window of its own, with the
+// rest of its flags, and returns once that window is open.
+func openWindow(args []string) error {
+	kitty, err := exec.LookPath("kitty")
+	if err != nil {
+		return err
+	}
+	exe, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	return windowCmd(kitty, exe, args).Start()
+}
+
+func windowCmd(kitty, exe string, args []string) *exec.Cmd {
+	cmd := exec.Command(kitty, append([]string{"-o", hiddenPointer, "-o", fastRepaint, "-o", "input_delay=1", "--start-as=fullscreen", "--title", "Lemon Sweep", exe}, args...)...)
+	cmd.Env = append(os.Environ(), "LEMONSWEEP_WINDOW=1")
+	return cmd
+}
