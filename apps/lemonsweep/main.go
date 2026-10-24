@@ -31,6 +31,7 @@ func main() {
 	showFPS := flag.Bool("showfps", false, "show the frames drawn each second")
 	mute := flag.Bool("mute", false, "no sound")
 	seed := flag.Uint64("seed", 0, "a seed, for a run that goes the same way twice")
+	flat := flag.Bool("flat", os.Getenv("TERM_PROGRAM") == "Apple_Terminal", "one colour a cell, for terminals whose half blocks leave stripes (on in Apple's Terminal)")
 	window := flag.Bool("window", false, "open in a kitty window of its own, full screen, with no mouse pointer")
 	flag.Parse()
 	if *window {
@@ -67,7 +68,7 @@ func main() {
 		s = uint64(time.Now().UnixNano())
 	}
 	g := newGame(s)
-	g.showFPS = *showFPS
+	g.showFPS, g.flat = *showFPS, *flat
 	g.store = newStore()
 	if g.store != nil {
 		g.best = g.store.load()

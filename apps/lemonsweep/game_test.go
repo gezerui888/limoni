@@ -640,3 +640,22 @@ func TestHeldTriggerDoesNotPickACard(t *testing.T) {
 		t.Fatal("a fresh click took nothing")
 	}
 }
+
+// -flat (Apple's Terminal) draws the picture one colour a cell, the
+// halves' mean, with no half block left in it, and allocates nothing.
+func TestFlatPicture(t *testing.T) {
+	b := buffer.NewBuffer(cell.Rect{Width: 2, Height: 1})
+	setHalves(&b.Content[0], hex(0xff0000), hex(0x0000ff))
+	top, bot := halves(&b.Content[0])
+	flatten(canvas{b, 2, 1})
+	if p := b.Content[0]; p.Content != ' ' || p.Style.Bg != top.mix(bot, 0.5).color() {
+		t.Fatalf("flattened to %q on %v", p.Content, p.Style.Bg)
+	}
+	g := playing()
+	g.flat = true
+	big := buffer.NewBuffer(cell.Rect{Width: 160, Height: 46})
+	g.render(big)
+	if avg := testing.AllocsPerRun(10, func() { g.render(big) }); avg != 0 {
+		t.Fatalf("a flat frame allocates %.1f times", avg)
+	}
+}

@@ -17,6 +17,10 @@ lemonsweep -window    # in kitty: a window of its own, full screen, with no mous
 macOS does not put on the `PATH`. Run `~/go/bin/lemonsweep`, or add
 `export PATH="$PATH:$(go env GOPATH)/bin"` to `~/.zshrc` and open a new terminal.
 
+In Apple's Terminal the game draws 30 frames a second and one colour a cell (`-flat`), because Terminal
+neither holds a frame back until it is complete nor fills a cell with a block character; Ghostty, iTerm2,
+kitty and WezTerm show it at full detail.
+
 ### Mouse lock
 
 A terminal cannot lock the mouse pointer, so on Wayland the game does what every game does: during a

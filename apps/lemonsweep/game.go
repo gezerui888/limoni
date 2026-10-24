@@ -139,7 +139,8 @@ type game struct {
 	viewH    int
 	scrW     int // the last frame's size, for clicks on cards
 	scrH     int
-	sens     int // mouse sensitivity, 1-10 (lookScale)
+	sens     int  // mouse sensitivity, 1-10 (lookScale)
+	flat     bool // one colour a cell, no half blocks (-flat)
 
 	// the run
 	endless   bool    // /dev/zero, not the three maps
