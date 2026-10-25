@@ -32,7 +32,7 @@ func main() {
 	mute := flag.Bool("mute", false, "no sound")
 	seed := flag.Uint64("seed", 0, "a seed, for a run that goes the same way twice")
 	flat := flag.Bool("flat", os.Getenv("TERM_PROGRAM") == "Apple_Terminal", "one colour a cell, for terminals whose half blocks leave stripes (on in Apple's Terminal)")
-	window := flag.Bool("window", false, "open in a kitty window of its own, full screen, with no mouse pointer")
+	window := flag.Bool("window", false, "open in a window of its own: kitty full screen with no mouse pointer, or in Apple's Terminal one set to draw without stripes")
 	flag.Parse()
 	if *window {
 		var rest []string
@@ -42,7 +42,7 @@ func main() {
 			}
 		})
 		if err := openWindow(rest); err != nil {
-			fmt.Fprintln(os.Stderr, "-window needs kitty:", err)
+			fmt.Fprintln(os.Stderr, "-window needs kitty or Apple's Terminal:", err)
 			os.Exit(1)
 		}
 		return

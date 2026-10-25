@@ -21,12 +21,40 @@ func TestWindowOpensKittyWithoutAPointer(t *testing.T) {
 	}
 	t.Setenv("TERM", "xterm-kitty")
 	t.Setenv("LEMONSWEEP_WINDOW", "1")
-	if kittyHint() != "" {
+	if windowHint() != "" {
 		t.Fatal("the game's own window offers -window")
 	}
 	t.Setenv("TERM", "xterm-256color")
 	t.Setenv("LEMONSWEEP_WINDOW", "")
-	if strings.Contains(kittyHint(), "window") {
+	if strings.Contains(windowHint(), "window") {
 		t.Fatal("a terminal that is not kitty is offered -window")
+	}
+}
+
+// In Apple's Terminal -window writes a profile with the line spacing that
+// makes half blocks fill their cells, running the game in half blocks with
+// the user's flags after, quoted for the shell and escaped for the plist.
+func TestWindowInAppleTerminal(t *testing.T) {
+	p := string(appleProfile("/Users/a b/go/bin/lemonsweep", []string{"-fps=60", "-seed=1&<'x'"}, "QUJD"))
+	for _, want := range []string{
+		"<key>FontHeightSpacing</key><real>0.75</real>",
+		`<key>CommandString</key><string>LEMONSWEEP_WINDOW=1 '/Users/a b/go/bin/lemonsweep' -flat=false '-fps=60' '-seed=1&amp;&lt;'\''x'\'''</string>`,
+		"<key>Font</key><data>QUJD</data>",
+	} {
+		if !strings.Contains(p, want) {
+			t.Errorf("profile lacks %s\n%s", want, p)
+		}
+	}
+	if strings.Contains(string(appleProfile("/x", nil, "")), "<key>Font</key>") {
+		t.Error("a font that could not be made is written anyway")
+	}
+	t.Setenv("LEMONSWEEP_WINDOW", "")
+	t.Setenv("TERM_PROGRAM", "Apple_Terminal")
+	if !strings.Contains(windowHint(), "-window") {
+		t.Error("Apple's Terminal is not offered -window")
+	}
+	t.Setenv("LEMONSWEEP_WINDOW", "1")
+	if windowHint() != "" {
+		t.Error("the game's own window offers -window")
 	}
 }
