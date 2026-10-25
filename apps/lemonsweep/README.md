@@ -234,8 +234,8 @@ sways behind the aim and kicks on a shot. A reload is a heap change: the gun tip
 heap (the canister of glowing bytes under it, as full as the magazine) slides out and falls, a full one
 rises into the socket and clicks home with a jolt. The muzzle flash, the tracer and the rounds in flight
 (hot streaks) are light added to what is behind them; a shot also lights the room round the gun and
-lifts the view, and a kill, a blast or a hit taken shakes it. A kill's bytes wait in the air, flickering
-ones and zeroes (a diamond for a big one), until the collector comes within reach; then they stream home.
+lifts the view, and a kill, a blast or a hit taken shakes it. A kill's bytes wait in the air, green squares
+lit along the top and pulsing (bigger for more experience), until the collector comes within reach; then they stream home.
 
 The HUD floats on panels that darken the picture under them, its numbers in the walls' pixel font. The
 build is listed down the right edge, unframed: ACTIVE 3/6, then a row for each — its name, its ranks as

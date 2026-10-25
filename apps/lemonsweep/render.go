@@ -871,24 +871,41 @@ func (g *game) drawPart(v *view, pos vec, p *particle) {
 	g.put(v, x, y, p.glyph, p.col.mul(fade*(0.4+0.6*fog(depth))), 0, rgb{})
 }
 
+// drawByte draws freed bytes as a green square hanging in the air, in
+// pixels: lit along its top and left, dark along its bottom and right,
+// bigger for more experience, pulsing as it bobs.
 func (g *game) drawByte(v *view, pos vec, o *orb) {
 	sx, depth, rows, ok := v.project(o.pos, pos)
 	if !ok {
 		return
 	}
-	x := int(sx)
-	y := int(v.horizon + 0.5*rows - (0.3+0.08*math.Sin(o.t*5))*rows)
-	if x < 0 || x >= v.w || y < v.top || y >= v.top+v.h || depth >= sc.zbuf[x] {
-		return
-	}
-	r := '0'
-	if int(o.t*3)%2 == 1 {
-		r = '1'
-	}
+	size := 0.13
 	if o.xp >= 5 {
-		r = '◆'
+		size = 0.2
 	}
-	g.put(v, x, y, r, hex(0x6ee07a).mul(0.4+0.6*fog(depth)), 0, rgb{})
+	n := int(math.Min(10, math.Max(1, size*2*rows)))
+	cy := 2 * (v.horizon + 0.5*rows - (0.3+0.08*math.Sin(o.t*5))*rows)
+	x0, y0 := int(sx)-n/2, int(cy)-n/2
+	k := (0.45 + 0.55*fog(depth)) * float32(0.85+0.15*math.Sin(o.t*6))
+	body, lit, dark := hex(0x4fd65e).mul(k), hex(0xc4ffb8).mul(k), hex(0x1e7a2e).mul(k)
+	for x := x0; x < x0+n; x++ {
+		if x < 0 || x >= v.w || depth >= sc.zbuf[x] {
+			continue
+		}
+		for y := y0; y < y0+n; y++ {
+			if y < 2*v.top || y >= 2*(v.top+v.h) {
+				continue
+			}
+			col := body
+			switch {
+			case n > 2 && (x == x0 || y == y0):
+				col = lit
+			case n > 2 && (x == x0+n-1 || y == y0+n-1):
+				col = dark
+			}
+			v.c.px(x, y, col)
+		}
+	}
 }
 
 // ── the player's side ────────────────────────────────────────────────────
