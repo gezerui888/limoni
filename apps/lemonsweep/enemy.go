@@ -205,7 +205,7 @@ func (g *game) hpScale() float64 {
 
 // A crowd: crowdN times as many enemies as the first tuning, each crowdHP
 // as tough, so a sweep mows lines down rather than picking off a few.
-const crowdN, crowdHP = 1.6, 0.75
+const crowdN, crowdHP = 1.35, 0.75
 
 // bossHP is the bosses' health against the first tuning: the actives were
 // cut to a few casts a minute, and every boss gained a move of its own.
