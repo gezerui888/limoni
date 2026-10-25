@@ -651,8 +651,10 @@ func TestFlatPicture(t *testing.T) {
 	if p := b.Content[0]; p.Content != ' ' || p.Style.Bg != top.mix(bot, 0.5).color() {
 		t.Fatalf("flattened to %q on %v", p.Content, p.Style.Bg)
 	}
-	g := playing()
+	g := newGame(1)
 	g.flat = true
+	g.reset() // a run started from the title keeps it
+	g.phase = phPlay
 	big := buffer.NewBuffer(cell.Rect{Width: 160, Height: 46})
 	g.render(big)
 	// No half block anywhere, the HUD's big numbers included: Apple's

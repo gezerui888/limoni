@@ -258,14 +258,14 @@ func newGame(seed uint64) *game {
 // reset starts a new run.
 func (g *game) reset() {
 	best, store, audio, vol, last, sens, exact, seed := g.best, g.store, g.audio, g.volume, g.lastVol, g.sens, g.exact, g.rnd
-	ret, endless := g.ret, g.endless
+	ret, endless, flat := g.ret, g.endless, g.flat
 	showFPS, fps, frames, fpsAt := g.showFPS, g.fps, g.frames, g.fpsAt
 	noSound, clock, locked, mx, my, in, hint := g.noSound, g.clock, g.locked, g.mouseX, g.mouseY, g.mouseIn, g.hint
 	*g = game{}
 	g.best, g.store, g.audio, g.volume, g.lastVol, g.sens, g.exact, g.rnd = best, store, audio, vol, last, sens, exact, seed
 	g.noSound, g.clock, g.locked, g.mouseX, g.mouseY, g.mouseIn, g.hint = noSound, clock, locked, mx, my, in, hint
 	g.showFPS, g.fps, g.frames, g.fpsAt = showFPS, fps, frames, fpsAt
-	g.ret, g.endless = ret, endless
+	g.ret, g.endless, g.flat = ret, endless, flat
 	g.enter(0)
 	g.level = 1
 	g.bossNext = 10
