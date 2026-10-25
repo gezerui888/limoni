@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	github.com/ebitengine/oto/v3 v3.5.1
-	github.com/thebanri/limoni v0.15.1-0.20261025144945-bf45f78723e8
+	github.com/thebanri/limoni v0.15.1-0.20261025154112-63975b856118
 )
 
 require (
