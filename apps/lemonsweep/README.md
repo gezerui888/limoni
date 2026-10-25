@@ -10,7 +10,8 @@ play `/dev/zero`, the endless map, for as long as the build holds.
 ```bash
 go install github.com/thebanri/limoni/apps/lemonsweep@latest
 lemonsweep            # up to 144 frames a second; -showfps shows them, -mute for silence
-lemonsweep -window    # in kitty: a window of its own, full screen, with no mouse pointer
+lemonsweep -window    # in kitty: a window of its own, full screen, with no mouse pointer;
+                      # in Apple's Terminal: a window set to draw it sharp, without stripes
 ```
 
 `command not found`? `go install` puts programs in `$(go env GOPATH)/bin`, usually `~/go/bin`, which
@@ -18,8 +19,10 @@ macOS does not put on the `PATH`. Run `~/go/bin/lemonsweep`, or add
 `export PATH="$PATH:$(go env GOPATH)/bin"` to `~/.zshrc` and open a new terminal.
 
 In Apple's Terminal the game draws 30 frames a second and one colour a cell (`-flat`), because Terminal
-neither holds a frame back until it is complete nor fills a cell with a block character; Ghostty, iTerm2,
-kitty and WezTerm show it at full detail.
+neither holds a frame back until it is complete nor fills a cell with a block character: it draws them
+from the font into a row taller than the font. `lemonsweep -window` there opens a Terminal window with a
+line spacing of 0.75, where SF Mono's rows are as tall as its glyphs, and the game runs at full detail;
+Ghostty, iTerm2, kitty and WezTerm need nothing.
 
 ### Mouse lock
 
