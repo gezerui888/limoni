@@ -45,7 +45,8 @@ const (
 	bBlink   // walks, and every so often blinks nearer
 )
 
-// bosses come in this order, one every ten levels, then again, tougher.
+// bosses come in this order, one every bossEvery seconds on a map, then
+// again, tougher.
 var bosses = [...]kindID{kBobaPrime, kFerris, kQueen, kReconciler, kTextual}
 
 type kind struct {
@@ -217,6 +218,10 @@ const bossHP = 0.8
 // The mini-boss: every miniEvery seconds on a map, an ordinary enemy drawn
 // miniSize as big, with miniHP health against the heat.
 const miniEvery, miniSize, miniHP = 120.0, 1.7, 500.0
+
+// bossEvery is the seconds between bosses: on the clock, not by level, so
+// a run that levels slowly does not wait for them.
+const bossEvery = 150.0
 
 // crowd is how many enemies come for each one of the first tuning: twice
 // crowdN at the start of a run, where the heap was thin, down to crowdN by
@@ -431,10 +436,10 @@ func (g *game) addEnemy(k kindID, p vec) int {
 }
 
 func (g *game) spawnBoss() {
-	k := bosses[(g.bossNext/10-1)%len(bosses)]
+	k := bosses[g.bossN%len(bosses)]
 	// Each boss in the order is tougher than the last by its own health;
 	// each time the order comes round, all of them again.
-	round := float64((g.bossNext/10 - 1) / len(bosses))
+	round := float64(g.bossN / len(bosses))
 	p := vec{16, 4}
 	if g.pos.y < 16 {
 		p = vec{16, 28}
@@ -446,7 +451,7 @@ func (g *game) spawnBoss() {
 		g.say(kinds[k].name + " has entered the heap")
 		g.sound(sfxRoar)
 	}
-	g.bossNext += 10
+	g.bossN++
 }
 
 // ── behaviour ────────────────────────────────────────────────────────────

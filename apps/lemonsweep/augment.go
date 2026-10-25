@@ -597,9 +597,6 @@ func (g *game) take(i int) {
 	}
 	g.sound(sfxPick)
 	g.phase = phPlay
-	if g.level >= g.bossNext && !g.bossLive {
-		g.spawnBoss()
-	}
 	if g.pending > 0 {
 		g.openCards()
 	}

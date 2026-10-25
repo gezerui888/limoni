@@ -563,29 +563,44 @@ func TestLevelUpsQueueCards(t *testing.T) {
 	}
 }
 
-func TestABossComesEveryTenLevels(t *testing.T) {
+// A boss comes every bossEvery seconds on the map's clock, whatever the
+// level; one due while another stands waits for it, and none comes after
+// the warden's time.
+func TestABossComesOnTheClock(t *testing.T) {
 	g := playing()
-	g.level = 10
-	pickN(g, augHotPath, 1)
-	boss := -1
-	for i := range g.enemies {
-		if g.enemies[i].alive && kinds[g.enemies[i].k].boss {
-			boss = i
+	boss := func() int {
+		for i := range g.enemies {
+			if e := &g.enemies[i]; e.alive && kinds[e.k].boss && !e.warden {
+				return i
+			}
 		}
+		return -1
 	}
-	if boss < 0 || !g.bossLive || g.bossNext != 20 {
-		t.Fatalf("no boss at level 10 (live %v, next %d)", g.bossLive, g.bossNext)
+	g.stageT = bossEvery - tick/2
+	g.step(tick)
+	b := boss()
+	if b < 0 || g.enemies[b].k != kBobaPrime || !g.bossLive || g.level != 1 {
+		t.Fatalf("no Boba Prime at %.0fs on level %d", bossEvery, g.level)
 	}
-	g.damage(boss, 1e12, false)
+	g.stageT = 2*bossEvery - tick/2
+	g.step(tick)
+	if g.bossN != 1 {
+		t.Fatal("a second boss came while the first stood")
+	}
+	g.damage(b, 1e12, false)
 	if g.bossLive {
 		t.Fatal("the boss died but is still live")
 	}
-	g.level = 20
-	pickN(g, augHotPath, 1)
-	for i := range g.enemies {
-		if g.enemies[i].alive && kinds[g.enemies[i].k].boss && g.enemies[i].k != kFerris {
-			t.Fatalf("the second boss is %s, want Ferris", kinds[g.enemies[i].k].name)
-		}
+	g.hp = g.st.maxHP
+	g.step(tick)
+	if b = boss(); b < 0 || g.enemies[b].k != kFerris {
+		t.Fatal("Ferris did not come once Boba Prime was down")
+	}
+	g.damage(b, 1e12, false)
+	g.bossAt, g.stageT = wardenAt, wardenAt+1
+	g.step(tick)
+	if b = boss(); b >= 0 {
+		t.Fatalf("%s came after the warden's time", kinds[g.enemies[b].k].name)
 	}
 }
 

@@ -76,7 +76,7 @@ func TestEveryActiveActsByItself(t *testing.T) {
 			continue
 		}
 		g := playing()
-		g.bossNext = 99
+		g.bossAt = 1e9
 		pickN(g, a, 3)
 		var foes []int
 		for k := 0; k < 6; k++ {
@@ -245,7 +245,7 @@ func TestTheFrameRateIsCounted(t *testing.T) {
 // die, the clouds, rings and lightning all out.
 func everyActive() *game {
 	g := playing()
-	g.bossNext = 99
+	g.bossAt = 1e9
 	for a := augID(0); a < nAug; a++ {
 		if augs[a].act {
 			pickN(g, a, augs[a].max)

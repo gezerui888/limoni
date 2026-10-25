@@ -182,7 +182,7 @@ func TestDumpFrame(t *testing.T) {
 	shots["ferris"] = func() *game {
 		g := playing()
 		g.pos, g.ang = vec{16, 26}, -math.Pi/2
-		g.bossNext = 99
+		g.bossAt = 1e9
 		f := g.addEnemy(kFerris, vec{14.6, 22.9})
 		g.bossLive = true
 		e := &g.enemies[f]
@@ -201,7 +201,7 @@ func TestDumpFrame(t *testing.T) {
 	shots["elements"] = func() *game {
 		g := playing()
 		g.pos, g.ang = vec{16, 26}, -math.Pi/2
-		g.bossNext = 99
+		g.bossAt = 1e9
 		pickN(g, augIgnite, 1)
 		pickN(g, augChill, 1)
 		pickN(g, augLeak, 1)
@@ -243,7 +243,7 @@ func TestDumpFrame(t *testing.T) {
 	shots["actives"] = func() *game {
 		g := playing()
 		g.pos, g.ang = vec{16, 26}, -math.Pi/2
-		g.bossNext = 99
+		g.bossAt = 1e9
 		for _, a := range []augID{augDaemon, augDaemon, augDaemon, augRoundTrip, augRoundTrip, augIRQ, augCompaction, augSegfault, augColdPath} {
 			pickN(g, a, 1)
 		}
@@ -263,7 +263,7 @@ func TestDumpFrame(t *testing.T) {
 		return func() *game {
 			g := playing()
 			g.pos, g.ang = vec{16, 26}, -math.Pi/2
-			g.bossNext = 99
+			g.bossAt = 1e9
 			for _, a := range acts {
 				pickN(g, a, 3)
 			}
@@ -310,7 +310,7 @@ func TestDumpFrame(t *testing.T) {
 	shots["crosshair"] = func() *game {
 		g := playing()
 		g.pos, g.ang = vec{16, 26}, -math.Pi/2
-		g.bossNext = 99
+		g.bossAt = 1e9
 		g.addEnemy(kBoba, vec{16, 23.5})
 		g.hitT, g.killT, g.recoil = 0.1, 0, 0.3
 		return g
@@ -359,7 +359,7 @@ func TestDumpFrame(t *testing.T) {
 		shots[fmt.Sprintf("ret%d", s)] = func() *game {
 			g := playing()
 			g.pos, g.ang = vec{16, 26}, -math.Pi/2
-			g.bossNext = 99
+			g.bossAt = 1e9
 			g.addEnemy(kElder, vec{17.2, 23.2})
 			g.ret = reticle{style: s, color: s % len(reticleColors), size: 1, outline: true}
 			return g
@@ -368,7 +368,7 @@ func TestDumpFrame(t *testing.T) {
 	shots["minions"] = func() *game {
 		g := playing()
 		g.pos, g.ang = vec{16, 26}, -math.Pi/2
-		g.bossNext = 99
+		g.bossAt = 1e9
 		for i, k := range []kindID{kBeetle, kCaret, kBomb, kGloss, kCursor} {
 			j := g.addEnemy(k, vec{13.6 + float64(i)*1.2, 23.6 + float64(i%2)*0.5})
 			g.enemies[j].phaseOff = 0
@@ -379,7 +379,7 @@ func TestDumpFrame(t *testing.T) {
 		return func() *game {
 			g := playing()
 			g.pos, g.ang = vec{16, 26}, -math.Pi/2
-			g.bossNext, g.hp = 99, 1e6
+			g.bossAt, g.hp = 1e9, 1e6
 			j := g.addEnemy(k, vec{15, 22.4})
 			g.bossLive = true
 			e := &g.enemies[j]
@@ -408,7 +408,7 @@ func TestDumpFrame(t *testing.T) {
 		return func() *game {
 			g := playing()
 			g.pos, g.ang = vec{16, 26}, -math.Pi/2
-			g.bossNext, g.hp = 99, 1e6
+			g.bossAt, g.hp = 1e9, 1e6
 			j := g.addEnemy(k, vec{15, 22.4})
 			g.bossLive = true
 			e := &g.enemies[j]
@@ -431,7 +431,7 @@ func TestDumpFrame(t *testing.T) {
 		g := playing()
 		g.pos, g.ang = vec{16.12, 28.2}, -math.Pi/2
 		g.level, g.kills, g.runTime = 12, 412, 312
-		g.bossNext = 99 // no boss on the poster
+		g.bossAt = 1e9 // no boss on the poster
 		for _, a := range []augID{augREP, augREP, augFork, augPanic, augHotPath, augHotPath, augScroll} {
 			pickN(g, a, 1)
 		}

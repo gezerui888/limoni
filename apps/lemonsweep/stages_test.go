@@ -116,6 +116,7 @@ func TestAMiniBossEveryTwoMinutes(t *testing.T) {
 		}
 		return
 	}
+	g.bossAt = 1e9 // the bosses' clock is tested on its own
 	g.stageT = miniEvery - tick/2
 	g.step(tick)
 	n, i := minis()

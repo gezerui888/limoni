@@ -86,7 +86,7 @@ Kinds come in by level — spinner and boba from the start, termbox from 2, `</>
 crossterm 6, modal 8, Lip Gloss 9, caret 10, progress 11, elder 15 — and a kind not yet met this run
 comes four times as often until it has, its arrival announced.
 
-Every tenth level a boss comes, in turn, then round again, tougher. Each has a move that is its own
+Every two and a half minutes on a map a boss comes — 2:30, 5:00, 7:30, then the warden at ten; on `/dev/zero` without end — in turn, then round again, tougher. One due while another stands waits for it. Each has a move that is its own
 (`bosses.go`), and under half health a **second phase**: it says so, and comes faster.
 
 | | from | | its own move |
@@ -200,8 +200,8 @@ or its corners could stand either side of a thin wall with the wall inside it.
 
 A bot with perfect aim (`sim_test.go`, `SIM=1`, ten seeds a build of six actives and six passives on
 each map) is at level 10 at three minutes and lasts a median of 4 to 11 minutes on the three maps,
-depending on the build and the map; it sweeps a warden in about one run in eighty. Bosses end most runs —
-Ferris above all, at level 20 — because it does not dodge as a person does. On `/dev/zero` it lasts 11
+depending on the build and the map; it sweeps a warden in about three runs in a hundred. Bosses end most runs —
+Ferris above all, at five minutes — because it does not dodge as a person does. On `/dev/zero` it lasts 11
 to 20 minutes. It heeds the warnings — a step aside on a
 wind-up, a dash through a slam or a shot about to land — and turns to a boss in sight, and nothing else,
 so the dash cards do little for it.

@@ -167,7 +167,8 @@ type game struct {
 	cardAcc   float64 // a locked mouse's movement towards the next card
 	cardsAt   float64 // when the cards came up
 	clickOK   bool    // the button was let go since: a click now is meant for a card
-	bossNext  int     // the level at which the next boss comes
+	bossN     int     // level bosses sent this run, for which comes next
+	bossAt    float64 // the map's clock when the next one comes
 	bossLive  bool    // a boss is in the arena
 	spawnAcc  float64 // spawn budget not yet spent
 	momentum  float64 // stack overflow: damage built by hits in a row
@@ -274,7 +275,6 @@ func (g *game) reset() {
 	g.ret, g.endless, g.flat, g.mapSel = ret, endless, flat, mapSel
 	g.enter(mapSel)
 	g.level = 1
-	g.bossNext = 10
 	g.recalc()
 	g.hp = g.st.maxHP
 	g.ammo = g.st.mag
@@ -358,6 +358,12 @@ func (g *game) step(dt float64) {
 	before := g.overtime()
 	g.runTime += dt
 	g.stageT += dt
+	// A boss every two and a half minutes until the warden's; one due while
+	// another stands waits.
+	if g.stageT >= g.bossAt && !g.bossLive && g.clearT <= 0 && (g.endless || g.bossAt < wardenAt) {
+		g.spawnBoss()
+		g.bossAt += bossEvery
+	}
 	// A mini-boss every two minutes; one due while a boss stands waits.
 	if g.stageT >= g.miniAt && !g.bossLive && g.clearT <= 0 {
 		g.spawnMini()
@@ -756,7 +762,7 @@ func (g *game) enter(i int) {
 	g.zones, g.hazards, g.rings, g.arcs = [maxZones]zone{}, [maxHazards]hazard{}, [maxRings]ringFX{}, [maxArcs]arcFX{}
 	g.wave, g.vortex, g.pullT = wave{}, vortex{}, 0
 	g.pos, g.ang = vec{16, 16.5}, -math.Pi/2
-	g.anchor, g.stillT, g.miniAt = g.pos, 0, miniEvery
+	g.anchor, g.stillT, g.miniAt, g.bossAt = g.pos, 0, miniEvery, bossEvery
 	g.prevAim = g.ang // or the gun swings at the start of every map
 }
 
