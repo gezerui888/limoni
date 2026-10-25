@@ -64,7 +64,7 @@ var sc = scratch{bbs: make([]billboard, 0, maxEnemies+maxShots+maxParts+maxBytes
 func (g *game) render(b *buffer.Buffer) {
 	w, h := int(b.Area.Width), int(b.Area.Height)
 	g.scrW, g.scrH = w, h
-	c := canvas{b, w, h}
+	c := canvas{b, w, h, g.flat}
 	b.Invalidate()
 	if w < 20 || h < 8 {
 		c.fill(0, 0, w, h, ' ', style(hex(0xffffff), hex(0)))

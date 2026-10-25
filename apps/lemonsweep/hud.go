@@ -82,6 +82,14 @@ func (c canvas) bigNumber(x, py, n, scale int, col rgb) int {
 }
 
 func (c canvas) bigRune(x, py int, r rune, scale int, col rgb) int {
+	if c.flat {
+		// Half blocks stripe where the terminal draws them short; a
+		// letter in its cell does not.
+		if p := c.at(x, py/2); p != nil {
+			p.Content, p.Style.Fg = r, col.color()
+		}
+		return x + 1
+	}
 	for gy := 0; gy < fontH*scale; gy++ {
 		for gx := 0; gx < fontW*scale; gx++ {
 			if fontPixel(r, gx/scale, gy/scale) {
@@ -208,14 +216,18 @@ func (g *game) drawHUD(c canvas, v *view) {
 	}
 
 	// Bottom left: health, its number big.
-	numRows := (fontH*scale + 2) / 2
+	// dw: a big digit's width; lw: a letter's at scale 1, as DASH is.
+	numRows, dw, lw, dRows := (fontH*scale+2)/2, (fontW+1)*scale, fontW+1, (fontH+2)/2
+	if c.flat {
+		numRows, dw, lw, dRows = 2, 1, 1, 1
+	}
 	ph := numRows + 1
 	py := h - ph
 	hpCol := hudGood
 	if g.hp < g.st.maxHP*0.3 {
 		hpCol = hudBad
 	}
-	hpW := 3 + 4*scale*digits(int(math.Ceil(g.st.maxHP))) + 2 + 1 + digits(int(g.st.maxHP)) + 1
+	hpW := 3 + dw*digits(int(math.Ceil(g.st.maxHP))) + 2 + 1 + digits(int(g.st.maxHP)) + 1
 	shadePanel(c, 0, py, hpW, ph)
 	x = c.bigNumber(2, 2*py+1, int(math.Ceil(g.hp)), scale, hpCol)
 	c.fg(x+1, py, "HP", hudDim)
@@ -226,10 +238,9 @@ func (g *game) drawHUD(c canvas, v *view) {
 	// Over it, the dashes: a bar each, like stamina, the next one filling
 	// as it recharges; and over that, what hit last.
 	const dashBarW = 6
-	dRows := (fontH + 2) / 2
 	dy := py - dRows
 	dCol := hex(elementCol[elDash])
-	shadePanel(c, 0, dy, 2+4*(fontW+1)+1+g.st.dashN*(dashBarW+1)+1, dRows)
+	shadePanel(c, 0, dy, 2+4*lw+1+g.st.dashN*(dashBarW+1)+1, dRows)
 	tc := hudDim
 	if g.dashN > 0 {
 		tc = dCol
@@ -257,7 +268,7 @@ func (g *game) drawHUD(c canvas, v *view) {
 	}
 
 	// Bottom right: the heap.
-	amW := max(min(g.st.mag, 24)+2, 3+4*scale*max(2, digits(g.st.mag))+2+5+1)
+	amW := max(min(g.st.mag, 24)+2, 3+dw*max(2, digits(g.st.mag))+2+5+1)
 	ax := w - amW
 	shadePanel(c, ax, py, amW, ph)
 	if g.reloadT > 0 && g.st.reload > 0 {

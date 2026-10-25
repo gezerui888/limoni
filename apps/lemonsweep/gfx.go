@@ -77,6 +77,7 @@ func hash2(a, b int) float32 {
 type canvas struct {
 	b    *buffer.Buffer
 	w, h int
+	flat bool // -flat: the big font is written as plain text, no half blocks
 }
 
 func (c canvas) set(x, y int, r rune, s cell.Style) {
