@@ -50,8 +50,8 @@ func TestWindowInAppleTerminal(t *testing.T) {
 	}
 	t.Setenv("LEMONSWEEP_WINDOW", "")
 	t.Setenv("TERM_PROGRAM", "Apple_Terminal")
-	if !strings.Contains(windowHint(), "-window") {
-		t.Error("Apple's Terminal is not offered -window")
+	if !strings.Contains(windowHint(), "-gui") {
+		t.Error("Apple's Terminal is not offered -gui")
 	}
 	t.Setenv("LEMONSWEEP_WINDOW", "1")
 	if windowHint() != "" {

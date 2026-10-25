@@ -12,7 +12,13 @@ go install github.com/thebanri/limoni/apps/lemonsweep@latest
 lemonsweep            # up to 144 frames a second; -showfps shows them, -mute for silence
 lemonsweep -window    # in kitty: a window of its own, full screen, with no mouse pointer;
                       # in Apple's Terminal: a window set to draw it sharp, without stripes
+lemonsweep -gui       # macOS and Windows: a window the game draws itself, no terminal at all
 ```
+
+`-gui` paints the same cells a terminal would be sent, with Ebitengine, so it looks as it does in a good
+terminal, but its keys say when they are let go and the mouse is locked to the window during a run —
+what no terminal on macOS gives. Linux builds it only with `-tags lemonsweep_gui` (cgo and X11 headers);
+its terminals do well without it.
 
 `command not found`? `go install` puts programs in `$(go env GOPATH)/bin`, usually `~/go/bin`, which
 macOS does not put on the `PATH`. Run `~/go/bin/lemonsweep`, or add

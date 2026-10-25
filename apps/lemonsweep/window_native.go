@@ -24,13 +24,13 @@ const fastRepaint = "repaint_delay=4"
 func inOwnWindow() bool { return os.Getenv("LEMONSWEEP_WINDOW") == "1" }
 
 // windowHint is the line the title screen shows in kitty, where -window
-// would hide the pointer, and in Apple's Terminal, where it draws sharper.
+// would hide the pointer, and in Apple's Terminal, which -gui leaves behind.
 func windowHint() string {
 	if inOwnWindow() {
 		return ""
 	}
 	if appleTerminal() {
-		return "lemonsweep -window: a Terminal window set for the game, sharp and without stripes"
+		return "lemonsweep -gui: a window of its own, keys that never stick, the mouse locked"
 	}
 	if !strings.Contains(os.Getenv("TERM"), "kitty") {
 		return ""
