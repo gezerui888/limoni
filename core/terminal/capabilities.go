@@ -57,8 +57,8 @@ type CapabilityProfile struct {
 	// ScrollRegions lets the diff move text instead of rewriting it: rows
 	// that scrolled with DECSTBM and SU/SD, and the tail of a row that text
 	// was typed into or deleted from with ICH/DCH. All are VT100/VT220
-	// editing functions; on everywhere but TERM=dumb, and LIMONI_SCROLL=0
-	// turns them off.
+	// editing functions; on everywhere but TERM=dumb and Apple's Terminal,
+	// and LIMONI_SCROLL=0 turns them off.
 	ScrollRegions bool
 }
 
@@ -119,6 +119,10 @@ func DetectCapabilities() CapabilityProfile {
 	}
 	if termProg == "Apple_Terminal" {
 		profile.Colors256 = true
+		// Its scrolling with a region set leaves rows the diff believes
+		// moved where they were: Lemon Sweep's title kept stale lines over
+		// the logo until LIMONI_SCROLL=0 (Terminal 470, macOS 26).
+		profile.ScrollRegions = false
 	}
 
 	// REP is only enabled where it is known to work. xterm defined it; VTE,

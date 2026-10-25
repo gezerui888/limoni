@@ -134,13 +134,16 @@ func TestAppleTerminalTrueColorByVersion(t *testing.T) {
 	}
 }
 
-func TestAppleTerminalHasNoREP(t *testing.T) {
+func TestAppleTerminalHasNoREPOrScrolling(t *testing.T) {
 	t.Setenv("TERM", "xterm-256color")
 	t.Setenv("TERM_PROGRAM", "Apple_Terminal")
 	t.Setenv("LIMONI_REP", "")
 	p := DetectCapabilities()
 	if p.RepeatChar {
 		t.Error("REP on from TERM=xterm-256color in Apple's Terminal")
+	}
+	if p.ScrollRegions {
+		t.Error("scroll regions on in Apple's Terminal")
 	}
 	if p.WithReport(driver.TerminalReport{Repeat: driver.Yes, Answered: true}).RepeatChar {
 		t.Error("a measured REP turned it back on in Apple's Terminal")
