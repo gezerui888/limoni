@@ -125,6 +125,9 @@ func DetectCapabilities() CapabilityProfile {
 	// kitty, foot, WezTerm and Ghostty implement it. Anything unrecognised
 	// keeps it off rather than risking a literal escape on screen.
 	switch {
+	case termProg == "Apple_Terminal":
+		// TERM says xterm, but Apple's Terminal ignores REP for box drawing
+		// and the rest of the row lands short; see appleNoREP.
 	case termProg == "kitty", termProg == "WezTerm", termProg == "Ghostty",
 		termProg == "foot", termProg == "iTerm.app":
 		profile.RepeatChar = true
@@ -287,7 +290,7 @@ func (p CapabilityProfile) WithReport(r driver.TerminalReport) CapabilityProfile
 	// A measurement beats both the name and the environment.
 	switch r.Repeat {
 	case driver.Yes:
-		p.RepeatChar = true
+		p.RepeatChar = !appleNoREP()
 	case driver.No:
 		p.RepeatChar = false
 	}
@@ -317,3 +320,8 @@ func (p CapabilityProfile) WithReport(r driver.TerminalReport) CapabilityProfile
 	}
 	return p
 }
+
+// appleNoREP reports Apple's Terminal, where REP passes the probe (a space
+// repeated) but a run of ─ in a real frame came out as one ─ with the rest
+// of the row shifted left, seen in Lemon Sweep's map cards.
+func appleNoREP() bool { return os.Getenv("TERM_PROGRAM") == "Apple_Terminal" }

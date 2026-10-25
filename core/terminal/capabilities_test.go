@@ -3,6 +3,8 @@ package terminal
 import (
 	"runtime"
 	"testing"
+
+	"github.com/thebanri/limoni/core/driver"
 )
 
 func TestSetCapabilitiesOverridesDetection(t *testing.T) {
@@ -129,5 +131,18 @@ func TestAppleTerminalTrueColorByVersion(t *testing.T) {
 		if p.TrueColor != want || !p.Colors256 {
 			t.Errorf("version %q: truecolor %v, 256 %v; want %v, true", v, p.TrueColor, p.Colors256, want)
 		}
+	}
+}
+
+func TestAppleTerminalHasNoREP(t *testing.T) {
+	t.Setenv("TERM", "xterm-256color")
+	t.Setenv("TERM_PROGRAM", "Apple_Terminal")
+	t.Setenv("LIMONI_REP", "")
+	p := DetectCapabilities()
+	if p.RepeatChar {
+		t.Error("REP on from TERM=xterm-256color in Apple's Terminal")
+	}
+	if p.WithReport(driver.TerminalReport{Repeat: driver.Yes, Answered: true}).RepeatChar {
+		t.Error("a measured REP turned it back on in Apple's Terminal")
 	}
 }
