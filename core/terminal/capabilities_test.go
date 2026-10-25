@@ -117,3 +117,17 @@ func TestHyperlinksCanBeForcedEitherWay(t *testing.T) {
 		t.Error("LIMONI_HYPERLINKS=0 did not turn hyperlinks off")
 	}
 }
+
+// Apple's Terminal has 24-bit colour from build 470; before it, 256.
+func TestAppleTerminalTrueColorByVersion(t *testing.T) {
+	t.Setenv("TERM", "xterm-256color")
+	t.Setenv("COLORTERM", "")
+	t.Setenv("TERM_PROGRAM", "Apple_Terminal")
+	for v, want := range map[string]bool{"470": true, "471.2": true, "466": false, "455.1": false, "": false, "x": false} {
+		t.Setenv("TERM_PROGRAM_VERSION", v)
+		p := DetectCapabilities()
+		if p.TrueColor != want || !p.Colors256 {
+			t.Errorf("version %q: truecolor %v, 256 %v; want %v, true", v, p.TrueColor, p.Colors256, want)
+		}
+	}
+}

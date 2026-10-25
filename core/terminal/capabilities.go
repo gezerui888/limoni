@@ -3,6 +3,7 @@ package terminal
 import (
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/thebanri/limoni/core/driver"
@@ -112,8 +113,11 @@ func DetectCapabilities() CapabilityProfile {
 
 	// Some known modern terminals support TrueColor
 	termProg := os.Getenv("TERM_PROGRAM")
-	if termProg == "kitty" || termProg == "WezTerm" || termProg == "Ghostty" || termProg == "iTerm.app" || termProg == "Apple_Terminal" {
+	if termProg == "kitty" || termProg == "WezTerm" || termProg == "Ghostty" || termProg == "iTerm.app" || appleTrueColor(termProg) {
 		profile.TrueColor = true
+		profile.Colors256 = true
+	}
+	if termProg == "Apple_Terminal" {
 		profile.Colors256 = true
 	}
 
@@ -169,6 +173,23 @@ func DetectCapabilities() CapabilityProfile {
 	}
 
 	return profile
+}
+
+// appleTrueColor reports whether this is Apple's Terminal at a version with
+// 24-bit colour. Builds before 470 (every macOS before 26, and early 26
+// ones) read 38;2;r;g;b as separate attributes: a red of 7 is reverse
+// video, a blue of 34 a blue foreground — a screen of black, white and blue.
+// The cut-off is the one zsh found (zsh-workers, 2026).
+func appleTrueColor(termProg string) bool {
+	if termProg != "Apple_Terminal" {
+		return false
+	}
+	v := os.Getenv("TERM_PROGRAM_VERSION")
+	if i := strings.IndexByte(v, '.'); i >= 0 {
+		v = v[:i]
+	}
+	n, err := strconv.Atoi(v)
+	return err == nil && n >= 470
 }
 
 // notifyAndPointerFromEnv recognises the terminals whose documentation
