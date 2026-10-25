@@ -32,6 +32,7 @@ func main() {
 	mute := flag.Bool("mute", false, "no sound")
 	seed := flag.Uint64("seed", 0, "a seed, for a run that goes the same way twice")
 	flat := flag.Bool("flat", os.Getenv("TERM_PROGRAM") == "Apple_Terminal", "one colour a cell, for terminals whose half blocks leave stripes (on in Apple's Terminal)")
+	gui := flag.Bool("gui", false, "play in a window the game draws itself: keys that never stick and a locked mouse (macOS and Windows)")
 	window := flag.Bool("window", false, "open in a window of its own: kitty full screen with no mouse pointer, or in Apple's Terminal one set to draw without stripes")
 	flag.Parse()
 	if *window {
@@ -48,52 +49,33 @@ func main() {
 		return
 	}
 
+	if *gui {
+		g, mix := newSession(*seed, *mute)
+		g.showFPS = *showFPS
+		err := runGUI(g)
+		if mix != nil {
+			mix.close()
+		}
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	// Apple's Terminal has no synchronized output and falls behind a fast
 	// full-screen picture, so frames show half drawn; fewer frames tear less.
 	if os.Getenv("TERM_PROGRAM") == "Apple_Terminal" && !flagSet("fps") {
 		*fps = 30
 	}
 
-	var mix *mixer
-	if !*mute {
-		mix = newMixer()
-	}
 	term, err := limoni.New()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	s := *seed
-	if s == 0 {
-		s = uint64(time.Now().UnixNano())
-	}
-	g := newGame(s)
+	g, mix := newSession(*seed, *mute)
 	g.showFPS, g.flat = *showFPS, *flat
-	g.store = newStore()
-	if g.store != nil {
-		g.best = g.store.load()
-		if g.best.hasRet {
-			g.ret = g.best.ret
-		}
-		if g.best.sens > 0 {
-			g.sens = g.best.sens
-		}
-		if g.best.volume >= 0 {
-			g.volume = g.best.volume
-			if g.volume > 0 {
-				g.lastVol = g.volume
-			}
-		}
-	}
-	switch {
-	case mix != nil:
-		g.audio = mix
-		g.setVolume(g.volume)
-	case *mute:
-		g.noSound = "off (-mute)"
-	default:
-		g.noSound = "no audio output"
-	}
 	ptr := newPointer()
 	app := limoni.NewApp(term,
 		limoni.WithFPS(*fps),
@@ -129,6 +111,45 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+// newSession is a game with the player's records and settings loaded and
+// the sound on, for either front end: the terminal or -gui's window.
+func newSession(seed uint64, mute bool) (*game, *mixer) {
+	var mix *mixer
+	if !mute {
+		mix = newMixer()
+	}
+	if seed == 0 {
+		seed = uint64(time.Now().UnixNano())
+	}
+	g := newGame(seed)
+	g.store = newStore()
+	if g.store != nil {
+		g.best = g.store.load()
+		if g.best.hasRet {
+			g.ret = g.best.ret
+		}
+		if g.best.sens > 0 {
+			g.sens = g.best.sens
+		}
+		if g.best.volume >= 0 {
+			g.volume = g.best.volume
+			if g.volume > 0 {
+				g.lastVol = g.volume
+			}
+		}
+	}
+	switch {
+	case mix != nil:
+		g.audio = mix
+		g.setVolume(g.volume)
+	case mute:
+		g.noSound = "off (-mute)"
+	default:
+		g.noSound = "no audio output"
+	}
+	return g, mix
 }
 
 // crosshairPointer asks for the crosshair pointer over the picture in the
