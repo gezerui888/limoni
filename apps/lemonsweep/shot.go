@@ -197,7 +197,7 @@ func (g *game) advance(i int, s *shot, d vec) {
 				if !e.alive || j == s.lastHit || e.lastShot == s.id || e.under > 0 {
 					continue
 				}
-				r := kinds[e.k].r + 0.07
+				r := e.rad() + 0.07
 				if s.pos.dist2(e.pos) > r*r {
 					continue
 				}
@@ -445,19 +445,20 @@ func (g *game) stepParts(dt float64) {
 
 // ── freed bytes ──────────────────────────────────────────────────────────
 
-// orb is experience: the bytes an enemy held, freed. The experience is the
-// collector's the moment the enemy dies — a level comes at once — and the
-// bytes are its picture, streaming home.
+// orb is experience: the bytes an enemy held, freed. They hang in the air
+// where it died until the collector comes within reach (st.reach); then
+// they stream home, and the experience is its when they arrive. Sweeping
+// from a corner levels nothing.
 type orb struct {
 	alive bool
 	pos   vec
-	xp    float64 // for its size
+	xp    float64
 	t     float64 // for its flicker
-	age   float64
+	age   float64 // seconds since it was pulled
+	pull  bool    // within reach once: on its way home
 }
 
 func (g *game) dropBytes(p vec, xp float64) {
-	g.gain(xp * g.st.xpK)
 	for i := range g.bytes {
 		if !g.bytes[i].alive {
 			g.bytes[i] = orb{alive: true, pos: p, xp: xp, t: g.rnd.f() * 6}
@@ -465,22 +466,32 @@ func (g *game) dropBytes(p vec, xp float64) {
 			return
 		}
 	}
+	// Every slot taken: the bytes join one already waiting, so none is lost.
+	g.bytes[g.rnd.intn(maxBytes)].xp += xp
 }
 
-// stepBytes brings the freed bytes home at once, faster the longer they
-// fly.
+// stepBytes brings home the freed bytes within reach, faster the longer
+// they fly.
 func (g *game) stepBytes(dt float64) {
+	reach := g.st.reach * g.st.reach
 	for i := range g.bytes {
 		b := &g.bytes[i]
 		if !b.alive {
 			continue
 		}
-		b.age += dt
 		b.t += dt
+		if !b.pull {
+			if b.pos.dist2(g.pos) > reach {
+				continue
+			}
+			b.pull = true
+		}
+		b.age += dt
 		d := g.pos.sub(b.pos)
 		l := d.len()
 		if l < 0.35 {
 			b.alive = false
+			g.gain(b.xp * g.st.xpK)
 			g.soundAt(sfxByte, 0.2, 0)
 			continue
 		}

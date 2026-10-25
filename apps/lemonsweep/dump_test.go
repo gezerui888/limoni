@@ -82,6 +82,40 @@ func TestDumpFrame(t *testing.T) {
 			g.clock = 3
 			return g
 		},
+		"rang": func() *game {
+			g := playing()
+			g.pos, g.ang = vec{16, 26}, -math.Pi/2
+			for i := 0; i < 3; i++ {
+				g.shoot(g.pos.add(vec{float64(i) - 1, -1.5 - 2*float64(i)}), g.ang+0.2*float64(i-1), 10, 1, shotRang)
+			}
+			g.stepShots(0.05)
+			pickN(g, augPhoenix, 1)
+			g.phoenixT = 47
+			g.pending = 1
+			return g
+		},
+		"rang-card": func() *game {
+			g := playing()
+			g.pending = 1
+			g.openCards()
+			g.cards[0], g.cards[1], g.cards[2] = augRoundTrip, augPhoenix, augHotPath
+			return g
+		},
+		"mini": func() *game {
+			g := playing()
+			g.pos, g.ang, g.level = vec{16, 26}, -math.Pi/2, 9
+			g.stageT = miniEvery - 0.01
+			g.step(1.0 / 30)
+			for i := range g.enemies {
+				if e := &g.enemies[i]; e.alive && e.mini {
+					e.pos = vec{16, 20}
+				}
+			}
+			g.dropBytes(vec{14.5, 23}, 3)
+			g.dropBytes(vec{17.5, 22}, 6)
+			g.step(1.0 / 30)
+			return g
+		},
 		"broken": func() *game {
 			g := scene()
 			brokenBuild(g)

@@ -54,7 +54,7 @@ func TestCardsNameTheirRecipe(t *testing.T) {
 func TestTheRecipeBook(t *testing.T) {
 	g := newGame(1)
 	b := buffer.NewBuffer(cell.Rect{Width: 120, Height: 40})
-	g.titlePick(2)
+	g.titlePick(1)
 	if g.phase != phRecipes || !g.onTitle() {
 		t.Fatalf("RECIPES on the title gave phase %v", g.phase)
 	}

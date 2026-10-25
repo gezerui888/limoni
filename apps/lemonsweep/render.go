@@ -434,6 +434,9 @@ func (g *game) drawEnemy(v *view, pos vec, e *enemy) {
 	}
 	// In pixels: a column wide and half a row tall, so square.
 	hPx := 2 * kd.height * rows
+	if e.mini {
+		hPx *= miniSize
+	}
 	wPx := hPx * float64(s.w) / float64(s.h)
 	bottom := 2 * (v.horizon + 0.5*rows - z*rows)
 	top := bottom - hPx
@@ -658,7 +661,7 @@ func (g *game) drawShot(v *view, pos vec, s *shot) {
 		g.streak(v, tx, 2*(v.horizon+0.08*trows), sx, 2*(v.horizon+0.08*rows), depth, hex(0x9fe8ff))
 		return
 	case shotRang:
-		g.glowBall(v, sx, 2*(v.horizon+0.08*rows), math.Max(1, 0.11*2*rows), depth, hex(0xffb347))
+		g.drawRang(v, sx, 2*(v.horizon+0.08*rows), math.Min(18, math.Max(2.5, 0.42*rows)), depth, s.age*24)
 		return
 	case shotBar:
 		r, col = '▮', hex(0xf74c00)
@@ -669,6 +672,66 @@ func (g *game) drawShot(v *view, pos vec, s *shot) {
 		r = '●'
 	}
 	g.put(v, x, y, r, col.mul(0.5+0.5*fog(depth)), 0, rgb{})
+}
+
+var (
+	rangWood  = hex(0xff9a3c)
+	rangLight = hex(0xffe2a8)
+	rangDark  = hex(0x9a4a14)
+)
+
+// rangArm calls back for each pixel of one arm of a boomerang L long and
+// wk of that wide, from its elbow (ex, ey) along angle a: a taper,
+// lit along one edge and dark along the other. shade is -1 for the dark
+// edge, 1 for the lit, 0 for the wood, and t how far along the arm.
+func rangArm(ex, ey, L, wk, a float64, plot func(x, y float64, shade int, t float64)) {
+	dx, dy := math.Cos(a), math.Sin(a)
+	n := int(2*L) + 2
+	for i := 0; i <= n; i++ {
+		t := float64(i) / float64(n)
+		w := math.Max(0.5, L*wk*(1-0.5*t))
+		for j := -w; j <= w; j += 0.5 {
+			shade := 0
+			switch s := j / w; {
+			case s > 0.4:
+				shade = 1
+			case s < -0.55:
+				shade = -1
+			}
+			plot(ex+dx*L*t-dy*j, ey+dy*L*t+dx*j, shade, t)
+		}
+	}
+}
+
+// drawRang draws Round Trip's boomerang: two tapered wooden arms spinning
+// round their middle, with fading copies of it where it just was.
+func (g *game) drawRang(v *view, sx, cy, L, depth, spin float64) {
+	for ghost := 3; ghost >= 0; ghost-- {
+		a := spin - 0.5*float64(ghost)
+		k := float32(0.06 * float64(4-ghost))
+		// The elbow sits off the middle it spins round.
+		ex, ey := sx-math.Cos(a+0.85)*L*0.35, cy-math.Sin(a+0.85)*L*0.35
+		for arm := 0; arm < 2; arm++ {
+			rangArm(ex, ey, L, 0.17, a+1.7*float64(arm), func(x, y float64, shade int, t float64) {
+				xi, yi := int(x), int(y)
+				if xi < 0 || xi >= v.w || depth >= sc.zbuf[xi] || yi < 2*v.top || yi >= 2*(v.top+v.h) {
+					return
+				}
+				if ghost > 0 {
+					blendPx(v, xi, yi, rangWood, k)
+					return
+				}
+				col := rangWood.mul(float32(1 - 0.25*t))
+				switch shade {
+				case 1:
+					col = rangLight
+				case -1:
+					col = rangDark
+				}
+				v.c.px(xi, yi, col.mul(0.55+0.45*fog(depth)))
+			})
+		}
+	}
 }
 
 // streak draws a line of light in pixels from its tail (x0, y0) to its
@@ -814,7 +877,7 @@ func (g *game) drawByte(v *view, pos vec, o *orb) {
 		return
 	}
 	x := int(sx)
-	y := int(v.horizon + 0.5*rows - (0.12+0.06*math.Sin(o.t*5))*rows)
+	y := int(v.horizon + 0.5*rows - (0.3+0.08*math.Sin(o.t*5))*rows)
 	if x < 0 || x >= v.w || y < v.top || y >= v.top+v.h || depth >= sc.zbuf[x] {
 		return
 	}

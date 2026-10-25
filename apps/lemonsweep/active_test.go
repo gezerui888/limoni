@@ -136,15 +136,40 @@ func TestTheBoomerangComesBack(t *testing.T) {
 	}
 }
 
-// A kill pays its experience at once: the level, and its cards, come the
-// moment the enemy dies, not when the bytes arrive.
-func TestAKillPaysAtOnce(t *testing.T) {
+// A kill pays nothing until its bytes are picked up: they wait in the air
+// out of reach, and come home once the collector walks up to them.
+func TestBytesPayWhenPickedUp(t *testing.T) {
 	g := playing()
 	g.xp = need(1) - 0.1
 	i := stillEnemy(g, kBoba, vec{16, 10}, 1, 0)
 	g.damage(i, 10, false)
+	for s := 0; s < 60; s++ {
+		g.stepBytes(tick)
+	}
+	if g.level != 1 {
+		t.Fatalf("level %d from bytes six units away", g.level)
+	}
+	g.pos = vec{16, 11.5}
+	for s := 0; s < 60; s++ {
+		g.stepBytes(tick)
+	}
 	if g.level != 2 || g.pending != 1 {
-		t.Fatalf("level %d, %d cards waiting, right after the kill", g.level, g.pending)
+		t.Fatalf("level %d, %d cards waiting, after walking over the bytes", g.level, g.pending)
+	}
+}
+
+// With every slot full, more bytes join one already there: none is lost.
+func TestBytesAreNeverLost(t *testing.T) {
+	g := playing()
+	for i := 0; i < maxBytes+50; i++ {
+		g.dropBytes(vec{16, 4}, 1)
+	}
+	sum := 0.0
+	for _, b := range g.bytes {
+		sum += b.xp
+	}
+	if sum != maxBytes+50 {
+		t.Fatalf("%.0f experience in the air, want %d", sum, maxBytes+50)
 	}
 }
 

@@ -276,6 +276,11 @@ func TestAFrameAllocatesNothing(t *testing.T) {
 		for i := 0; i < 40; i++ {
 			g.addEnemy(kindID(i%int(kBobaPrime)), vec{6 + float64(i%20), 4 + float64(i/20)})
 		}
+		// Boomerangs in flight, the phoenix's clock, a mini-boss and bytes in the air.
+		pickN(g, augRoundTrip, 3)
+		pickN(g, augPhoenix, 1)
+		g.phoenixT = 40
+		g.stageT = miniEvery - 1
 		g.press(actFire)
 		for i := 0; i < 60; i++ {
 			g.step(tick)

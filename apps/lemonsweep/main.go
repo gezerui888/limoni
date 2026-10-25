@@ -195,7 +195,14 @@ func (g *game) key(k limoni.KeyEvent) {
 	switch g.phase {
 	case phTitle:
 		if down {
-			g.menuKey(k, isRune, ch, &g.menu, len(titleItems), g.titlePick)
+			switch {
+			case isRune && ch == 'a' || k.Type == limoni.KeyLeft:
+				g.mapSel = (g.mapSel + len(arenas) - 1) % len(arenas)
+			case isRune && ch == 'd' || k.Type == limoni.KeyRight:
+				g.mapSel = (g.mapSel + 1) % len(arenas)
+			default:
+				g.menuKey(k, isRune, ch, &g.menu, len(titleItems), g.titlePick)
+			}
 		}
 		return
 	case phPause:
@@ -322,17 +329,32 @@ func (g *game) menuKey(k limoni.KeyEvent, isRune bool, ch rune, sel *int, n int,
 
 func (g *game) titlePick(i int) {
 	switch i {
-	case 0, 1:
-		g.endless = i == 1
+	case 0:
+		g.endless = g.mapSel == len(arenas)-1
 		g.reset()
 		g.sound(sfxPick)
-	case 2:
+	case 1:
 		g.openBook()
-	case 3:
+	case 2:
 		g.openSettings()
-	case 4:
+	case 3:
 		g.quit = true
 	}
+}
+
+// mapAt is the map on the title under column x of row y, or -1.
+func (g *game) mapAt(c canvas, x, y int) int {
+	if g.mapCards {
+		x0 := (c.w - (4*mapCardW + 3*2)) / 2
+		if i := (x - x0) / (mapCardW + 2); y >= g.mapY && y < g.mapY+mapCardH && x >= x0 && i < len(arenas) {
+			return i
+		}
+		return -1
+	}
+	if i := y - g.mapY; i >= 0 && i < len(arenas) && c.w >= 56 && abs(x-c.w/2) <= 26 {
+		return i
+	}
+	return -1
 }
 
 func (g *game) pausePick(i int) {
@@ -383,6 +405,12 @@ func (g *game) mouse(m limoni.MouseEvent) {
 		sel, pick, n := &g.menu, g.titlePick, len(titleItems)
 		if g.phase == phPause {
 			sel, pick, n = &g.pause, g.pausePick, len(pauseItems)
+		}
+		if m := g.mapAt(c, g.mouseX, g.mouseY); g.phase == phTitle && m >= 0 {
+			if press {
+				g.mapSel = m
+			}
+			break
 		}
 		row := g.mouseY - g.menuY
 		on := row >= 0 && row < n && abs(g.mouseX-c.w/2) <= buttonW/2
