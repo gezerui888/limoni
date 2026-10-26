@@ -117,6 +117,14 @@ func DetectCapabilities() CapabilityProfile {
 		profile.TrueColor = true
 		profile.Colors256 = true
 	}
+	// Windows Terminal sets neither COLORTERM nor TERM, only WT_SESSION
+	// (passed on into WSL too), and draws 24-bit colour; so does the Windows
+	// console itself with VT processing on, which the driver requires.
+	// Without this every application there was cut down to 16 colours.
+	if os.Getenv("WT_SESSION") != "" || runtime.GOOS == "windows" {
+		profile.TrueColor = true
+		profile.Colors256 = true
+	}
 	if termProg == "Apple_Terminal" {
 		profile.Colors256 = true
 		// Its scrolling with a region set leaves rows the diff believes

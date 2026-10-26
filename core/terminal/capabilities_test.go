@@ -43,6 +43,25 @@ func TestDetectCapabilitiesTrueColorFromColorterm(t *testing.T) {
 	}
 }
 
+// Windows Terminal names itself only by WT_SESSION: no COLORTERM, no TERM
+// on Windows itself. It draws 24-bit colour, and was given 16.
+func TestWindowsTerminalHasTrueColor(t *testing.T) {
+	if runtime.GOOS == "js" {
+		t.Skip("js/wasm always reports truecolor")
+	}
+	t.Setenv("COLORTERM", "")
+	t.Setenv("TERM", "")
+	t.Setenv("TERM_PROGRAM", "")
+	t.Setenv("WT_SESSION", "")
+	if runtime.GOOS != "windows" && DetectCapabilities().TrueColor {
+		t.Fatal("truecolor with nothing in the environment to say so")
+	}
+	t.Setenv("WT_SESSION", "0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0")
+	if p := DetectCapabilities(); !p.TrueColor || !p.Colors256 {
+		t.Fatalf("WT_SESSION gave %+v, want 24-bit color", p)
+	}
+}
+
 func TestDetectCapabilitiesDumbTerminalDisablesSync(t *testing.T) {
 	if runtime.GOOS == "js" {
 		t.Skip("js/wasm does not read the environment")
