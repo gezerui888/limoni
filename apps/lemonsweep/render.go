@@ -65,7 +65,7 @@ var sc = scratch{bbs: make([]billboard, 0, maxEnemies+maxShots+maxParts+maxBytes
 func (g *game) render(b *buffer.Buffer) {
 	w, h := int(b.Area.Width), int(b.Area.Height)
 	g.scrW, g.scrH = w, h
-	c := canvas{b, w, h, g.flat}
+	c := canvas{b, w, h}
 	b.Invalidate()
 	if w < 20 || h < 8 {
 		c.fill(0, 0, w, h, ' ', style(hex(0xffffff), hex(0)))
@@ -128,9 +128,6 @@ func (g *game) render(b *buffer.Buffer) {
 		g.drawThreats(&v, pos)
 		g.drawHurt(&v)
 	}
-	if g.flat {
-		flatten(c)
-	}
 	g.drawHUD(c, &v)
 	switch g.phase {
 	case phTitle:
@@ -153,18 +150,6 @@ func (g *game) render(b *buffer.Buffer) {
 		shadePanel(c, x-1, 0, fw+2, 1)
 		x = c.fgNumber(x, 0, g.fps, hudCyan)
 		c.fg(x, 0, " fps", hudDim)
-	}
-}
-
-// flatten draws each half block of the picture as one colour, its halves'
-// mean, for terminals whose block glyphs do not fill the cell (Apple's
-// Terminal): half the height in pixels, but no stripes between them.
-func flatten(c canvas) {
-	for i := range c.b.Content {
-		if p := &c.b.Content[i]; p.Content == '▀' || p.Content == '▄' {
-			top, bot := halves(p)
-			p.Content, p.Style.Bg = ' ', top.mix(bot, 0.5).color()
-		}
 	}
 }
 

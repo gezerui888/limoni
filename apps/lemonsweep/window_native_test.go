@@ -38,7 +38,7 @@ func TestWindowInAppleTerminal(t *testing.T) {
 	p := string(appleProfile("/Users/a b/go/bin/lemonsweep", []string{"-fps=60", "-seed=1&<'x'"}, "QUJD"))
 	for _, want := range []string{
 		"<key>FontHeightSpacing</key><real>0.75</real>",
-		`<key>CommandString</key><string>LEMONSWEEP_WINDOW=1 '/Users/a b/go/bin/lemonsweep' -flat=false '-fps=60' '-seed=1&amp;&lt;'\''x'\'''</string>`,
+		`<key>CommandString</key><string>LEMONSWEEP_WINDOW=1 '/Users/a b/go/bin/lemonsweep' '-fps=60' '-seed=1&amp;&lt;'\''x'\'''</string>`,
 		"<key>Font</key><data>QUJD</data>",
 	} {
 		if !strings.Contains(p, want) {

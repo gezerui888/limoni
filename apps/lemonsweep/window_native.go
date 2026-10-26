@@ -109,10 +109,9 @@ $.NSKeyedArchiver.archivedDataWithRootObjectRequiringSecureCodingError($.NSFont.
 }
 
 // appleProfile is the .terminal file: the line spacing, a large window,
-// and the game in half blocks (the user's own flags after, so an explicit
-// -flat still wins), closed when the game quits.
+// and the game with the user's own flags, closed when the game quits.
 func appleProfile(exe string, args []string, font string) []byte {
-	cmd := "LEMONSWEEP_WINDOW=1 " + shellQuote(exe) + " -flat=false"
+	cmd := "LEMONSWEEP_WINDOW=1 " + shellQuote(exe)
 	for _, a := range args {
 		cmd += " " + shellQuote(a)
 	}

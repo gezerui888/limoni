@@ -664,31 +664,3 @@ func TestHeldTriggerDoesNotPickACard(t *testing.T) {
 		t.Fatal("a fresh click took nothing")
 	}
 }
-
-// -flat (Apple's Terminal) draws the picture one colour a cell, the
-// halves' mean, with no half block left in it, and allocates nothing.
-func TestFlatPicture(t *testing.T) {
-	b := buffer.NewBuffer(cell.Rect{Width: 2, Height: 1})
-	setHalves(&b.Content[0], hex(0xff0000), hex(0x0000ff))
-	top, bot := halves(&b.Content[0])
-	flatten(canvas{b, 2, 1, false})
-	if p := b.Content[0]; p.Content != ' ' || p.Style.Bg != top.mix(bot, 0.5).color() {
-		t.Fatalf("flattened to %q on %v", p.Content, p.Style.Bg)
-	}
-	g := newGame(1)
-	g.flat = true
-	g.reset() // a run started from the title keeps it
-	g.phase = phPlay
-	big := buffer.NewBuffer(cell.Rect{Width: 160, Height: 46})
-	g.render(big)
-	// No half block anywhere, the HUD's big numbers included: Apple's
-	// Terminal draws them short and the HP stripes.
-	for i, p := range big.Content {
-		if p.Content == '▀' || p.Content == '▄' {
-			t.Fatalf("a half block at %d,%d", i%160, i/160)
-		}
-	}
-	if avg := testing.AllocsPerRun(10, func() { g.render(big) }); avg != 0 {
-		t.Fatalf("a flat frame allocates %.1f times", avg)
-	}
-}

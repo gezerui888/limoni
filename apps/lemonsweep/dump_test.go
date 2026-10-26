@@ -151,11 +151,6 @@ func TestDumpFrame(t *testing.T) {
 			return g
 		}
 	}
-	shots["flat"] = func() *game {
-		g := scene()
-		g.flat = true
-		return g
-	}
 	shots["title-new"] = func() *game {
 		g := newGame(42)
 		g.clock = 3

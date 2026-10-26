@@ -25,11 +25,11 @@ its terminals do well without it.
 macOS does not put on the `PATH`. Run `~/go/bin/lemonsweep`, or add
 `export PATH="$PATH:$(go env GOPATH)/bin"` to `~/.zshrc` and open a new terminal.
 
-In Apple's Terminal the game draws 30 frames a second and one colour a cell (`-flat`), because Terminal
-neither holds a frame back until it is complete nor fills a cell with a block character: it draws them
-from the font into a row taller than the font. `lemonsweep -window` there opens a Terminal window with a
-line spacing of 0.75, where SF Mono's rows are as tall as its glyphs, and the game runs at full detail;
-Ghostty, iTerm2, kitty and WezTerm need nothing.
+In Apple's Terminal `lemonsweep` opens the `-gui` window by itself (`-gui=false` keeps it in the
+terminal), because Terminal neither holds a frame back until it is complete nor fills a cell with a block
+character: it draws them from the font into a row taller than the font, in stripes. `lemonsweep -window`
+there opens a Terminal window with a line spacing of 0.75, where SF Mono's rows are as tall as its
+glyphs, at 30 frames a second; Ghostty, iTerm2, kitty and WezTerm need nothing.
 
 ### Mouse lock
 

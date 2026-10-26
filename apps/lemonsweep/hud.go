@@ -82,14 +82,6 @@ func (c canvas) bigNumber(x, py, n, scale int, col rgb) int {
 }
 
 func (c canvas) bigRune(x, py int, r rune, scale int, col rgb) int {
-	if c.flat {
-		// Half blocks stripe where the terminal draws them short; a
-		// letter in its cell does not.
-		if p := c.at(x, py/2); p != nil {
-			p.Content, p.Style.Fg = r, col.color()
-		}
-		return x + 1
-	}
 	for gy := 0; gy < fontH*scale; gy++ {
 		for gx := 0; gx < fontW*scale; gx++ {
 			if fontPixel(r, gx/scale, gy/scale) {
@@ -256,10 +248,7 @@ func (g *game) drawHUD(c canvas, v *view) {
 	// Bottom left: health — a heart, the number big, and beside it ten
 	// pips and the most it can be. It sits a row up, clear of the hints.
 	// dw: a big digit's width.
-	numRows, dw, dRows := (fontH*scale+2)/2, (fontW+1)*scale, (fontH+2)/2
-	if c.flat {
-		numRows, dw, dRows = 2, 1, 1
-	}
+	numRows, dw := (fontH*scale+2)/2, (fontW+1)*scale
 	ph := numRows + 1
 	py := h - ph
 	hy := h - 1 - numRows
@@ -271,16 +260,10 @@ func (g *game) drawHUD(c canvas, v *view) {
 	}
 	const hpPips = 10
 	iw := scale*len(heartIcon[0]) + 1
-	if c.flat {
-		iw = 0
-	}
 	hpW := 2 + iw + dw*digits(int(math.Ceil(g.st.maxHP))) + 2 + 2*hpPips + 1
 	shadePanel(c, 0, hy, hpW, numRows)
-	x = 2
-	if !c.flat {
-		c.icon(x, 2*hy+numRows-3*scale, scale, heartIcon[:], hudBad.mul(beat), hex(0xffd0d8).mul(beat))
-		x += iw
-	}
+	c.icon(2, 2*hy+numRows-3*scale, scale, heartIcon[:], hudBad.mul(beat), hex(0xffd0d8).mul(beat))
+	x = 2 + iw
 	x = c.bigNumber(x, 2*hy+1, int(math.Ceil(g.hp)), scale, hpCol) + 2
 	frac := g.hp / g.st.maxHP
 	for i := 0; i < hpPips; i++ {
@@ -299,15 +282,10 @@ func (g *game) drawHUD(c canvas, v *view) {
 	// Over it, the dashes: a fast-forward mark, then a bar each, like stamina, the
 	// next one filling as it recharges; and over that, what hit last.
 	const dashBarW = 6
-	if !c.flat {
-		dRows = len(dashIcon) / 2 // the mark's height
-	}
+	dRows := len(dashIcon) / 2 // the mark's height
 	dy := hy - dRows
 	dCol := hex(elementCol[elDash])
-	markW := 5 // "DASH "
-	if !c.flat {
-		markW = len(dashIcon[0]) + 1
-	}
+	markW := len(dashIcon[0]) + 1
 	dw0 := 2 + markW + g.st.dashN*(dashBarW+1) + 1
 	if g.st.phoenix {
 		dw0 += 14 // PHOENIX and its clock, or READY
@@ -317,13 +295,8 @@ func (g *game) drawHUD(c canvas, v *view) {
 	if g.dashN > 0 {
 		tc = dCol
 	}
-	x = 2
-	if c.flat {
-		x = c.fg(x, dy, "DASH ", tc) // no pixels to draw the mark in
-	} else {
-		c.icon(x, 2*dy, 1, dashIcon[:], tc, tc.mul(0.45))
-		x += markW
-	}
+	c.icon(2, 2*dy, 1, dashIcon[:], tc, tc.mul(0.45))
+	x = 2 + markW
 	for i := 0; i < g.st.dashN; i++ {
 		frac, col := 1.0, dCol
 		switch {

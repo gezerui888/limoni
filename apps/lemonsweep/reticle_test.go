@@ -54,7 +54,7 @@ func TestEveryCrosshairDrawsItsOwn(t *testing.T) {
 	for s := range reticleStyles {
 		for _, outline := range []bool{false, true} {
 			b := buffer.NewBuffer(cell.Rect{Width: 40, Height: 20})
-			c := canvas{b, 40, 20, false}
+			c := canvas{b, 40, 20}
 			c.fill(0, 0, 40, 20, '▀', style(hex(0x808080), hex(0x808080)))
 			v := view{c: c, w: 40, h: 20}
 			drawReticle(&v, 20, 21, reticle{style: s, size: 1, outline: outline}, 0, hex(0xff0000))
