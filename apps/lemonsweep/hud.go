@@ -124,14 +124,12 @@ var (
 		"...#...",
 	}
 	dashIcon = [...]string{
-		"oo....##....",
-		".oo....##...",
-		"..oo....##..",
-		"...oo....##.",
-		"...oo....##.",
-		"..oo....##..",
-		".oo....##...",
-		"oo....##....",
+		"oo...##..",
+		".oo...##.",
+		"..oo...##",
+		"..oo...##",
+		".oo...##.",
+		"oo...##..",
 	}
 )
 
@@ -281,9 +279,9 @@ func (g *game) drawHUD(c canvas, v *view) {
 
 	// Over it, the dashes: a fast-forward mark, then a bar each, like stamina, the
 	// next one filling as it recharges; and over that, what hit last.
-	const dashBarW = 6
+	const dashBarW = 5
 	dRows := len(dashIcon) / 2 // the mark's height
-	dy := hy - dRows
+	dy := hy - dRows - 1       // a row apart from the health
 	dCol := hex(elementCol[elDash])
 	markW := len(dashIcon[0]) + 1
 	dw0 := 2 + markW + g.st.dashN*(dashBarW+1) + 1
@@ -600,19 +598,21 @@ func (g *game) cardAt(c canvas, mx, my int) int {
 }
 
 func (g *game) drawCards(c canvas) {
+	// The heading and the hint sit on panels as wide as they are, the
+	// scene darkened under them, not on bars across the screen.
 	_, y0, _, _ := g.cardRect(c, 0)
-	title := style(hudText, hex(0x05060a))
-	c.fill(0, y0-3, c.w, 1, ' ', title)
 	head := "LEVEL UP: CHOOSE AN AUGMENT"
-	c.centered(y0-3, head, style(hudWarn, hex(0x05060a)))
 	// The slots, under it: six actives, six passives.
 	slotsW := 28
+	pw := max(width(head), slotsW) + 4
+	shadePanel(c, (c.w-pw)/2, y0-3, pw, 2)
+	c.fg((c.w-width(head))/2, y0-3, head, hudWarn)
 	x := (c.w - slotsW) / 2
-	x = c.text(x, y0-2, "ACTIVE ", style(hudDim, hex(0x05060a)))
-	x = c.number(x, y0-2, g.holds(true), style(hudCyan, hex(0x05060a)))
-	x = c.text(x, y0-2, "/6   PASSIVE ", style(hudDim, hex(0x05060a)))
-	x = c.number(x, y0-2, g.holds(false), style(hudCyan, hex(0x05060a)))
-	c.text(x, y0-2, "/6", style(hudDim, hex(0x05060a)))
+	x = c.fg(x, y0-2, "ACTIVE ", hudDim)
+	x = c.fgNumber(x, y0-2, g.holds(true), hudCyan)
+	x = c.fg(x, y0-2, "/6   PASSIVE ", hudDim)
+	x = c.fgNumber(x, y0-2, g.holds(false), hudCyan)
+	c.fg(x, y0-2, "/6", hudDim)
 	for i := 0; i < g.nCards; i++ {
 		g.drawCard(c, i)
 	}
@@ -624,8 +624,9 @@ func (g *game) drawCards(c canvas) {
 		hint = "click a card, or press 1 2 3   ·   more cards waiting"
 	}
 	_, y, _, h := g.cardRect(c, 0)
-	c.fill(0, y+h+1, c.w, 1, ' ', title)
-	c.centered(y+h+1, hint, style(hudDim, hex(0x05060a)))
+	hw := width(hint) + 4
+	shadePanel(c, (c.w-hw)/2, y+h+1, hw, 1)
+	c.fg((c.w-width(hint))/2, y+h+1, hint, hudDim)
 }
 
 // drawCard draws a card in its rarity's colour: a tinted face, a frame
