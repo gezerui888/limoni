@@ -3,6 +3,7 @@
 package main
 
 import (
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -21,12 +22,61 @@ func TestWindowOpensKittyWithoutAPointer(t *testing.T) {
 	}
 	t.Setenv("TERM", "xterm-kitty")
 	t.Setenv("LEMONSWEEP_WINDOW", "1")
-	if kittyHint() != "" {
+	if windowHint() != "" {
 		t.Fatal("the game's own window offers -window")
 	}
 	t.Setenv("TERM", "xterm-256color")
 	t.Setenv("LEMONSWEEP_WINDOW", "")
-	if strings.Contains(kittyHint(), "window") {
+	if strings.Contains(windowHint(), "window") {
 		t.Fatal("a terminal that is not kitty is offered -window")
+	}
+}
+
+// In Apple's Terminal -window writes a profile with the line spacing that
+// makes half blocks fill their cells, running the game in half blocks with
+// the user's flags after, quoted for the shell and escaped for the plist.
+func TestWindowInAppleTerminal(t *testing.T) {
+	p := string(appleProfile("/Users/a b/go/bin/lemonsweep", []string{"-fps=60", "-seed=1&<'x'"}, "QUJD"))
+	for _, want := range []string{
+		"<key>FontHeightSpacing</key><real>0.75</real>",
+		`<key>CommandString</key><string>LEMONSWEEP_WINDOW=1 '/Users/a b/go/bin/lemonsweep' '-fps=60' '-seed=1&amp;&lt;'\''x'\'''</string>`,
+		"<key>Font</key><data>QUJD</data>",
+	} {
+		if !strings.Contains(p, want) {
+			t.Errorf("profile lacks %s\n%s", want, p)
+		}
+	}
+	if strings.Contains(string(appleProfile("/x", nil, "")), "<key>Font</key>") {
+		t.Error("a font that could not be made is written anyway")
+	}
+	t.Setenv("LEMONSWEEP_WINDOW", "")
+	t.Setenv("TERM_PROGRAM", "Apple_Terminal")
+	if !strings.Contains(windowHint(), "-gui") {
+		t.Error("Apple's Terminal is not offered -gui")
+	}
+	t.Setenv("LEMONSWEEP_WINDOW", "1")
+	if windowHint() != "" {
+		t.Error("the game's own window offers -window")
+	}
+}
+
+// The game opens its own window unasked in Apple's Terminal and on
+// Windows, but not inside -window's Terminal window or over SSH.
+func TestAutoGUI(t *testing.T) {
+	for _, c := range []struct {
+		term, window, ssh string
+		want              bool
+	}{
+		{"Apple_Terminal", "", "", true},
+		{"Apple_Terminal", "1", "", false},
+		{"Apple_Terminal", "", "10.0.0.2 22 10.0.0.1 22", false},
+		{"iTerm.app", "", "", runtime.GOOS == "windows"},
+	} {
+		t.Setenv("TERM_PROGRAM", c.term)
+		t.Setenv("LEMONSWEEP_WINDOW", c.window)
+		t.Setenv("SSH_CONNECTION", c.ssh)
+		if got := autoGUI(); got != c.want {
+			t.Errorf("%+v: autoGUI %v", c, got)
+		}
 	}
 }

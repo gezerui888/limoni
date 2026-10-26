@@ -18,6 +18,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/thebanri/limoni"
@@ -31,7 +32,8 @@ func main() {
 	showFPS := flag.Bool("showfps", false, "show the frames drawn each second")
 	mute := flag.Bool("mute", false, "no sound")
 	seed := flag.Uint64("seed", 0, "a seed, for a run that goes the same way twice")
-	window := flag.Bool("window", false, "open in a kitty window of its own, full screen, with no mouse pointer")
+	gui := flag.Bool("gui", false, "play in a window the game draws itself: keys that never stick and a locked mouse (macOS and Windows)")
+	window := flag.Bool("window", false, "open in a window of its own: kitty full screen with no mouse pointer, or in Apple's Terminal one set to draw without stripes")
 	flag.Parse()
 	if *window {
 		var rest []string
@@ -41,52 +43,42 @@ func main() {
 			}
 		})
 		if err := openWindow(rest); err != nil {
-			fmt.Fprintln(os.Stderr, "-window needs kitty:", err)
+			fmt.Fprintln(os.Stderr, "-window needs kitty or Apple's Terminal:", err)
 			os.Exit(1)
 		}
 		return
 	}
 
-	var mix *mixer
-	if !*mute {
-		mix = newMixer()
+	if *gui || autoGUI() && !flagSet("gui") {
+		g, mix := newSession(*seed, *mute)
+		g.showFPS = *showFPS
+		err := runGUI(g)
+		if mix != nil {
+			mix.close()
+		}
+		if err == nil {
+			return
+		}
+		fmt.Fprintln(os.Stderr, err)
+		if *gui {
+			os.Exit(1)
+		}
+		// No window to be had: play in the terminal, stripes and all.
 	}
+
+	// Apple's Terminal has no synchronized output and falls behind a fast
+	// full-screen picture, so frames show half drawn; fewer frames tear less.
+	if os.Getenv("TERM_PROGRAM") == "Apple_Terminal" && !flagSet("fps") {
+		*fps = 30
+	}
+
 	term, err := limoni.New()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	s := *seed
-	if s == 0 {
-		s = uint64(time.Now().UnixNano())
-	}
-	g := newGame(s)
+	g, mix := newSession(*seed, *mute)
 	g.showFPS = *showFPS
-	g.store = newStore()
-	if g.store != nil {
-		g.best = g.store.load()
-		if g.best.hasRet {
-			g.ret = g.best.ret
-		}
-		if g.best.sens > 0 {
-			g.sens = g.best.sens
-		}
-		if g.best.volume >= 0 {
-			g.volume = g.best.volume
-			if g.volume > 0 {
-				g.lastVol = g.volume
-			}
-		}
-	}
-	switch {
-	case mix != nil:
-		g.audio = mix
-		g.setVolume(g.volume)
-	case *mute:
-		g.noSound = "off (-mute)"
-	default:
-		g.noSound = "no audio output"
-	}
 	ptr := newPointer()
 	app := limoni.NewApp(term,
 		limoni.WithFPS(*fps),
@@ -122,6 +114,45 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+// newSession is a game with the player's records and settings loaded and
+// the sound on, for either front end: the terminal or -gui's window.
+func newSession(seed uint64, mute bool) (*game, *mixer) {
+	var mix *mixer
+	if !mute {
+		mix = newMixer()
+	}
+	if seed == 0 {
+		seed = uint64(time.Now().UnixNano())
+	}
+	g := newGame(seed)
+	g.store = newStore()
+	if g.store != nil {
+		g.best = g.store.load()
+		if g.best.hasRet {
+			g.ret = g.best.ret
+		}
+		if g.best.sens > 0 {
+			g.sens = g.best.sens
+		}
+		if g.best.volume >= 0 {
+			g.volume = g.best.volume
+			if g.volume > 0 {
+				g.lastVol = g.volume
+			}
+		}
+	}
+	switch {
+	case mix != nil:
+		g.audio = mix
+		g.setVolume(g.volume)
+	case mute:
+		g.noSound = "off (-mute)"
+	default:
+		g.noSound = "no audio output"
+	}
+	return g, mix
 }
 
 // crosshairPointer asks for the crosshair pointer over the picture in the
@@ -167,7 +198,14 @@ func (g *game) key(k limoni.KeyEvent) {
 	switch g.phase {
 	case phTitle:
 		if down {
-			g.menuKey(k, isRune, ch, &g.menu, len(titleItems), g.titlePick)
+			switch {
+			case isRune && ch == 'a' || k.Type == limoni.KeyLeft:
+				g.mapSel = (g.mapSel + len(arenas) - 1) % len(arenas)
+			case isRune && ch == 'd' || k.Type == limoni.KeyRight:
+				g.mapSel = (g.mapSel + 1) % len(arenas)
+			default:
+				g.menuKey(k, isRune, ch, &g.menu, len(titleItems), g.titlePick)
+			}
 		}
 		return
 	case phPause:
@@ -294,17 +332,32 @@ func (g *game) menuKey(k limoni.KeyEvent, isRune bool, ch rune, sel *int, n int,
 
 func (g *game) titlePick(i int) {
 	switch i {
-	case 0, 1:
-		g.endless = i == 1
+	case 0:
+		g.endless = g.mapSel == len(arenas)-1
 		g.reset()
 		g.sound(sfxPick)
-	case 2:
+	case 1:
 		g.openBook()
-	case 3:
+	case 2:
 		g.openSettings()
-	case 4:
+	case 3:
 		g.quit = true
 	}
+}
+
+// mapAt is the map on the title under column x of row y, or -1.
+func (g *game) mapAt(c canvas, x, y int) int {
+	if g.mapCards {
+		x0 := (c.w - (4*mapCardW + 3*2)) / 2
+		if i := (x - x0) / (mapCardW + 2); y >= g.mapY && y < g.mapY+mapCardH && x >= x0 && i < len(arenas) {
+			return i
+		}
+		return -1
+	}
+	if i := y - g.mapY; i >= 0 && i < len(arenas) && c.w >= 56 && abs(x-c.w/2) <= 26 {
+		return i
+	}
+	return -1
 }
 
 func (g *game) pausePick(i int) {
@@ -355,6 +408,12 @@ func (g *game) mouse(m limoni.MouseEvent) {
 		sel, pick, n := &g.menu, g.titlePick, len(titleItems)
 		if g.phase == phPause {
 			sel, pick, n = &g.pause, g.pausePick, len(pauseItems)
+		}
+		if m := g.mapAt(c, g.mouseX, g.mouseY); g.phase == phTitle && m >= 0 {
+			if press {
+				g.mapSel = m
+			}
+			break
 		}
 		row := g.mouseY - g.menuY
 		on := row >= 0 && row < n && abs(g.mouseX-c.w/2) <= buttonW/2
@@ -438,4 +497,23 @@ func (g *game) pointerButton(button int, down bool) {
 	case button == 2 && down:
 		g.reload()
 	}
+}
+
+// autoGUI reports whether the game should open its own window unasked:
+// in Apple's Terminal, which draws half blocks short, in stripes, and on
+// Windows, whose terminals never say a key was let go and cannot lock the
+// mouse. Not inside -window's Terminal window, and not over SSH, where
+// there is no desktop to open a window on.
+func autoGUI() bool {
+	if os.Getenv("LEMONSWEEP_WINDOW") != "" || os.Getenv("SSH_CONNECTION") != "" {
+		return false
+	}
+	return os.Getenv("TERM_PROGRAM") == "Apple_Terminal" || runtime.GOOS == "windows"
+}
+
+// flagSet reports whether the flag was given on the command line.
+func flagSet(name string) bool {
+	set := false
+	flag.Visit(func(f *flag.Flag) { set = set || f.Name == name })
+	return set
 }

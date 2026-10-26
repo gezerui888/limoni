@@ -5,17 +5,15 @@ import (
 	"testing"
 )
 
-// The bosses come in their order, one every ten levels, and round again,
-// tougher.
+// The bosses come in their order and round again, tougher.
 func TestTheBossesComeInTurn(t *testing.T) {
 	g := playing()
 	var got []kindID
 	var hp []float64
-	for lv := 10; lv <= 60; lv += 10 {
+	for n := 0; n < 6; n++ {
 		for i := range g.enemies {
 			g.enemies[i].alive = false
 		}
-		g.bossNext = lv
 		g.spawnBoss()
 		for i := range g.enemies {
 			if e := &g.enemies[i]; e.alive && kinds[e.k].boss {

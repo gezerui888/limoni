@@ -3,6 +3,8 @@ package terminal
 import (
 	"runtime"
 	"testing"
+
+	"github.com/thebanri/limoni/core/driver"
 )
 
 func TestSetCapabilitiesOverridesDetection(t *testing.T) {
@@ -38,6 +40,25 @@ func TestDetectCapabilitiesTrueColorFromColorterm(t *testing.T) {
 	profile := DetectCapabilities()
 	if !profile.TrueColor || !profile.Colors256 {
 		t.Fatalf("COLORTERM=truecolor gave %+v, want 24-bit color", profile)
+	}
+}
+
+// Windows Terminal names itself only by WT_SESSION: no COLORTERM, no TERM
+// on Windows itself. It draws 24-bit colour, and was given 16.
+func TestWindowsTerminalHasTrueColor(t *testing.T) {
+	if runtime.GOOS == "js" {
+		t.Skip("js/wasm always reports truecolor")
+	}
+	t.Setenv("COLORTERM", "")
+	t.Setenv("TERM", "")
+	t.Setenv("TERM_PROGRAM", "")
+	t.Setenv("WT_SESSION", "")
+	if runtime.GOOS != "windows" && DetectCapabilities().TrueColor {
+		t.Fatal("truecolor with nothing in the environment to say so")
+	}
+	t.Setenv("WT_SESSION", "0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0")
+	if p := DetectCapabilities(); !p.TrueColor || !p.Colors256 {
+		t.Fatalf("WT_SESSION gave %+v, want 24-bit color", p)
 	}
 }
 
@@ -115,5 +136,35 @@ func TestHyperlinksCanBeForcedEitherWay(t *testing.T) {
 	t.Setenv("LIMONI_HYPERLINKS", "0")
 	if DetectCapabilities().Hyperlinks {
 		t.Error("LIMONI_HYPERLINKS=0 did not turn hyperlinks off")
+	}
+}
+
+// Apple's Terminal has 24-bit colour from build 470; before it, 256.
+func TestAppleTerminalTrueColorByVersion(t *testing.T) {
+	t.Setenv("TERM", "xterm-256color")
+	t.Setenv("COLORTERM", "")
+	t.Setenv("TERM_PROGRAM", "Apple_Terminal")
+	for v, want := range map[string]bool{"470": true, "471.2": true, "466": false, "455.1": false, "": false, "x": false} {
+		t.Setenv("TERM_PROGRAM_VERSION", v)
+		p := DetectCapabilities()
+		if p.TrueColor != want || !p.Colors256 {
+			t.Errorf("version %q: truecolor %v, 256 %v; want %v, true", v, p.TrueColor, p.Colors256, want)
+		}
+	}
+}
+
+func TestAppleTerminalHasNoREPOrScrolling(t *testing.T) {
+	t.Setenv("TERM", "xterm-256color")
+	t.Setenv("TERM_PROGRAM", "Apple_Terminal")
+	t.Setenv("LIMONI_REP", "")
+	p := DetectCapabilities()
+	if p.RepeatChar {
+		t.Error("REP on from TERM=xterm-256color in Apple's Terminal")
+	}
+	if p.ScrollRegions {
+		t.Error("scroll regions on in Apple's Terminal")
+	}
+	if p.WithReport(driver.TerminalReport{Repeat: driver.Yes, Answered: true}).RepeatChar {
+		t.Error("a measured REP turned it back on in Apple's Terminal")
 	}
 }

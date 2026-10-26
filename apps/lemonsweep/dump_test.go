@@ -82,6 +82,40 @@ func TestDumpFrame(t *testing.T) {
 			g.clock = 3
 			return g
 		},
+		"rang": func() *game {
+			g := playing()
+			g.pos, g.ang = vec{16, 26}, -math.Pi/2
+			for i := 0; i < 3; i++ {
+				g.shoot(g.pos.add(vec{float64(i) - 1, -1.5 - 2*float64(i)}), g.ang+0.2*float64(i-1), 10, 1, shotRang)
+			}
+			g.stepShots(0.05)
+			pickN(g, augPhoenix, 1)
+			g.phoenixT = 47
+			g.pending = 1
+			return g
+		},
+		"rang-card": func() *game {
+			g := playing()
+			g.pending = 1
+			g.openCards()
+			g.cards[0], g.cards[1], g.cards[2] = augRoundTrip, augPhoenix, augHotPath
+			return g
+		},
+		"mini": func() *game {
+			g := playing()
+			g.pos, g.ang, g.level = vec{16, 26}, -math.Pi/2, 9
+			g.stageT = miniEvery - 0.01
+			g.step(1.0 / 30)
+			for i := range g.enemies {
+				if e := &g.enemies[i]; e.alive && e.mini {
+					e.pos = vec{16, 20}
+				}
+			}
+			g.dropBytes(vec{14.5, 23}, 3)
+			g.dropBytes(vec{17.5, 22}, 6)
+			g.step(1.0 / 30)
+			return g
+		},
 		"broken": func() *game {
 			g := scene()
 			brokenBuild(g)
@@ -143,7 +177,7 @@ func TestDumpFrame(t *testing.T) {
 	shots["ferris"] = func() *game {
 		g := playing()
 		g.pos, g.ang = vec{16, 26}, -math.Pi/2
-		g.bossNext = 99
+		g.bossAt = 1e9
 		f := g.addEnemy(kFerris, vec{14.6, 22.9})
 		g.bossLive = true
 		e := &g.enemies[f]
@@ -162,7 +196,7 @@ func TestDumpFrame(t *testing.T) {
 	shots["elements"] = func() *game {
 		g := playing()
 		g.pos, g.ang = vec{16, 26}, -math.Pi/2
-		g.bossNext = 99
+		g.bossAt = 1e9
 		pickN(g, augIgnite, 1)
 		pickN(g, augChill, 1)
 		pickN(g, augLeak, 1)
@@ -204,7 +238,7 @@ func TestDumpFrame(t *testing.T) {
 	shots["actives"] = func() *game {
 		g := playing()
 		g.pos, g.ang = vec{16, 26}, -math.Pi/2
-		g.bossNext = 99
+		g.bossAt = 1e9
 		for _, a := range []augID{augDaemon, augDaemon, augDaemon, augRoundTrip, augRoundTrip, augIRQ, augCompaction, augSegfault, augColdPath} {
 			pickN(g, a, 1)
 		}
@@ -224,7 +258,7 @@ func TestDumpFrame(t *testing.T) {
 		return func() *game {
 			g := playing()
 			g.pos, g.ang = vec{16, 26}, -math.Pi/2
-			g.bossNext = 99
+			g.bossAt = 1e9
 			for _, a := range acts {
 				pickN(g, a, 3)
 			}
@@ -271,7 +305,7 @@ func TestDumpFrame(t *testing.T) {
 	shots["crosshair"] = func() *game {
 		g := playing()
 		g.pos, g.ang = vec{16, 26}, -math.Pi/2
-		g.bossNext = 99
+		g.bossAt = 1e9
 		g.addEnemy(kBoba, vec{16, 23.5})
 		g.hitT, g.killT, g.recoil = 0.1, 0, 0.3
 		return g
@@ -320,7 +354,7 @@ func TestDumpFrame(t *testing.T) {
 		shots[fmt.Sprintf("ret%d", s)] = func() *game {
 			g := playing()
 			g.pos, g.ang = vec{16, 26}, -math.Pi/2
-			g.bossNext = 99
+			g.bossAt = 1e9
 			g.addEnemy(kElder, vec{17.2, 23.2})
 			g.ret = reticle{style: s, color: s % len(reticleColors), size: 1, outline: true}
 			return g
@@ -329,7 +363,7 @@ func TestDumpFrame(t *testing.T) {
 	shots["minions"] = func() *game {
 		g := playing()
 		g.pos, g.ang = vec{16, 26}, -math.Pi/2
-		g.bossNext = 99
+		g.bossAt = 1e9
 		for i, k := range []kindID{kBeetle, kCaret, kBomb, kGloss, kCursor} {
 			j := g.addEnemy(k, vec{13.6 + float64(i)*1.2, 23.6 + float64(i%2)*0.5})
 			g.enemies[j].phaseOff = 0
@@ -340,7 +374,7 @@ func TestDumpFrame(t *testing.T) {
 		return func() *game {
 			g := playing()
 			g.pos, g.ang = vec{16, 26}, -math.Pi/2
-			g.bossNext, g.hp = 99, 1e6
+			g.bossAt, g.hp = 1e9, 1e6
 			j := g.addEnemy(k, vec{15, 22.4})
 			g.bossLive = true
 			e := &g.enemies[j]
@@ -369,7 +403,7 @@ func TestDumpFrame(t *testing.T) {
 		return func() *game {
 			g := playing()
 			g.pos, g.ang = vec{16, 26}, -math.Pi/2
-			g.bossNext, g.hp = 99, 1e6
+			g.bossAt, g.hp = 1e9, 1e6
 			j := g.addEnemy(k, vec{15, 22.4})
 			g.bossLive = true
 			e := &g.enemies[j]
@@ -390,19 +424,21 @@ func TestDumpFrame(t *testing.T) {
 	shots["boss-textual"] = boss(kTextual, false, 12)
 	shots["poster"] = func() *game {
 		g := playing()
-		g.pos, g.ang = vec{16.12, 28.2}, -math.Pi/2
+		g.pos, g.ang = vec{16.0, 24.5}, -math.Pi/2
 		g.level, g.kills, g.runTime = 12, 412, 312
-		g.bossNext = 99 // no boss on the poster
+		g.stageT = 312
+		g.bossAt = 1e9 // no boss on the poster
 		for _, a := range []augID{augREP, augREP, augFork, augPanic, augHotPath, augHotPath, augScroll} {
 			pickN(g, a, 1)
 		}
+		pickN(g, augRoundTrip, 1)
 		place := []struct {
 			k kindID
 			p vec
 		}{
-			{kModal, vec{13.9, 22.7}}, {kCrab, vec{15.95, 22.6}}, {kElder, vec{18.0, 22.7}},
-			{kBoba, vec{14.9, 24.4}}, {kBar, vec{17.1, 24.5}},
-			{kJSX, vec{15.9, 25.7}}, {kSpinner, vec{14.4, 26.0}}, {kSpinner, vec{14.0, 26.25}}, {kSpinner, vec{17.6, 26.1}},
+			{kModal, vec{12.25, 17.0}}, {kElder, vec{19.75, 17.0}},
+			{kBoba, vec{15.1, 20.0}}, {kBar, vec{17.0, 20.5}},
+			{kSpinner, vec{14.75, 21.5}}, {kSpinner, vec{16.13, 21.9}},
 		}
 		for _, e := range place {
 			i := g.addEnemy(e.k, e.p)
@@ -411,12 +447,27 @@ func TestDumpFrame(t *testing.T) {
 				g.enemies[i].hp = g.enemies[i].max * 0.6
 			}
 		}
+		// A mini-boss at the back, under its bar at the top; the rest at
+		// depths of their own, so none hides another.
+		if i := g.addEnemy(kCrab, vec{16.0, 15.0}); i >= 0 {
+			e := &g.enemies[i]
+			e.mini, e.elite, e.phaseOff = true, true, 0
+			e.hp, e.max = 380, 500
+		}
 		g.ammo = 9
 		g.hp = g.st.maxHP * 0.72
-		for i, a := range []float64{-1.66, -1.57, -1.5} {
-			g.shoot(g.pos.add(vec{0, -1.2 - float64(i)*0.9}), a, 10, 0, shotPlayer)
+		for i, a := range []float64{-1.62, -1.57, -1.52} {
+			g.shoot(g.pos.add(vec{0, -1.6 - float64(i)*1.1}), a, 10, 0, shotPlayer)
 		}
-		g.shoot(vec{15.2, 23.4}, math.Pi/2, 5, 0, shotBar)
+		for i, p := range []vec{{15.4, 18.0}, {16.9, 16.6}} {
+			j := g.shoot(p, -math.Pi/2, 10, 1, shotRang)
+			g.shots[j].age = 0.2 + 0.17*float64(i)
+		}
+		g.addArc(vec{16.4, 23.9}, vec{17.0, 20.5}, 0.3, 0.2, 0.3, hex(0xffe14a))
+		for _, p := range []vec{{15.5, 22.5}, {16.6, 21.7}, {14.6, 21.0}} {
+			g.dropBytes(p, 3)
+		}
+		g.dropBytes(vec{16.2, 22.0}, 6)
 		g.recoil = 0.62
 		g.mouseIn, g.mouseX, g.mouseY, g.viewW, g.viewH = true, 64, 21, 124, 40
 		g.msgT = 0
@@ -453,6 +504,34 @@ func TestDumpFrame(t *testing.T) {
 					j := g.shoot(g.pos.add(vec{math.Cos(g.ang), math.Sin(g.ang)}.scale(0.4+float64(i)*1.6+(1-k)*3)), g.ang, 10, 0, shotPlayer)
 					g.shots[j].age = 0.05
 				}
+				return g
+			}
+		}
+	}
+	// Each active a few frames after it acts, against a row of foes that
+	// do not die: does it show? (DUMP_FRAMES: three moments each.)
+	for a := augID(0); a < nAug; a++ {
+		if !augs[a].act {
+			continue
+		}
+		for _, f := range []int{2, 4, 6, 12} {
+			if f != 6 && os.Getenv("DUMP_FRAMES") == "" {
+				continue
+			}
+			shots[fmt.Sprintf("act-%s-%02d", strings.ReplaceAll(strings.ToLower(augs[a].name), " ", ""), f)] = func() *game {
+				g := playing()
+				g.pos, g.ang, g.bossAt = vec{16, 26}, -math.Pi/2, 1e9
+				pickN(g, a, 3)
+				for i, k := range []kindID{kBoba, kCrab, kModal, kBoba, kBeetle} {
+					j := g.addEnemy(k, vec{13.5 + float64(i)*1.3, 21.5 + float64(i%2)*0.8})
+					g.enemies[j].hp, g.enemies[j].max = 1e6, 1e6
+					g.enemies[j].cd = 1e9
+				}
+				for i := 0; i < f; i++ {
+					g.step(1.0 / 30)
+					g.hp = g.st.maxHP
+				}
+				g.msgT = 0
 				return g
 			}
 		}

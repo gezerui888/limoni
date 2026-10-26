@@ -14,4 +14,4 @@ func (*pointer) close()      {}
 
 // problem is a line for the title screen: in kitty, -window hides the
 // pointer at least.
-func (*pointer) problem() string { return kittyHint() }
+func (*pointer) problem() string { return windowHint() }

@@ -141,7 +141,9 @@ func (g *game) activate(a augID, r int, d float64) float64 {
 		}
 		to := g.enemies[near[0]].pos.sub(g.pos)
 		if j := g.shoot(g.pos, math.Atan2(to.y, to.x), d*1.4, 1, shotShard); j >= 0 {
-			g.shots[j].pierce, g.shots[j].life = 2+r, 0.9
+			// Slower than a round, so the lance is seen; as far in all.
+			g.shots[j].pierce, g.shots[j].life = 2+r, 1.5
+			g.shots[j].vel = g.shots[j].vel.scale(0.6)
 		}
 		return math.Max(0.35, 1.25-0.17*lv)
 

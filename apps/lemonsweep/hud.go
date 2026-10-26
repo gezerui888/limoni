@@ -112,6 +112,133 @@ func (c canvas) fgClock(x, y, secs int, col rgb) int {
 	return c.fgNumber(x, y, secs%10, col)
 }
 
+// The HUD's pictures in pixels: '#' the colour, 'o' the second (a heart's
+// shine, the dash's trailing chevron).
+var (
+	heartIcon = [...]string{
+		".##.##.",
+		"#o#####",
+		"#######",
+		".#####.",
+		"..###..",
+		"...#...",
+	}
+	dashIcon = [...]string{
+		"oo...##..",
+		".oo...##.",
+		"..oo...##",
+		"..oo...##",
+		".oo...##.",
+		"oo...##..",
+	}
+)
+
+// icon draws rows of pixels from (x, py), each pixel scale square.
+func (c canvas) icon(x, py, scale int, rows []string, a, b rgb) {
+	for y, row := range rows {
+		for i := 0; i < len(row); i++ {
+			col := a
+			switch row[i] {
+			case '.':
+				continue
+			case 'o':
+				col = b
+			}
+			for sy := 0; sy < scale; sy++ {
+				for sx := 0; sx < scale; sx++ {
+					c.px(x+i*scale+sx, py+y*scale+sy, col)
+				}
+			}
+		}
+	}
+}
+
+// The minimap: miniD pixels across, miniPx pixels to a tile, so about six
+// tiles round the player.
+const (
+	miniD  = 18
+	miniPx = 1.5
+)
+
+// drawMinimap draws the arena round the player in a disc at the top left,
+// from row y0, turned so that ahead is up: walls in the map's colour, spawn
+// windows, enemies (a mini-boss orange, a boss bigger), bytes, and the
+// player an arrow in the middle. It returns the row under it.
+func (g *game) drawMinimap(c canvas, y0 int) int {
+	r := float64(miniD) / 2
+	f, rt := dir(g.ang), dir(g.ang+math.Pi/2)
+	floor, wall, spawn, rim := hex(0x0a0d18), hex(cur.accent).mul(0.5), hex(0xff4fa0).mul(0.75), hex(0x2a3350)
+	for py := 0; py < miniD; py++ {
+		for px := 0; px < miniD; px++ {
+			dx, dy := float64(px)+0.5-r, float64(py)+0.5-r
+			dd := dx*dx + dy*dy
+			if dd > r*r {
+				continue
+			}
+			col := rim
+			if dd < (r-1)*(r-1) {
+				// Right on the map is the player's right, up is ahead.
+				w := g.pos.add(rt.scale(dx / miniPx)).add(f.scale(-dy / miniPx))
+				switch tile(int(math.Floor(w.x)), int(math.Floor(w.y))) {
+				case '.':
+					col = floor
+				case 'P':
+					col = spawn
+				default:
+					col = wall
+				}
+			}
+			c.px(1+px, 2*y0+py, col)
+		}
+	}
+	for i := range g.bytes {
+		if b := &g.bytes[i]; b.alive {
+			g.miniDot(c, y0, b.pos, f, rt, hex(0x4fd65e), false)
+		}
+	}
+	for i := range g.enemies {
+		e := &g.enemies[i]
+		if !e.alive || e.under > 0 || e.decoy {
+			continue
+		}
+		switch {
+		case kinds[e.k].boss:
+			g.miniDot(c, y0, e.pos, f, rt, hudPink, true)
+		case e.mini:
+			g.miniDot(c, y0, e.pos, f, rt, hudWarn, true)
+		default:
+			g.miniDot(c, y0, e.pos, f, rt, hudBad, false)
+		}
+	}
+	// The player: an arrow pointing up, ahead.
+	mx, my := 1+miniD/2, 2*y0+miniD/2
+	c.px(mx, my-2, rgb{1, 1, 1})
+	c.px(mx, my-1, rgb{1, 1, 1})
+	c.px(mx-1, my, rgb{1, 1, 1})
+	c.px(mx, my, rgb{1, 1, 1})
+	c.px(mx+1, my, rgb{1, 1, 1})
+	return y0 + miniD/2
+}
+
+// miniDot marks p on the minimap, two pixels square if big, if it is
+// inside the disc.
+func (g *game) miniDot(c canvas, y0 int, p, f, rt vec, col rgb, big bool) {
+	r := float64(miniD) / 2
+	d := p.sub(g.pos)
+	sx := (d.x*rt.x + d.y*rt.y) * miniPx
+	sy := -(d.x*f.x + d.y*f.y) * miniPx
+	if sx*sx+sy*sy > (r-1.5)*(r-1.5) {
+		return
+	}
+	x, y := 1+int(math.Floor(r+sx)), 2*y0+int(math.Floor(r+sy))
+	c.px(x, y, col)
+	if big {
+		c.px(x+1, y, col)
+		c.px(x, y+1, col)
+		c.px(x+1, y+1, col)
+	}
+}
+
 func (g *game) drawHUD(c canvas, v *view) {
 	if g.onTitle() || c.w < 24 || c.h < 8 {
 		return
@@ -132,9 +259,12 @@ func (g *game) drawHUD(c canvas, v *view) {
 	x += barW + 1
 	c.fgClock(x, 0, int(g.runTime), hudText)
 
-	// The build: in a panel on the right when there is room, else listed
-	// under the level.
+	// Under it, the map round the player; the build, when it is not in
+	// the panel on the right, under that.
 	y := 1
+	if h >= 24 {
+		y = g.drawMinimap(c, 1)
+	}
 	rows := max(0, h/2-3)
 	if g.drawSlots(c) {
 		rows = -1
@@ -165,16 +295,9 @@ func (g *game) drawHUD(c canvas, v *view) {
 		next, at = "WARDEN ", wardenAt
 	}
 	rw := 1 + width(cur.name) + 3 + 6 + digits(g.kills) + 3 + width(next) + 9
-	if !g.endless {
-		rw += 4
-	}
 	rx := w - rw
 	shadePanel(c, rx, 0, rw, 1)
 	x = c.fg(rx+1, 0, cur.name, hudPink)
-	if !g.endless {
-		x = c.fgNumber(x+1, 0, g.stage+1, hudDim)
-		x = c.fg(x, 0, "/3", hudDim)
-	}
 	x = c.fg(x+3, 0, "SWEPT ", hudDim)
 	x = c.fgNumber(x, 0, g.kills, hudText) + 3
 	x = c.fg(x, 0, next, hudDim)
@@ -193,7 +316,9 @@ func (g *game) drawHUD(c canvas, v *view) {
 	}
 
 	if g.bossLive {
-		g.drawBossBar(c)
+		g.drawBossBar(c, false)
+	} else {
+		g.drawBossBar(c, true)
 	}
 	if g.lockHint && g.phase == phPlay {
 		const lock = "click to take the mouse"
@@ -207,34 +332,58 @@ func (g *game) drawHUD(c canvas, v *view) {
 		c.fg((w-mw)/2+2, h/4, g.message, hudPink)
 	}
 
-	// Bottom left: health, its number big.
-	numRows := (fontH*scale + 2) / 2
+	// Bottom left: health — a heart, the number big, and beside it ten
+	// pips and the most it can be. It sits a row up, clear of the hints.
+	// dw: a big digit's width.
+	numRows, dw := (fontH*scale+2)/2, (fontW+1)*scale
 	ph := numRows + 1
 	py := h - ph
+	hy := h - 1 - numRows
 	hpCol := hudGood
+	beat := float32(1)
 	if g.hp < g.st.maxHP*0.3 {
 		hpCol = hudBad
+		beat = 0.6 + 0.4*float32(math.Abs(math.Sin(g.clock*5)))
 	}
-	hpW := 3 + 4*scale*digits(int(math.Ceil(g.st.maxHP))) + 2 + 1 + digits(int(g.st.maxHP)) + 1
-	shadePanel(c, 0, py, hpW, ph)
-	x = c.bigNumber(2, 2*py+1, int(math.Ceil(g.hp)), scale, hpCol)
-	c.fg(x+1, py, "HP", hudDim)
-	x = c.fg(x+1, py+numRows-1, "/", hudDim)
-	c.fgNumber(x, py+numRows-1, int(g.st.maxHP), hudDim)
-	g.bar(c, 1, h-1, hpW-2, g.hp/g.st.maxHP, hpCol, hex(0x2a1418))
+	const hpPips = 10
+	iw := scale*len(heartIcon[0]) + 1
+	hpW := 2 + iw + dw*digits(int(math.Ceil(g.st.maxHP))) + 2 + 2*hpPips + 1
+	shadePanel(c, 0, hy, hpW, numRows)
+	c.icon(2, 2*hy+numRows-3*scale, scale, heartIcon[:], hudBad.mul(beat), hex(0xffd0d8).mul(beat))
+	x = 2 + iw
+	x = c.bigNumber(x, 2*hy+1, int(math.Ceil(g.hp)), scale, hpCol) + 2
+	frac := g.hp / g.st.maxHP
+	for i := 0; i < hpPips; i++ {
+		// A pip a tenth of the health: full, part (dimmer), or empty.
+		k := math.Max(0, math.Min(1, frac*hpPips-float64(i)))
+		col := hex(0x2a1418)
+		if k > 0 {
+			col = col.mix(hpCol, float32(0.35+0.65*k))
+		}
+		c.px(x+2*i, 2*hy, col)
+		c.px(x+2*i, 2*hy+1, col)
+	}
+	xx := c.fg(x, hy+numRows-1, "/", hudDim)
+	c.fgNumber(xx, hy+numRows-1, int(g.st.maxHP), hudDim)
 
-	// Over it, the dashes: a bar each, like stamina, the next one filling
-	// as it recharges; and over that, what hit last.
-	const dashBarW = 6
-	dRows := (fontH + 2) / 2
-	dy := py - dRows
+	// Over it, the dashes: a fast-forward mark, then a bar each, like stamina, the
+	// next one filling as it recharges; and over that, what hit last.
+	const dashBarW = 5
+	dRows := len(dashIcon) / 2 // the mark's height
+	dy := hy - dRows - 1       // a row apart from the health
 	dCol := hex(elementCol[elDash])
-	shadePanel(c, 0, dy, 2+4*(fontW+1)+1+g.st.dashN*(dashBarW+1)+1, dRows)
+	markW := len(dashIcon[0]) + 1
+	dw0 := 2 + markW + g.st.dashN*(dashBarW+1) + 1
+	if g.st.phoenix {
+		dw0 += 14 // PHOENIX and its clock, or READY
+	}
+	shadePanel(c, 0, dy, dw0, dRows)
 	tc := hudDim
 	if g.dashN > 0 {
 		tc = dCol
 	}
-	x = c.big(2, 2*dy+1, "DASH", 1, tc) + 1
+	c.icon(2, 2*dy, 1, dashIcon[:], tc, tc.mul(0.45))
+	x = 2 + markW
 	for i := 0; i < g.st.dashN; i++ {
 		frac, col := 1.0, dCol
 		switch {
@@ -245,6 +394,17 @@ func (g *game) drawHUD(c canvas, v *view) {
 		}
 		g.bar(c, x, dy+dRows/2, dashBarW, frac, col, hex(0x1a1430))
 		x += dashBarW + 1
+	}
+	// Phoenix Restart: when the next death will be forgiven.
+	if g.st.phoenix {
+		fire := hex(elementCol[elFire])
+		if g.phoenixT <= 0 {
+			x = c.fg(x+1, dy+dRows/2, "PHOENIX ", fire)
+			c.fg(x, dy+dRows/2, "READY", fire)
+		} else {
+			x = c.fg(x+1, dy+dRows/2, "PHOENIX ", hudDim)
+			c.fgClock(x, dy+dRows/2, int(math.Ceil(g.phoenixT)), hudText)
+		}
 	}
 	if g.hurtShow > 0 && g.hurtHow != "" {
 		name := kinds[g.hurtBy].name
@@ -257,7 +417,7 @@ func (g *game) drawHUD(c canvas, v *view) {
 	}
 
 	// Bottom right: the heap.
-	amW := max(min(g.st.mag, 24)+2, 3+4*scale*max(2, digits(g.st.mag))+2+5+1)
+	amW := max(min(g.st.mag, 24)+2, 3+dw*max(2, digits(g.st.mag))+2+5+1)
 	ax := w - amW
 	shadePanel(c, ax, py, amW, ph)
 	if g.reloadT > 0 && g.st.reload > 0 {
@@ -424,10 +584,12 @@ func (g *game) bar(c canvas, x, y, w int, frac float64, on, off rgb) {
 	}
 }
 
-func (g *game) drawBossBar(c canvas) {
+// drawBossBar draws the first boss's health at the top, or with mini set,
+// the first mini-boss's.
+func (g *game) drawBossBar(c canvas, mini bool) {
 	for i := range g.enemies {
 		e := &g.enemies[i]
-		if !e.alive || !kinds[e.k].boss || e.decoy {
+		if !e.alive || e.decoy || e.mini != mini || !mini && !kinds[e.k].boss {
 			continue
 		}
 		name := kinds[e.k].name
@@ -435,8 +597,12 @@ func (g *game) drawBossBar(c canvas) {
 		x0 := (c.w - w) / 2
 		col := hex(kinds[e.k].accent)
 		shadePanel(c, x0-1, 2, w+2, 1)
-		c.fg(x0, 2, name, col)
-		g.bar(c, x0+width(name)+1, 2, w-width(name)-1, e.hp/e.max, col, hex(0x1d1020))
+		x := x0
+		if mini {
+			x = c.fg(x, 2, "GIANT ", hudWarn)
+		}
+		x = c.fg(x, 2, name, col)
+		g.bar(c, x+1, 2, w-(x-x0)-1, e.hp/e.max, col, hex(0x1d1020))
 		what, warn := "", true
 		switch {
 		case e.under > 0:
@@ -521,19 +687,21 @@ func (g *game) cardAt(c canvas, mx, my int) int {
 }
 
 func (g *game) drawCards(c canvas) {
+	// The heading and the hint sit on panels as wide as they are, the
+	// scene darkened under them, not on bars across the screen.
 	_, y0, _, _ := g.cardRect(c, 0)
-	title := style(hudText, hex(0x05060a))
-	c.fill(0, y0-3, c.w, 1, ' ', title)
 	head := "LEVEL UP: CHOOSE AN AUGMENT"
-	c.centered(y0-3, head, style(hudWarn, hex(0x05060a)))
 	// The slots, under it: six actives, six passives.
 	slotsW := 28
+	pw := max(width(head), slotsW) + 4
+	shadePanel(c, (c.w-pw)/2, y0-3, pw, 2)
+	c.fg((c.w-width(head))/2, y0-3, head, hudWarn)
 	x := (c.w - slotsW) / 2
-	x = c.text(x, y0-2, "ACTIVE ", style(hudDim, hex(0x05060a)))
-	x = c.number(x, y0-2, g.holds(true), style(hudCyan, hex(0x05060a)))
-	x = c.text(x, y0-2, "/6   PASSIVE ", style(hudDim, hex(0x05060a)))
-	x = c.number(x, y0-2, g.holds(false), style(hudCyan, hex(0x05060a)))
-	c.text(x, y0-2, "/6", style(hudDim, hex(0x05060a)))
+	x = c.fg(x, y0-2, "ACTIVE ", hudDim)
+	x = c.fgNumber(x, y0-2, g.holds(true), hudCyan)
+	x = c.fg(x, y0-2, "/6   PASSIVE ", hudDim)
+	x = c.fgNumber(x, y0-2, g.holds(false), hudCyan)
+	c.fg(x, y0-2, "/6", hudDim)
 	for i := 0; i < g.nCards; i++ {
 		g.drawCard(c, i)
 	}
@@ -545,8 +713,9 @@ func (g *game) drawCards(c canvas) {
 		hint = "click a card, or press 1 2 3   ·   more cards waiting"
 	}
 	_, y, _, h := g.cardRect(c, 0)
-	c.fill(0, y+h+1, c.w, 1, ' ', title)
-	c.centered(y+h+1, hint, style(hudDim, hex(0x05060a)))
+	hw := width(hint) + 4
+	shadePanel(c, (c.w-hw)/2, y+h+1, hw, 1)
+	c.fg((c.w-width(hint))/2, y+h+1, hint, hudDim)
 }
 
 // drawCard draws a card in its rarity's colour: a tinted face, a frame
@@ -696,7 +865,7 @@ func veil(c canvas, k float32, tint rgb) {
 }
 
 var (
-	titleItems = [...]string{"SWEEP: THREE MAPS", "ENDLESS: /dev/zero", "RECIPES", "SETTINGS", "QUIT"}
+	titleItems = [...]string{"SWEEP", "RECIPES", "SETTINGS", "QUIT"}
 	pauseItems = [...]string{"RESUME", "RECIPES", "SETTINGS", "QUIT"}
 )
 
@@ -791,8 +960,19 @@ func (g *game) drawTitle(c canvas) {
 	}
 	g.buttons(c, y, titleItems[:], g.menu, bg)
 	y += len(titleItems)
-	c.centered(y, titleAbout[g.menu], style(hudCyan.mul(0.8), bg))
+	if g.menu == 0 {
+		// The map chosen, between the arrows that change it.
+		a := &arenas[g.mapSel]
+		x := (c.w - (4 + width(a.name) + 5 + width(a.about))) / 2
+		x = c.text(x, y, "◂ ", style(hudDim, bg))
+		x = c.text(x, y, a.name, style(hex(a.accent), bg))
+		x = c.text(x, y, " ▸  ", style(hudDim, bg))
+		c.text(x, y, a.about, style(hudCyan.mul(0.8), bg))
+	} else {
+		c.centered(y, titleAbout[g.menu], style(hudCyan.mul(0.8), bg))
+	}
 	y += 2
+	g.mapY, g.mapCards = y, cards
 	switch {
 	case cards:
 		x0 := (c.w - (4*mapCardW + 3*2)) / 2
@@ -817,22 +997,25 @@ func (g *game) drawTitle(c canvas) {
 		x = c.text(x, y, "  ·  ", dim)
 		x = c.number(x, y, b.kills, val)
 		x = c.text(x, y, " swept", dim)
-		if won := g.best.maps[nStages-1].swept; won > 0 {
+		won := 0
+		for _, m := range g.best.maps {
+			won += m.swept
+		}
+		if won > 0 {
 			x = c.text(x, y, "  ·  won ", dim)
 			x = c.number(x, y, won, style(hudGood, bg))
 			c.text(x, y, "×", dim)
 		}
 	}
 	y += 2
-	c.centered(y, "Enter or click to start · W/S choose · Esc quits", style(hudDim, bg))
+	c.centered(y, "Enter starts · A/D or a click picks the map · W/S choose · Esc quits", style(hudDim, bg))
 	if g.hint != "" {
 		c.centered(y+2, g.hint, style(hudCyan, bg))
 	}
 }
 
 var titleAbout = [len(titleItems)]string{
-	"three maps, ten minutes on each, then its warden",
-	"one open map, no warden and no end: how long?",
+	"", // the map chosen, drawn by drawTitle
 	"which cards work together",
 	"sound, and the crosshair",
 	"back to the shell",
@@ -841,13 +1024,13 @@ var titleAbout = [len(titleItems)]string{
 const mapCardW, mapCardH = 25, 7
 
 // mapCard draws map i on the title, with what this player has done on it:
-// lit when the chosen mode plays it.
+// lit when it is the map chosen.
 func (g *game) mapCard(c canvas, x, y, i int) {
 	a := &arenas[i]
 	acc := hex(a.accent)
 	bg := hex(a.floor).mix(hex(cardBg), 0.4)
 	frame := hex(cardBorder)
-	if endless := i == len(arenas)-1; g.menu == 0 && !endless || g.menu == 1 && endless {
+	if i == g.mapSel {
 		frame = acc
 	}
 	card(c, x, y, mapCardW, mapCardH, frame)
@@ -879,7 +1062,7 @@ func (g *game) mapCard(c canvas, x, y, i int) {
 	}
 	m := &g.best.maps[i]
 	if m.runs == 0 {
-		c.text(x+2, y+3, "not reached yet", dim)
+		c.text(x+2, y+3, "not played yet", dim)
 		return
 	}
 	c.text(x+2, y+3, "swept", dim)
@@ -901,6 +1084,9 @@ func (g *game) mapLine(c canvas, x, y, i int) {
 	bg := hex(0x03040a)
 	a := &arenas[i]
 	dim, val := style(hudDim, bg), style(hudText, bg)
+	if i == g.mapSel {
+		c.text(x-2, y, "▸", style(hex(a.accent), bg))
+	}
 	c.text(x, y, a.name, style(hex(a.accent), bg))
 	x += 14
 	if i == len(arenas)-1 {
@@ -917,7 +1103,7 @@ func (g *game) mapLine(c canvas, x, y, i int) {
 	}
 	m := &g.best.maps[i]
 	if m.runs == 0 {
-		c.text(x, y, "not reached yet", dim)
+		c.text(x, y, "not played yet", dim)
 		return
 	}
 	x = c.text(x, y, "swept ", dim)
@@ -944,10 +1130,6 @@ func (g *game) drawPause(c canvas) {
 	mx = c.text(mx, y+6, cur.name, style(hex(cur.accent), bg))
 	if g.endless {
 		c.text(mx, y+6, "  ·  endless", dim)
-	} else {
-		mx = c.text(mx, y+6, "  ·  map ", dim)
-		mx = c.number(mx, y+6, g.stage+1, val)
-		c.text(mx, y+6, " of 3", dim)
 	}
 	sx := c.w/2 - 14
 	sx = c.clock(sx, y+7, int(g.runTime), val)
@@ -979,7 +1161,7 @@ func (g *game) drawDead(c canvas) {
 	}
 	switch {
 	case g.won:
-		c.centered(y+5, "all three maps swept: the heap is yours", dim)
+		c.centered(y+5, "the warden is swept: the heap is yours", dim)
 	case g.killedHow != "":
 		by := kinds[g.killedBy].name
 		tw := 10 + width(by) + 1 + width(g.killedHow)

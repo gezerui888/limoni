@@ -220,24 +220,7 @@ backdrop-shell enable -scene synthwave    # ya da -image duvar.jpg, ya da -art b
 Kendi art'ını çizmek ve canlandırmak: [docs/tr/backdrop-art.md](docs/tr/backdrop-art.md). Aynı sahneler
 `limoni.WithBackdrop(backdrop.Aurora())` ile her Limoni uygulamasının arkasına da konabilir.
 
-### Bir de oyun: Castle Lemonstein
-
-<p align="center"><img src="assets/castle-lemonstein.png" alt="Castle Lemonstein: ay ışığında kale, altın renkli başlık ve bordo sancaklarla açılış ekranı" width="100%" /></p>
-
-[**Castle Lemonstein**](apps/castle-lemonstein) kısa bir birinci şahıs oyunu. Fareleri limon suyuyla vur, sancaklarla süslü taş kalede on limon bul;
-sonra inin kapısı açılır ve karşına farelerin kralı Ratatui çıkar: tacı, can barı ve fırlatacak peyniri var.
-
-```bash
-go install github.com/thebanri/limoni/apps/castle-lemonstein@latest
-castle-lemonstein
-```
-
-Ya da [tarayıcıda oyna](https://thebanri.github.io/limoni/?app=castle-lemonstein), sesiyle birlikte.
-
-Yarım bloklarla hücre başına iki piksel çizen bir raycaster: ışıklı dokular, piksel sanatı fareler, piksel piksel
-ışın izlenen 3D yarım limonlar ve açılışta sentezlenen sesler. Bir kare, diff dahil hiç bellek ayırmaz. Tuşları
-`WithKeyReleases` ile basılı tutar; kitty, Ghostty ve WezTerm'de yürüyüş akıcıdır. Her oyun isabet ve süreye
-göre puanlanır; skor tablosu bir dosyada ya da tarayıcının deposunda saklanır.
+### Bir de oyunlar
 
 [**Lemon Drop**](apps/lemondrop) düşen bloklar oyunu; yere değen parça kendi renginde kuma dönüşüp dağılır.
 Duvardan duvara uzanan tek renkli bir kum yolu satırın yerini tutar: yanıp söner, üstündekiler düşer ve
@@ -264,7 +247,7 @@ lemonsnake
 Ya da [tarayıcıda oyna](https://thebanri.github.io/limoni/?app=lemonsnake); sesi ve dünya skor
 tablosu da var.
 
-<p align="center"><img src="assets/lemonsweep.png" alt="Lemon Sweep: terminal pencerelerinden bir koridorda üstüne gelen bir tview modalı, bir Bubble Tea bardağı, Ferris, bir ncurses kutusu ve bir ilerleme çubuğu" width="100%" /></p>
+<p align="center"><img src="assets/lemonsweep.png" alt="Lemon Sweep: üstte can barıyla dev bir yengeç mini boss, terminal penceresi duvarlar arasında bir tview modalı, bir Bubble Tea bardağı ve bir ncurses kutusu, havada yeşil baytlar, bir bumerang ve bir şimşek, sol üstte mini harita, sol altta kalp ve dash işareti" width="100%" /></p>
 
 [**Lemon Sweep**](apps/lemonsweep) terminallerden yapılmış bir terminalde geçen birinci şahıs bir roguelite:
 duvarlar bir kabuk, bir log görüntüleyici, biraz Go ve htop. Sen çöp toplayıcısın; Bubble Tea, Ratatui,
@@ -273,8 +256,10 @@ yuvarlak kutular ve spinner'lar, Ferris, ölünce düğmelerine bölünen çift 
 `</>`. Mouse ile nişan alırsın (boşalan şarjör kendiliğinden dolar) ve her seviyede bir augment kartı
 seçersin; elindeki her kart son seviyesindeyse seviye rastgele bir stat verir. Bölünen, seken, patlayan ve
 sıçrayan mermiler birbirini katlayıp bozuk bir şeye dönüşür; hangi kartların birlikte iyi gittiğini
-RECIPES (tarif kitabı) söyler. On dakikadan sonra baskı başlar (zırh, yalıtım, hız) ve hiçbir
-build ona uzun dayanmaz. Skor tablosu yok: rekorlar makinede ya da tarayıcıda kalır.
+RECIPES (tarif kitabı) söyler. Başlıkta dört haritadan birini seçersin: her iki dakikada bir mini boss,
+her iki buçuk dakikada bir boss, onuncu dakikada haritanın bekçisi gelir; o ayakta kalırsa baskı başlar
+(zırh, yalıtım, hız) ve hiçbir build ona uzun dayanmaz. Deneyim sen üstünden geçene kadar havada asılı
+kalır, köşe de saklanacak yer değildir. Skor tablosu yok: rekorlar makinede ya da tarayıcıda kalır.
 
 ```bash
 go install github.com/thebanri/limoni/apps/lemonsweep@latest

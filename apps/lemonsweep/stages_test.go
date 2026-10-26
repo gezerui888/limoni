@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	limoni "github.com/thebanri/limoni"
 	"github.com/thebanri/limoni/core/buffer"
 	"github.com/thebanri/limoni/core/cell"
 )
@@ -61,15 +62,19 @@ func TestEveryMapIsWhole(t *testing.T) {
 	}
 }
 
-// Ten minutes on a map bring its warden; sweeping it moves the run to the
-// next map with the build and full health, and nothing of the last map;
-// the third warden ends the run as a win.
-func TestThreeMapsThenSweptClean(t *testing.T) {
-	g := playing()
+// Each map on the title is a run of its own: ten minutes bring its warden,
+// and sweeping it ends the run won, counted on that map.
+func TestEachMapIsARun(t *testing.T) {
 	defer useArena(0)
 	for stage := 0; stage < nStages; stage++ {
-		if g.stage != stage || cur != &arenas[stage] {
-			t.Fatalf("on map %d (%s), want %d", g.stage, cur.name, stage)
+		g := newGame(5)
+		g.mapSel = stage
+		g.titlePick(0)
+		if g.stage != stage || cur != &arenas[stage] || g.endless || g.phase != phPlay {
+			t.Fatalf("map %d chosen, playing %d (%s), endless %v", stage, g.stage, cur.name, g.endless)
+		}
+		if g.heat() != stageLead*float64(stage) {
+			t.Fatalf("map %d starts at heat %.0f", stage, g.heat())
 		}
 		g.stageT = wardenAt - tick/2
 		g.step(tick)
@@ -84,42 +89,97 @@ func TestThreeMapsThenSweptClean(t *testing.T) {
 		}
 		g.kill(w)
 		if g.clearT <= 0 {
-			t.Fatalf("map %d: the warden swept, but no next map coming", stage)
+			t.Fatalf("map %d: the warden swept, but the run goes on", stage)
 		}
-		g.addEnemy(kSpinner, vec{16, 10})
-		g.hp = 1
-		for g.clearT > 0 && g.phase != phDead {
+		for g.phase != phDead {
 			if g.phase == phCards {
-				g.take(0) // the warden's bytes are worth a level or two
+				g.take(0)
 			}
+			g.hp = g.st.maxHP
 			g.step(tick)
 		}
-		if stage == nStages-1 {
-			break
+		if !g.won || g.best.runs != 1 || g.best.endless.runs != 0 || g.best.maps[stage].swept != 1 {
+			t.Fatalf("map %d after its warden: won %v, runs %d/%d, swept %d", stage, g.won, g.best.runs, g.best.endless.runs, g.best.maps[stage].swept)
 		}
-		for i := range g.enemies {
-			if g.enemies[i].alive {
-				t.Fatalf("map %d: an enemy came along to the next map", stage)
-			}
-		}
-		if g.hp != g.st.maxHP || g.stageT != 0 || g.pos != (vec{16, 16.5}) {
-			t.Fatalf("map %d: next map starts at hp %.0f, clock %.1f, %v", stage, g.hp, g.stageT, g.pos)
-		}
-	}
-	if !g.won || g.phase != phDead || g.best.runs != 1 || g.best.endless.runs != 0 {
-		t.Fatalf("after the last warden: won %v, phase %v, runs %d/%d", g.won, g.phase, g.best.runs, g.best.endless.runs)
-	}
-	if g.heat() < stageLead*2 {
-		t.Fatal("the last map started cold")
 	}
 }
 
-// ENDLESS on the title is /dev/zero: no warden, no next map, its own
+// A mini-boss comes every two minutes on the map's clock: elite, grown,
+// shown at the top, and worth most of a level once its bytes are in.
+func TestAMiniBossEveryTwoMinutes(t *testing.T) {
+	g := playing()
+	minis := func() (n, at int) {
+		for i := range g.enemies {
+			if e := &g.enemies[i]; e.alive && e.mini {
+				n, at = n+1, i
+			}
+		}
+		return
+	}
+	g.bossAt = 1e9 // the bosses' clock is tested on its own
+	g.stageT = miniEvery - tick/2
+	g.step(tick)
+	n, i := minis()
+	if n != 1 || !g.enemies[i].elite || g.enemies[i].hp < miniHP*0.5 {
+		t.Fatalf("%d mini-bosses at two minutes", n)
+	}
+	b := buffer.NewBuffer(cell.Rect{Width: 140, Height: 44})
+	g.render(b)
+	if !strings.Contains(snapshot(b), "GIANT") {
+		t.Error("no mini-boss bar at the top")
+	}
+	lv := g.level
+	g.kill(i)
+	g.hp = g.st.maxHP
+	for s := 0; s < 60; s++ {
+		for k := range g.bytes {
+			if g.bytes[k].alive {
+				g.pos = g.bytes[k].pos // walk over them
+				break
+			}
+		}
+		g.stepBytes(tick)
+	}
+	if g.level <= lv && g.xp < need(g.level)*0.6 {
+		t.Fatalf("the mini-boss paid %.1f of %.1f", g.xp, need(g.level))
+	}
+	g.stageT = 2*miniEvery - tick/2
+	g.step(tick)
+	if n, _ := minis(); n != 1 {
+		t.Fatalf("%d mini-bosses at four minutes", n)
+	}
+}
+
+// Standing in one spot is camping: after campAfter the heap opens the
+// spawn window nearest the player half the time, not only the far ones.
+func TestCampingBringsThemClose(t *testing.T) {
+	g := playing()
+	g.pos = vec{2.5, 2.5} // THE HEAP's top-left corner, between two windows
+	nearest := func() int {
+		n := 0
+		for k := 0; k < 200; k++ {
+			if d := g.portal().dist2(g.pos); d < 7*7 {
+				n++
+			}
+		}
+		return n
+	}
+	moving := nearest()
+	for s := 0; s < int(campAfter/tick)+5; s++ {
+		g.stepCamp(tick)
+	}
+	if camping := nearest(); camping < moving+70 {
+		t.Fatalf("%d of 200 spawns close to a camping player, %d to one on the move", camping, moving)
+	}
+}
+
+// ENDLESS: /dev/zero, chosen on the title, has no warden and its own
 // records, and the next run from the death card is endless again.
 func TestEndlessIsDevZero(t *testing.T) {
 	g := newGame(3)
 	defer useArena(0)
-	g.titlePick(1)
+	g.mapSel = len(arenas) - 1
+	g.titlePick(0)
 	if !g.endless || cur != &arenas[len(arenas)-1] || g.phase != phPlay {
 		t.Fatalf("ENDLESS gave %s, endless %v", cur.name, g.endless)
 	}
@@ -137,6 +197,32 @@ func TestEndlessIsDevZero(t *testing.T) {
 	g.reset()
 	if !g.endless || cur != &arenas[len(arenas)-1] {
 		t.Fatal("run again left /dev/zero")
+	}
+}
+
+// On the title A and D change the map, and a click on a map's card picks
+// it without starting the run.
+func TestTheTitlePicksTheMap(t *testing.T) {
+	g := newGame(1)
+	g.key(limoni.KeyEvent{Type: limoni.KeyRune, Ch: 'd'})
+	g.key(limoni.KeyEvent{Type: limoni.KeyRight})
+	if g.mapSel != 2 {
+		t.Fatalf("D twice chose map %d", g.mapSel)
+	}
+	g.key(limoni.KeyEvent{Type: limoni.KeyRune, Ch: 'a'})
+	if g.mapSel != 1 {
+		t.Fatalf("A chose map %d", g.mapSel)
+	}
+	b := buffer.NewBuffer(cell.Rect{Width: 140, Height: 44})
+	g.render(b)
+	x0 := (140 - (4*mapCardW + 3*2)) / 2
+	g.mouse(limoni.MouseEvent{X: uint16(x0 + 3*(mapCardW+2) + 5), Y: uint16(g.mapY + 2), Button: limoni.MouseLeft})
+	if g.mapSel != 3 || g.phase != phTitle {
+		t.Fatalf("a click on /dev/zero's card chose %d, phase %v", g.mapSel, g.phase)
+	}
+	g.key(limoni.KeyEvent{Type: limoni.KeyEnter})
+	if !g.endless || g.phase != phPlay {
+		t.Fatal("Enter with /dev/zero chosen did not start it")
 	}
 }
 
@@ -267,8 +353,8 @@ func TestABossBehindAWallComesRound(t *testing.T) {
 	defer useArena(0)
 	g := playing()
 	g.enter(0)
-	g.pos = vec{16, 12.5} // under the HEAP's long window, row 10
-	i := g.addEnemy(kQueen, vec{16, 6.5})
+	g.pos = vec{10.5, 11.5} // under the foot of the HEAP's L, row 9
+	i := g.addEnemy(kQueen, vec{10.5, 6.5})
 	e := &g.enemies[i]
 	e.cd = 1e9
 	if g.sees(e.pos) {

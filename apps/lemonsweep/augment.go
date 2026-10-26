@@ -240,7 +240,7 @@ var augs = [nAug]augment{
 	augBatch:      {"Batch Job", "PROJECTILE", rare, 3, "every 10th shot a slug", "x4, pierces 4, +x1 a rank", augBatch, elNone, false},
 	augHeadroom:   {"Headroom", "DAMAGE", common, 5, "+10% damage", "above 80% health", augHeadroom, elNone, false},
 	augLastStand:  {"Last Resort", "RATE", rare, 3, "+25% fire rate", "under 40% health", augLastStand, elNone, false},
-	augWeakRefs:   {"Weak Refs", "GROWTH", common, 3, "+8% experience", "from every kill, a rank", augWeakRefs, elNone, false},
+	augWeakRefs:   {"Weak Refs", "GROWTH", common, 3, "+8% exp, +0.8 reach", "bytes come from afar", augWeakRefs, elNone, false},
 	augGenGC:      {"Generational GC", "DAMAGE", rare, 3, "+15% damage", "to elites and bosses", augGenGC, elNone, false},
 	augMutex:      {"Mutex", "HEALTH", common, 5, "-6% damage taken", "", augMutex, elNone, false},
 	augWatchdog:   {"Watchdog", "HEALTH", common, 5, "+0.6 health a second", "", augWatchdog, elNone, false},
@@ -272,7 +272,7 @@ type stats struct {
 	crit, critMul                        float64
 	freeShot                             float64
 	maxHP, onKill, regen                 float64
-	xpK                                  float64
+	xpK, reach                           float64
 	shrapnel                             int
 	overflow                             float64
 	sync                                 bool
@@ -346,6 +346,7 @@ func (g *game) recalc() {
 		onKill:     1.5 * g.rk(augRecover),
 		regen:      regen + 0.6*g.rk(augWatchdog),
 		xpK:        (1 + 0.12*float64(r[augGOGC])) * (1 + 0.08*g.rk(augWeakRefs)),
+		reach:      2 + 0.8*g.rk(augWeakRefs),
 		shrapnel:   3 * r[augCascade],
 		overflow:   0.03 * g.rk(augOverflow),
 		sync:       r[augSync] > 0,
@@ -596,9 +597,6 @@ func (g *game) take(i int) {
 	}
 	g.sound(sfxPick)
 	g.phase = phPlay
-	if g.level >= g.bossNext && !g.bossLive {
-		g.spawnBoss()
-	}
 	if g.pending > 0 {
 		g.openCards()
 	}

@@ -45,7 +45,8 @@ const (
 	bBlink   // walks, and every so often blinks nearer
 )
 
-// bosses come in this order, one every ten levels, then again, tougher.
+// bosses come in this order, one every bossEvery seconds on a map, then
+// again, tougher.
 var bosses = [...]kindID{kBobaPrime, kFerris, kQueen, kReconciler, kTextual}
 
 type kind struct {
@@ -104,7 +105,8 @@ type enemy struct {
 	dashDir vec     // and which way
 	aim     vec     // where a sniper's laser points
 	shieldT float64 // shielded by a Lip Gloss while above zero
-	warden  bool    // the map's last boss: sweeping it opens the next
+	warden  bool    // the map's last boss: sweeping it wins the run
+	mini    bool    // a mini-boss: an elite grown big, every two minutes
 
 	// the bosses' own (bosses.go)
 	sig     bool    // the attack wound up is its own move
@@ -205,11 +207,21 @@ func (g *game) hpScale() float64 {
 
 // A crowd: crowdN times as many enemies as the first tuning, each crowdHP
 // as tough, so a sweep mows lines down rather than picking off a few.
-const crowdN, crowdHP = 1.6, 0.75
+const crowdN, crowdHP = 1.35, 0.75
 
-// bossHP is the bosses' health against the first tuning: the actives were
-// cut to a few casts a minute, and every boss gained a move of its own.
-const bossHP = 0.6
+// bossHP is the bosses' health against the first tuning: cut to 0.6 when
+// the actives were cut, raised when players found them swept too soon.
+// Slower levels bring the level bosses later, into more heat, which adds
+// about as much again.
+const bossHP = 0.8
+
+// The mini-boss: every miniEvery seconds on a map, an ordinary enemy drawn
+// miniSize as big, with miniHP health against the heat.
+const miniEvery, miniSize, miniHP = 120.0, 1.7, 500.0
+
+// bossEvery is the seconds between bosses: on the clock, not by level, so
+// a run that levels slowly does not wait for them.
+const bossEvery = 150.0
 
 // crowd is how many enemies come for each one of the first tuning: twice
 // crowdN at the start of a run, where the heap was thin, down to crowdN by
@@ -299,19 +311,85 @@ func (g *game) kindWeight(k kindID) float64 {
 	return kd.weight
 }
 
-// portal picks a spawn window that is not right next to the player, and
-// returns the floor just in front of it.
+// portal picks a spawn window that is not right next to the player, most
+// often one out of their sight, so what comes comes from the sides and
+// behind; and returns the floor just in front of it. A player camping in
+// one spot gets the window nearest them half the time.
 func (g *game) portal() vec {
-	var best vec
-	for try := 0; try < 6; try++ {
-		i := g.rnd.intn(len(portals))
-		p := portals[i]
+	if g.stillT > campAfter && g.rnd.f() < 0.5 {
+		best, bd := portals[0], 1e9
+		for _, p := range portals {
+			if d := p.dist2(g.pos); d > 3*3 && d < bd {
+				best, bd = p, d
+			}
+		}
+		return best
+	}
+	behind := g.rnd.f() < 0.6
+	f := dir(g.ang)
+	var best, far vec
+	haveFar := false
+	for try := 0; try < 10; try++ {
+		p := portals[g.rnd.intn(len(portals))]
 		best = p
-		if p.dist2(g.pos) > 36 {
+		d := p.sub(g.pos)
+		dd := d.x*d.x + d.y*d.y
+		if dd <= 36 {
+			continue
+		}
+		if !behind || d.x*f.x+d.y*f.y < math.Cos(fov/2+0.2)*math.Sqrt(dd) {
 			return p
 		}
+		if !haveFar {
+			far, haveFar = p, true
+		}
+	}
+	if haveFar {
+		return far
 	}
 	return best
+}
+
+// spawnMini sends a mini-boss: one of the bigger kinds already met by this
+// level, elite, grown, and as tough as a fifth of a boss.
+func (g *game) spawnMini() {
+	pool := [...]kindID{kBoba, kCrab, kBeetle, kModal, kGloss, kCaret, kBar, kElder}
+	n := 0
+	for _, k := range pool {
+		if kinds[k].minLevel <= g.level {
+			n++
+		}
+	}
+	pick := g.rnd.intn(n)
+	k := kBoba
+	for _, kk := range pool {
+		if kinds[kk].minLevel <= g.level {
+			if pick == 0 {
+				k = kk
+				break
+			}
+			pick--
+		}
+	}
+	i := g.addEnemy(k, g.portal())
+	if i < 0 {
+		return
+	}
+	e := &g.enemies[i]
+	e.mini, e.elite, e.immune = true, true, false
+	e.hp = miniHP * g.hpScale()
+	e.max = e.hp
+	e.armor += 2
+	g.say("mini-boss: a giant " + kinds[k].name)
+	g.sound(sfxRoar)
+}
+
+// rad is how far from its middle an enemy can be hit or bite.
+func (e *enemy) rad() float64 {
+	if e.mini {
+		return kinds[e.k].r * miniSize
+	}
+	return kinds[e.k].r
 }
 
 var portals []vec
@@ -358,10 +436,10 @@ func (g *game) addEnemy(k kindID, p vec) int {
 }
 
 func (g *game) spawnBoss() {
-	k := bosses[(g.bossNext/10-1)%len(bosses)]
+	k := bosses[g.bossN%len(bosses)]
 	// Each boss in the order is tougher than the last by its own health;
 	// each time the order comes round, all of them again.
-	round := float64((g.bossNext/10 - 1) / len(bosses))
+	round := float64(g.bossN / len(bosses))
 	p := vec{16, 4}
 	if g.pos.y < 16 {
 		p = vec{16, 28}
@@ -373,7 +451,7 @@ func (g *game) spawnBoss() {
 		g.say(kinds[k].name + " has entered the heap")
 		g.sound(sfxRoar)
 	}
-	g.bossNext += 10
+	g.bossN++
 }
 
 // ── behaviour ────────────────────────────────────────────────────────────
@@ -568,7 +646,7 @@ func (g *game) moveEnemy(i int, e *enemy, dt float64) {
 	slide(&e.pos, step.x, step.y, kd.r*0.8)
 
 	// contact
-	if d < kd.r+playerR && g.hurtT <= 0 {
+	if d < e.rad()+playerR && g.hurtT <= 0 {
 		bite := kd.dmg * (1 + 0.03*float64(g.level)) * math.Sqrt(g.pressure())
 		if e.poison > 0 {
 			bite *= 1 - g.st.neuro/2
@@ -886,7 +964,7 @@ func (g *game) hit(i int, dmg float64, crit bool, armorK float64, el element) bo
 	if dmg > g.bigHit {
 		g.bigHit = dmg
 	}
-	if g.st.execute > 0 && e.hp > 0 && e.hp < e.max*g.st.execute && !kinds[e.k].boss {
+	if g.st.execute > 0 && e.hp > 0 && e.hp < e.max*g.st.execute && !kinds[e.k].boss && !e.mini {
 		e.hp = 0
 	}
 	g.damageNumber(e.pos, kinds[e.k].height, dmg, crit, el)
@@ -927,7 +1005,16 @@ func (g *game) kill(i int) {
 	if !kd.boss {
 		xp /= g.crowd() // a crowd levels the build no faster than the few did
 	}
-	g.dropBytes(e.pos, 1.5*xp*(1+boolf(e.elite)*2))
+	if e.mini {
+		// Most of a level, scattered: worth walking over for.
+		g.shake = 0.8
+		g.hp = math.Min(g.st.maxHP, g.hp+g.st.maxHP*0.15)
+		for s := 0; s < 12; s++ {
+			g.dropBytes(e.pos.add(vec{g.rnd.between(-1.2, 1.2), g.rnd.between(-1.2, 1.2)}), need(g.level)*0.8/12)
+		}
+	} else {
+		g.dropBytes(e.pos, 1.5*xp*(1+boolf(e.elite)*2))
+	}
 	g.soundFrom(sfxPop, e.pos, 0.6)
 	if g.st.onKill > 0 {
 		g.hp = math.Min(g.st.maxHP, g.hp+g.st.onKill)

@@ -600,12 +600,22 @@ func paintIcon(a augID) *sprite {
 			p.dot(int(10+8*math.Cos(t)), int(6+5.5*math.Sin(t)), volt.mul(0.4+0.6*float32(k%2)))
 		}
 		p.runner(10, 2, dashV)
-	case augRoundTrip: // a boomerang and its path
-		p.line(4, 4, 10, 8, 2, ember)
-		p.line(10, 8, 16, 4, 2, ember)
-		for k := 0; k < 14; k++ {
-			t := float64(k) / 14 * math.Pi
-			p.dot(int(10+8*math.Cos(t)), int(4-3*math.Sin(t)), flameY.mul(0.6))
+	case augRoundTrip: // a boomerang in flight, the arc it comes back on over it
+		for k := 0; k < 9; k++ {
+			t := math.Pi * (1.15 + 0.7*float64(k)/8)
+			p.dot(int(10+9*math.Cos(t)), int(5+4.5*math.Sin(t)), flameY.mul(0.2+0.35*float32(k)/8))
+		}
+		for _, a := range [2]float64{-2.39, -0.75} {
+			rangArm(10, 10.5, 10.5, 0.15, a, func(x, y float64, shade int, t float64) {
+				col := rangWood.mul(float32(1 - 0.3*t))
+				switch shade {
+				case 1:
+					col = rangLight
+				case -1:
+					col = rangDark
+				}
+				p.dot(int(x), int(y), col)
+			})
 		}
 	case augBurnIn: // footprints on fire
 		for k, x := range []float64{3, 8, 13, 18} {

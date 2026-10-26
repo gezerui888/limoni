@@ -7,11 +7,11 @@ import (
 
 // Lemon Sweep: you are Limoni's garbage collector, and the frameworks have
 // come for the heap. Mark them with the crosshair, sweep them with the
-// trigger, take a card every level, and build something broken enough to
-// get through three maps: ten minutes on each, then its warden, and the
-// pressure if the warden is not swept soon — which nothing outlasts for
-// long. Or /dev/zero, the endless map, where the pressure comes slower and
-// never stops.
+// trigger, pick up the bytes they free, take a card every level, and build
+// something broken enough for the map chosen: ten minutes, a mini-boss
+// every two, then its warden, and the pressure if the warden is not swept
+// soon — which nothing outlasts for long. Or /dev/zero, the endless map,
+// where the pressure comes slower and never stops.
 
 type vec struct{ x, y float64 }
 
@@ -142,13 +142,17 @@ type game struct {
 	sens     int // mouse sensitivity, 1-10 (lookScale)
 
 	// the run
-	endless   bool    // /dev/zero, not the three maps
-	stage     int     // which of the three maps
+	endless   bool    // /dev/zero, not one of the maps with a warden
+	mapSel    int     // the map chosen on the title
+	stage     int     // which of the maps with a warden
 	stageT    float64 // seconds on this map
 	clearT    float64 // the warden is swept: the next map when this runs out
 	wardenUp  bool    // the warden is in the arena
+	miniAt    float64 // the map's clock when the next mini-boss comes
+	anchor    vec     // where the player has stood since stillT began
+	stillT    float64 // seconds spent near anchor: camping, past campAfter
 	mapKills  int     // kills when this map began
-	won       bool    // all three maps swept
+	won       bool    // the map's warden swept
 	level     int
 	xp        float64
 	kills     int
@@ -162,7 +166,8 @@ type game struct {
 	cardAcc   float64 // a locked mouse's movement towards the next card
 	cardsAt   float64 // when the cards came up
 	clickOK   bool    // the button was let go since: a click now is meant for a card
-	bossNext  int     // the level at which the next boss comes
+	bossN     int     // level bosses sent this run, for which comes next
+	bossAt    float64 // the map's clock when the next one comes
 	bossLive  bool    // a boss is in the arena
 	spawnAcc  float64 // spawn budget not yet spent
 	momentum  float64 // stack overflow: damage built by hits in a row
@@ -212,14 +217,16 @@ type game struct {
 	nextInCel [maxEnemies]int16
 
 	// screens
-	menu    int
-	pause   int
-	setSel  int     // the settings row chosen
-	setFrom phase   // where the settings or the recipe book go back to
-	bookTop int     // the first recipe shown
-	menuY   int     // the row of the menu's first button, for the mouse
-	setY    int     // the row of the first setting, for the mouse
-	ret     reticle // the crosshair, as chosen
+	menu     int
+	pause    int
+	setSel   int     // the settings row chosen
+	setFrom  phase   // where the settings or the recipe book go back to
+	bookTop  int     // the first recipe shown
+	menuY    int     // the row of the menu's first button, for the mouse
+	mapY     int     // the row of the title's maps, for the mouse
+	mapCards bool    // drawn as cards; as lines if not
+	setY     int     // the row of the first setting, for the mouse
+	ret      reticle // the crosshair, as chosen
 
 	// outside
 	audio   speaker
@@ -257,17 +264,16 @@ func newGame(seed uint64) *game {
 // reset starts a new run.
 func (g *game) reset() {
 	best, store, audio, vol, last, sens, exact, seed := g.best, g.store, g.audio, g.volume, g.lastVol, g.sens, g.exact, g.rnd
-	ret, endless := g.ret, g.endless
+	ret, endless, mapSel := g.ret, g.endless, g.mapSel
 	showFPS, fps, frames, fpsAt := g.showFPS, g.fps, g.frames, g.fpsAt
 	noSound, clock, locked, mx, my, in, hint := g.noSound, g.clock, g.locked, g.mouseX, g.mouseY, g.mouseIn, g.hint
 	*g = game{}
 	g.best, g.store, g.audio, g.volume, g.lastVol, g.sens, g.exact, g.rnd = best, store, audio, vol, last, sens, exact, seed
 	g.noSound, g.clock, g.locked, g.mouseX, g.mouseY, g.mouseIn, g.hint = noSound, clock, locked, mx, my, in, hint
 	g.showFPS, g.fps, g.frames, g.fpsAt = showFPS, fps, frames, fpsAt
-	g.ret, g.endless = ret, endless
-	g.enter(0)
+	g.ret, g.endless, g.mapSel = ret, endless, mapSel
+	g.enter(mapSel)
 	g.level = 1
-	g.bossNext = 10
 	g.recalc()
 	g.hp = g.st.maxHP
 	g.ammo = g.st.mag
@@ -351,13 +357,25 @@ func (g *game) step(dt float64) {
 	before := g.overtime()
 	g.runTime += dt
 	g.stageT += dt
+	// A boss every two and a half minutes until the warden's; one due while
+	// another stands waits.
+	if g.stageT >= g.bossAt && !g.bossLive && g.clearT <= 0 && (g.endless || g.bossAt < wardenAt) {
+		g.spawnBoss()
+		g.bossAt += bossEvery
+	}
+	// A mini-boss every two minutes; one due while a boss stands waits.
+	if g.stageT >= g.miniAt && !g.bossLive && g.clearT <= 0 {
+		g.spawnMini()
+		g.miniAt += miniEvery
+	}
 	if before < 0 && g.overtime() >= 0 {
 		g.say("GC pressure: the heap fights back")
 		g.sound(sfxRoar)
 	}
 	if g.clearT > 0 {
 		if g.clearT -= dt; g.clearT <= 0 {
-			g.nextStage()
+			g.won = true
+			g.die()
 			return
 		}
 	}
@@ -447,6 +465,7 @@ func (g *game) stepPlayer(dt float64) {
 		m, speed = g.dashDir, dashSpeed*g.st.dashDist
 	}
 	slide(&g.pos, m.x*speed*dt, m.y*speed*dt, playerR)
+	g.stepCamp(dt)
 	g.stepPull(dt, dashing)
 	if dashing {
 		g.dashStep()
@@ -454,6 +473,23 @@ func (g *game) stepPlayer(dt float64) {
 			g.dashEnd()
 		}
 	}
+}
+
+const (
+	campR     = 3.0 // staying within this of one spot ...
+	campAfter = 8.0 // ... this long is camping: the heap opens windows close by
+)
+
+// stepCamp counts how long the player has stayed in one spot.
+func (g *game) stepCamp(dt float64) {
+	if g.pos.dist2(g.anchor) > campR*campR {
+		g.anchor, g.stillT = g.pos, 0
+		return
+	}
+	if g.stillT < campAfter && g.stillT+dt >= campAfter {
+		g.say("stale object: the heap knows where you stand")
+	}
+	g.stillT += dt
 }
 
 const (
@@ -609,9 +645,10 @@ func (g *game) volley(pull bool) {
 
 // ── levels ───────────────────────────────────────────────────────────────
 
-// need is the experience the level after l takes.
+// need is the experience the level after l takes: more every level, and
+// faster the further along.
 func need(l int) float64 {
-	return 5 + 2*float64(l) + math.Pow(1.12, float64(l))
+	return 7 + 3*float64(l) + math.Pow(1.14, float64(l))
 }
 
 func (g *game) gain(xp float64) {
@@ -662,14 +699,13 @@ const (
 	wardenAt   = 600.0 // seconds on a map before its warden comes
 	pressureAt = 720.0 // and before the pressure, if the warden still stands
 	endlessAt  = 900.0 // /dev/zero's pressure: later, and a third as steep
-	stageLead  = 300.0 // each map starts as hard as this far into the last
+	stageLead  = 150.0 // each map in the list starts as hard as this far into the one before
 	heatPace   = 400.0 // seconds of heat that add the enemies' first health and pace again
 )
 
 // heat is how far along the slow climb the run is: the time on this map,
-// and each map before it counted as five of its minutes, so a new map is a
-// breath but not a fresh start. On /dev/zero, the whole run, slower: no
-// map ends there to give the health back.
+// plus a lead for the maps further down the list, which are harder. On
+// /dev/zero, slower: no warden ends it.
 func (g *game) heat() float64 {
 	if g.endless {
 		return g.stageT * 0.6
@@ -708,8 +744,8 @@ func (g *game) pressure() float64 {
 
 // ── maps ─────────────────────────────────────────────────────────────────
 
-// enter starts map i of the run, or /dev/zero: the arena, its clock, and
-// nothing left of the last one in it.
+// enter starts map i, or /dev/zero: the arena, its clock, and nothing left
+// of the last run in it.
 func (g *game) enter(i int) {
 	g.stage = i
 	if g.endless {
@@ -725,6 +761,7 @@ func (g *game) enter(i int) {
 	g.zones, g.hazards, g.rings, g.arcs = [maxZones]zone{}, [maxHazards]hazard{}, [maxRings]ringFX{}, [maxArcs]arcFX{}
 	g.wave, g.vortex, g.pullT = wave{}, vortex{}, 0
 	g.pos, g.ang = vec{16, 16.5}, -math.Pi/2
+	g.anchor, g.stillT, g.miniAt, g.bossAt = g.pos, 0, miniEvery, bossEvery
 	g.prevAim = g.ang // or the gun swings at the start of every map
 }
 
@@ -749,32 +786,16 @@ func (g *game) spawnWarden() {
 
 var (
 	wardens  = [nStages]kindID{kQueen, kReconciler, kTextual}
-	wardenHP = [nStages]float64{1, 1.1, 0.7}
+	wardenHP = [nStages]float64{1.2, 1.2, 1}
 )
 
-// swept is the warden down: the map is done, and the next comes in a
+// swept is the warden down: the map is done, and the run ends won in a
 // moment — time to pick up what it dropped.
 func (g *game) swept() {
 	g.clearT, g.wardenUp = 3, false
 	g.best.maps[g.stage].add(true, int(g.stageT-wardenAt), g.kills-g.mapKills)
 	g.persist()
-	if g.stage+1 < nStages {
-		g.say(cur.name + " swept: on to " + arenas[g.stage+1].name)
-	} else {
-		g.say("the last warden is swept")
-	}
-}
-
-func (g *game) nextStage() {
-	if g.stage+1 >= nStages {
-		g.won = true
-		g.die()
-		return
-	}
-	g.enter(g.stage + 1)
-	g.hp = g.st.maxHP
-	g.ammo, g.dashN = g.st.mag, g.st.dashN
-	g.sound(sfxPick)
+	g.say(cur.name + " swept")
 }
 
 // ── input ────────────────────────────────────────────────────────────────

@@ -10,7 +10,8 @@ import (
 // bot plays: it aims at a boss in sight, else the nearest enemy (a better aim than a
 // person's, so its runs are an upper bound), fires, collects when the heap
 // is empty, backs off from what is close, dashes when cornered, and takes
-// cards by a simple taste.
+// cards by a simple taste; with nothing close it walks over the freed
+// bytes, which pay only when picked up.
 func bot(g *game, taste []augID) {
 	switch g.phase {
 	case phCards:
@@ -134,20 +135,44 @@ func bot(g *game, taste []augID) {
 			}
 		}
 	} else {
-		// Nothing in sight: walk back to the middle.
+		// Nothing in sight: the bytes, or back to the middle.
 		to := vec{16, 16}.sub(g.pos)
+		if b, ok := nearestBytes(g); ok {
+			to = b.sub(g.pos)
+		}
 		g.ang = math.Atan2(to.y, to.x)
-		g.held[actFwd] = to.len() > 2
+		g.held[actFwd] = to.len() > 0.5
+	}
+	// Nothing close: go for the bytes, still aiming.
+	if b, ok := nearestBytes(g); ok && near >= 0 && nd > 4*4 && g.pullT <= 0 {
+		to := b.sub(g.pos)
+		f, r := dir(g.ang), dir(g.ang+math.Pi/2)
+		fw, rt := to.x*f.x+to.y*f.y, to.x*r.x+to.y*r.y
+		g.held[actFwd], g.held[actBack] = fw > 0.2, fw < -0.2
+		g.held[actRight], g.held[actLeft] = rt > 0.2, rt < -0.2
 	}
 	if g.ammo == 0 {
 		g.reload()
 	}
 }
 
+// nearestBytes is the nearest freed byte not yet on its way home.
+func nearestBytes(g *game) (vec, bool) {
+	best, bd := vec{}, 1e9
+	for i := range g.bytes {
+		if b := &g.bytes[i]; b.alive && !b.pull {
+			if d := b.pos.dist2(g.pos); d < bd {
+				best, bd = b.pos, d
+			}
+		}
+	}
+	return best, bd < 1e9
+}
+
 // TestSimulatedRuns prints how long the bot lasts with a few builds; with
 // SIM unset it plays one short run for crashes only (SIMBUILD=name plays
-// one build). The assertion that matters: every run ends, won on the three
-// maps or ended by the pressure, broken or not.
+// one build). The assertion that matters: every run ends, won on its map
+// or ended by the pressure, broken or not.
 func TestSimulatedRuns(t *testing.T) {
 	// Six actives and six passives each, the order the bot prefers them.
 	builds := map[string][]augID{
@@ -164,7 +189,8 @@ func TestSimulatedRuns(t *testing.T) {
 	if os.Getenv("SIM") != "" {
 		limit, seeds = 60*60, 10
 	}
-	for _, endless := range []bool{false, true} {
+	for m := range arenas {
+		endless := m == len(arenas)-1
 		for name, taste := range builds {
 			if os.Getenv("SIMBUILD") != "" && os.Getenv("SIMBUILD") != name {
 				continue
@@ -173,7 +199,7 @@ func TestSimulatedRuns(t *testing.T) {
 			won := 0
 			for seed := uint64(1); seed <= seeds; seed++ {
 				g := newGame(seed * 7919)
-				g.endless = endless
+				g.mapSel, g.endless = m, endless
 				g.reset()
 				g.exact = true
 				at3 := 0
@@ -195,17 +221,17 @@ func TestSimulatedRuns(t *testing.T) {
 				case g.phase != phDead:
 					end = "alive"
 				}
-				t.Logf("%-7s %-8s seed %2d: %s at %2d:%02d on %-12s (map at %2d:%02d), level %2d at 3:00, %3d at the end, %5d swept, biggest hit %6.0f, pressure x%.1f, by %s %s",
-					map[bool]string{true: "endless", false: "maps"}[endless], name, seed, end,
-					int(g.runTime)/60, int(g.runTime)%60, cur.name, int(g.stageT)/60, int(g.stageT)%60, at3, g.level, g.kills, g.bigHit, g.pressure(), kinds[g.killedBy].name, g.killedHow)
+				t.Logf("%-12s %-8s seed %2d: %s at %2d:%02d, level %2d at 3:00, %3d at the end, %5d swept, biggest hit %6.0f, pressure x%.1f, by %s %s",
+					cur.name, name, seed, end,
+					int(g.runTime)/60, int(g.runTime)%60, at3, g.level, g.kills, g.bigHit, g.pressure(), kinds[g.killedBy].name, g.killedHow)
 				if g.phase != phDead {
 					t.Errorf("%s seed %d still alive after %d minutes: the pressure does not end runs", name, seed, int(limit/60))
 				}
 			}
 			if len(lasted) > 0 {
 				slices.Sort(lasted)
-				m := lasted[len(lasted)/2]
-				t.Logf("MEDIAN %-7s %-8s %2d:%02d (shortest %2d:%02d, longest %2d:%02d), %d of %d won", map[bool]string{true: "endless", false: "maps"}[endless], name, int(m)/60, int(m)%60,
+				med := lasted[len(lasted)/2]
+				t.Logf("MEDIAN %-12s %-8s %2d:%02d (shortest %2d:%02d, longest %2d:%02d), %d of %d won", arenas[m].name, name, int(med)/60, int(med)%60,
 					int(lasted[0])/60, int(lasted[0])%60, int(lasted[len(lasted)-1])/60, int(lasted[len(lasted)-1])%60, won, len(lasted))
 			}
 		}

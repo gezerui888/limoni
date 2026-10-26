@@ -3,19 +3,34 @@
 A first-person roguelite in a terminal made of terminals, built on [Limoni](../../README.md).
 
 You are the garbage collector. The frameworks have come for the heap: **Bubble Tea**, **Ratatui**,
-**tview**, **Ink** and **ncurses**, each a creature made from its own idea. Sweep them, take a card every
-level, build something broken, and get through three maps — ten minutes on each, then its warden. Or
-play `/dev/zero`, the endless map, for as long as the build holds.
+**tview**, **Ink** and **ncurses**, each a creature made from its own idea. Sweep them, pick up the bytes
+they free, take a card every level, build something broken, and sweep the map you chose — ten minutes,
+a mini-boss every two, then its warden. Or play `/dev/zero`, the endless map, for as long as the build
+holds.
 
 ```bash
 go install github.com/thebanri/limoni/apps/lemonsweep@latest
 lemonsweep            # up to 144 frames a second; -showfps shows them, -mute for silence
-lemonsweep -window    # in kitty: a window of its own, full screen, with no mouse pointer
+lemonsweep -window    # in kitty: a window of its own, full screen, with no mouse pointer;
+                      # in Apple's Terminal: a window set to draw it sharp, without stripes
+lemonsweep -gui       # macOS and Windows: a window the game draws itself, no terminal at all
 ```
+
+`-gui` paints the same cells a terminal would be sent, with Ebitengine, so it looks as it does in a good
+terminal, but its keys say when they are let go and the mouse is locked to the window during a run —
+what no terminal on macOS gives. Linux builds it only with `-tags lemonsweep_gui` (cgo and X11 headers);
+its terminals do well without it.
 
 `command not found`? `go install` puts programs in `$(go env GOPATH)/bin`, usually `~/go/bin`, which
 macOS does not put on the `PATH`. Run `~/go/bin/lemonsweep`, or add
 `export PATH="$PATH:$(go env GOPATH)/bin"` to `~/.zshrc` and open a new terminal.
+
+On Windows and in Apple's Terminal `lemonsweep` opens the `-gui` window by itself (`-gui=false` keeps
+it in the terminal; over SSH it stays there). Windows' terminals do not tell the game when a key is let go,
+and none can lock the mouse; Apple's Terminal neither holds a frame back until it is complete nor fills a cell with a block
+character: it draws them from the font into a row taller than the font, in stripes. `lemonsweep -window`
+there opens a Terminal window with a line spacing of 0.75, where SF Mono's rows are as tall as its
+glyphs, at 30 frames a second; Ghostty, iTerm2, kitty and WezTerm need nothing.
 
 ### Mouse lock
 
@@ -39,7 +54,7 @@ window of its own with kitty's `mouse_hide_wait` set so the pointer goes once th
 | left button | sweep (hold to keep firing). `F` does the same from the keyboard |
 | `R` or right button | collect early. An empty heap (magazine) collects by itself |
 | `W` `A` `S` `D` | move. `←` `→` or `Q` `E` turn |
-| `Space` | dash: a short burst no hit lands through. Two charges (◆◆ over the health), each back in 1.6 s |
+| `Space` | dash: a short burst no hit lands through. Two charges (the bars beside the fast-forward mark, over the health), each back in 1.6 s |
 | `1` `2` `3` or a click | take a card. A click counts only once the cards have stood a moment and the button that was firing has come up, so a held trigger takes nothing |
 | `Esc` or `P` | pause. In the browser, Esc also lets the pointer go |
 | `M` | sound on and off |
@@ -72,7 +87,7 @@ Kinds come in by level — spinner and boba from the start, termbox from 2, `</>
 crossterm 6, modal 8, Lip Gloss 9, caret 10, progress 11, elder 15 — and a kind not yet met this run
 comes four times as often until it has, its arrival announced.
 
-Every tenth level a boss comes, in turn, then round again, tougher. Each has a move that is its own
+Every two and a half minutes on a map a boss comes — 2:30, 5:00, 7:30, then the warden at ten; on `/dev/zero` without end — in turn, then round again, tougher. One due while another stands waits for it. Each has a move that is its own
 (`bosses.go`), and under half health a **second phase**: it says so, and comes faster.
 
 | | from | | its own move |
@@ -138,7 +153,7 @@ The elements live on the enemies as stacks, with a mark over each one carrying t
 
 | | |
 | :--- | :--- |
-| **fire** | burns hurt every half second (armour halves it). Firewall, Overheat, Wildfire (spreads as they die), Incinerate (ten burns erupt), Napalm (explosions burn), Afterburner (dashes leave fire), Phoenix Restart (a death restarts you, once in 90 s) |
+| **fire** | burns hurt every half second (armour halves it). Firewall, Overheat, Wildfire (spreads as they die), Incinerate (ten burns erupt), Napalm (explosions burn), Afterburner (dashes leave fire), Phoenix Restart (a death restarts you, once in 90 s; beside the dashes, PHOENIX counts down to the next, or says READY) |
 | **ice** | chill slows, five chills freeze: no step, no bite, no attack. Shatter, Permafrost, Ice Shards, Cold Snap (a dash ends in a frost nova), Frostbite, Cryo Plating |
 | **lightning** | Goroutines' arcs, Static (the shocked take more), Thunderstrike (every 7th hit a bolt), Short Circuit, Spark Gap (a dash zaps), Conductor, Superconductor (arcs carry burn and chill) |
 | **poison** | goes through armour. Corrosion (eats armour), Plague, Toxic Fumes, Neurotoxin (slower, softer bites), Dangling Pointer (a share of health), Mark Gas (collecting poisons what is near) |
@@ -151,23 +166,30 @@ at its last rank there is nothing left to offer, and a level is a **random stat*
 rate, health, speed, crits, rounds, regeneration or armour — taken at once, with no card screen. The broken builds are the ones that multiply each other. fork() children that bounce off walls,
 explode and throw shrapnel fill the arena with more shots than it can hold. The pool simply stays full.
 
-## Three maps, and /dev/zero
+## Four maps, and the one you choose
 
-**SWEEP** is a run through three maps, each a part of the machine with its own walls and light:
-**The Heap** (open, a few windows standing in it), **The Stack** (frames in lanes, each with a gap wide enough for a boss) and
-**Kernel Space** (a grid of pins). The heap grows with time on each. At ten minutes the map's **warden**
-comes — the Modal Queen, Ink's Reconciler, Textual's Cascade — with less of the crowd round it, as every
-boss has. The crowd is thick: many enemies, each one softer, so a sweep mows lines down, and twice as
-thick again at the start of a run, thinning to that by five minutes in. Sweep it
-and the next map opens a moment later: the build comes along, health is full again, and the new map
-starts as hard as five minutes into the last. Sweep the third and the run is won.
+The title's **SWEEP** plays the map chosen under it — A/D, the arrow keys, or a click on its card. Each
+is a part of the machine with its own walls and light: **The Heap** (open, with cover), **The Stack**
+(staggered frames) and **Kernel Space** (pins, some of them spawn windows), each harder than the last —
+it starts as hard as two and a half minutes into the one before. The heap grows with time. Every two
+minutes a **mini-boss** comes: one of the bigger enemies met so far, grown, elite, its health at the top
+of the screen; it pays most of a level and some health. At ten minutes the map's **warden** comes — the
+Modal Queen, Ink's Reconciler, Textual's Cascade — with less of the crowd round it, as every boss has.
+The crowd is thick: many enemies, each one softer, so a sweep mows lines down, and twice as thick again
+at the start of a run, thinning to that by five minutes in. Sweep the warden and the run is won.
+
+**No camping.** Every corner of every map is a spawn window, enemies come most often from the windows
+out of your sight, and a player who stays within three units of one spot for eight seconds is a *stale
+object*: the windows nearest them open too. Experience does not count on the kill either — the freed
+bytes hang in the air where the enemy fell, and pay only when you walk within reach of them (two units;
+Weak Refs reaches further). Each level takes more than the last.
 
 A warden that still stands two minutes on brings the **pressure**: enemy health doubles about every two
 minutes, they move faster, every one of them gains armour that grows by the minute, and more and more
 are insulated. Armour takes a flat amount off every hit, so a cloud of tiny shrapnel stops working just
 when it looked unbeatable.
 
-**ENDLESS** is `/dev/zero`: one open map with spawn windows all round, no warden and no end. It climbs
+The fourth map is `/dev/zero`: one open map with spawn windows all round, no warden and no end. It climbs
 slower, since no map ends there to give the health back; its pressure comes at fifteen minutes and builds
 at a third of the pace, but it does not stop.
 
@@ -177,10 +199,11 @@ wider than a tile and has a count of its own, over tiles with room on every side
 a gap it sticks in; and a body wider than a tile is tested against the walls no more than a tile apart,
 or its corners could stand either side of a thin wall with the wall inside it.
 
-A bot with perfect aim (`sim_test.go`, `SIM=1`, ten seeds a build of six actives and six passives) gets
-to a median of 11 to 32 minutes on the three maps, depending on the build, and wins about one run in
-four; the Modal Queen, the first warden, ends most of the others. On `/dev/zero` it lasts 17 to 19
-minutes. It heeds the warnings — a step aside on a
+A bot with perfect aim (`sim_test.go`, `SIM=1`, ten seeds a build of six actives and six passives on
+each map) is at level 10 at three minutes and lasts a median of 4 to 11 minutes on the three maps,
+depending on the build and the map; it sweeps a warden in about three runs in a hundred. Bosses end most runs —
+Ferris above all, at five minutes — because it does not dodge as a person does. On `/dev/zero` it lasts 11
+to 20 minutes. It heeds the warnings — a step aside on a
 wind-up, a dash through a slam or a shot about to land — and turns to a boss in sight, and nothing else,
 so the dash cards do little for it.
 
@@ -212,10 +235,10 @@ sways behind the aim and kicks on a shot. A reload is a heap change: the gun tip
 heap (the canister of glowing bytes under it, as full as the magazine) slides out and falls, a full one
 rises into the socket and clicks home with a jolt. The muzzle flash, the tracer and the rounds in flight
 (hot streaks) are light added to what is behind them; a shot also lights the room round the gun and
-lifts the view, and a kill, a blast or a hit taken shakes it. A kill's experience counts the moment it
-dies; the freed bytes only stream home for the picture.
+lifts the view, and a kill, a blast or a hit taken shakes it. A kill's bytes wait in the air, green squares
+lit along the top and pulsing (bigger for more experience), until the collector comes within reach; then they stream home.
 
-The HUD floats on panels that darken the picture under them, its numbers in the walls' pixel font. The
+The HUD floats on panels that darken the picture under them, its numbers in the walls' pixel font: health a pixel heart (it beats when low), the number, and ten pips beside it; the dashes a fast-forward mark and a bar each. At the top left a minimap, a disc about six tiles round the player and turned so ahead is up, shows the walls in the map's colour, the spawn windows, enemies (a mini-boss orange, a boss bigger) and bytes. The
 build is listed down the right edge, unframed: ACTIVE 3/6, then a row for each — its name, its ranks as
 pips, and a mark of its element's colour that, on an active, brightens as it readies to act and flashes
 as it does. A reload is a ring filling round the crosshair. The crosshair is yours

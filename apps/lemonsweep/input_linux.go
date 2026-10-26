@@ -29,7 +29,7 @@ func newPointer() *pointer {
 	c, err := dialWayland()
 	switch {
 	case errors.Is(err, errNoWayland):
-		return &pointer{why: kittyHint()}
+		return &pointer{why: windowHint()}
 	case err != nil:
 		return &pointer{why: "the compositor cannot lock the mouse: " + err.Error()}
 	}

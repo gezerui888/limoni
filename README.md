@@ -236,24 +236,7 @@ backdrop-shell enable -scene synthwave    # or -image wall.jpg, or -art my-art.t
 Drawing and animating your own: [docs/backdrop-art.md](docs/backdrop-art.md). The same scenes go
 behind any Limoni application with `limoni.WithBackdrop(backdrop.Aurora())`.
 
-### And a game: Castle Lemonstein
-
-<p align="center"><img src="assets/castle-lemonstein.png" alt="Castle Lemonstein: the moonlit castle title screen with gold lettering and burgundy banners" width="100%" /></p>
-
-[**Castle Lemonstein**](apps/castle-lemonstein) is a short first-person game. Squirt the rats and find ten lemons inside a banner-lined stone castle,
-and the gate to the lair lifts on Ratatui, king of the rats, who has a crown, a health bar and cheese to throw.
-
-```bash
-go install github.com/thebanri/limoni/apps/castle-lemonstein@latest
-castle-lemonstein
-```
-
-Or [play it in the browser](https://thebanri.github.io/limoni/?app=castle-lemonstein), sound included.
-
-It is a raycaster drawn two pixels to a cell in half blocks, with lit textures, pixel-art rats, 3D half lemons
-ray-traced per pixel, and sound synthesised at start-up. A frame allocates nothing, through the diff too. It
-holds keys down with `WithKeyReleases`, so walking is smooth in kitty, Ghostty and WezTerm. Runs are scored
-on aim and time, onto a leaderboard kept in a file, or in the browser's storage.
+### And some games
 
 [**Lemon Drop**](apps/lemondrop) is falling blocks where a piece that lands crumbles into sand of its colour.
 A run of one colour that reaches from wall to wall is the line: it flashes and goes, and what rested on it
@@ -281,7 +264,7 @@ lemonsnake
 Or [play it in the browser](https://thebanri.github.io/limoni/?app=lemonsnake), with its sound and the
 world leaderboard.
 
-<p align="center"><img src="assets/lemonsweep.png" alt="Lemon Sweep: a tview modal, a Bubble Tea cup, Ferris, an ncurses box and a progress bar coming down a corridor of terminal windows" width="100%" /></p>
+<p align="center"><img src="assets/lemonsweep.png" alt="Lemon Sweep: a giant crab mini-boss under its health bar at the top, a tview modal, a Bubble Tea cup and an ncurses box among terminal-window walls, green bytes in the air, a boomerang and an arc of lightning, the minimap at the top left, the heart and the dash mark at the bottom left" width="100%" /></p>
 
 [**Lemon Sweep**](apps/lemonsweep) is a first-person roguelite in a terminal made of terminals: the walls
 are a shell, a log viewer, some Go and htop. You are the garbage collector, and Bubble Tea, Ratatui, tview,
@@ -290,7 +273,9 @@ spinners, Ferris, double-lined modals that split into their buttons, `</>` that 
 the mouse (an empty heap reloads by itself), and take an augment card every level; once every card held
 is at its last rank, a level is a random stat. Shots that split, bounce, explode and arc multiply each
 other into something broken, and the RECIPES book says which cards do.
-After ten minutes the pressure builds (armour, insulation, speed), and no build holds it for long. There is
+Pick one of four maps on the title: a mini-boss comes every two minutes, a boss every two and a half, and
+the map's warden at ten; if it stands, the pressure builds (armour, insulation, speed), and no build holds
+it for long. Experience hangs in the air until you walk over it, and a corner is no place to hide. There is
 no leaderboard: records stay on the machine, or in the browser.
 
 ```bash
