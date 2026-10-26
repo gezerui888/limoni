@@ -153,6 +153,92 @@ func (c canvas) icon(x, py, scale int, rows []string, a, b rgb) {
 	}
 }
 
+// The minimap: miniD pixels across, miniPx pixels to a tile, so about six
+// tiles round the player.
+const (
+	miniD  = 18
+	miniPx = 1.5
+)
+
+// drawMinimap draws the arena round the player in a disc at the top left,
+// from row y0, turned so that ahead is up: walls in the map's colour, spawn
+// windows, enemies (a mini-boss orange, a boss bigger), bytes, and the
+// player an arrow in the middle. It returns the row under it.
+func (g *game) drawMinimap(c canvas, y0 int) int {
+	r := float64(miniD) / 2
+	f, rt := dir(g.ang), dir(g.ang+math.Pi/2)
+	floor, wall, spawn, rim := hex(0x0a0d18), hex(cur.accent).mul(0.5), hex(0xff4fa0).mul(0.75), hex(0x2a3350)
+	for py := 0; py < miniD; py++ {
+		for px := 0; px < miniD; px++ {
+			dx, dy := float64(px)+0.5-r, float64(py)+0.5-r
+			dd := dx*dx + dy*dy
+			if dd > r*r {
+				continue
+			}
+			col := rim
+			if dd < (r-1)*(r-1) {
+				// Right on the map is the player's right, up is ahead.
+				w := g.pos.add(rt.scale(dx / miniPx)).add(f.scale(-dy / miniPx))
+				switch tile(int(math.Floor(w.x)), int(math.Floor(w.y))) {
+				case '.':
+					col = floor
+				case 'P':
+					col = spawn
+				default:
+					col = wall
+				}
+			}
+			c.px(1+px, 2*y0+py, col)
+		}
+	}
+	for i := range g.bytes {
+		if b := &g.bytes[i]; b.alive {
+			g.miniDot(c, y0, b.pos, f, rt, hex(0x4fd65e), false)
+		}
+	}
+	for i := range g.enemies {
+		e := &g.enemies[i]
+		if !e.alive || e.under > 0 || e.decoy {
+			continue
+		}
+		switch {
+		case kinds[e.k].boss:
+			g.miniDot(c, y0, e.pos, f, rt, hudPink, true)
+		case e.mini:
+			g.miniDot(c, y0, e.pos, f, rt, hudWarn, true)
+		default:
+			g.miniDot(c, y0, e.pos, f, rt, hudBad, false)
+		}
+	}
+	// The player: an arrow pointing up, ahead.
+	mx, my := 1+miniD/2, 2*y0+miniD/2
+	c.px(mx, my-2, rgb{1, 1, 1})
+	c.px(mx, my-1, rgb{1, 1, 1})
+	c.px(mx-1, my, rgb{1, 1, 1})
+	c.px(mx, my, rgb{1, 1, 1})
+	c.px(mx+1, my, rgb{1, 1, 1})
+	return y0 + miniD/2
+}
+
+// miniDot marks p on the minimap, two pixels square if big, if it is
+// inside the disc.
+func (g *game) miniDot(c canvas, y0 int, p, f, rt vec, col rgb, big bool) {
+	r := float64(miniD) / 2
+	d := p.sub(g.pos)
+	sx := (d.x*rt.x + d.y*rt.y) * miniPx
+	sy := -(d.x*f.x + d.y*f.y) * miniPx
+	if sx*sx+sy*sy > (r-1.5)*(r-1.5) {
+		return
+	}
+	x, y := 1+int(math.Floor(r+sx)), 2*y0+int(math.Floor(r+sy))
+	c.px(x, y, col)
+	if big {
+		c.px(x+1, y, col)
+		c.px(x, y+1, col)
+		c.px(x+1, y+1, col)
+	}
+}
+
 func (g *game) drawHUD(c canvas, v *view) {
 	if g.onTitle() || c.w < 24 || c.h < 8 {
 		return
@@ -173,9 +259,12 @@ func (g *game) drawHUD(c canvas, v *view) {
 	x += barW + 1
 	c.fgClock(x, 0, int(g.runTime), hudText)
 
-	// The build: in a panel on the right when there is room, else listed
-	// under the level.
+	// Under it, the map round the player; the build, when it is not in
+	// the panel on the right, under that.
 	y := 1
+	if h >= 24 {
+		y = g.drawMinimap(c, 1)
+	}
 	rows := max(0, h/2-3)
 	if g.drawSlots(c) {
 		rows = -1

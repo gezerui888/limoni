@@ -264,7 +264,7 @@ lemonsnake
 Or [play it in the browser](https://thebanri.github.io/limoni/?app=lemonsnake), with its sound and the
 world leaderboard.
 
-<p align="center"><img src="assets/lemonsweep.png" alt="Lemon Sweep: a giant crab mini-boss under its health bar at the top, a tview modal, a Bubble Tea cup and an ncurses box among terminal-window walls, green bytes in the air, a boomerang and an arc of lightning, the heart and the dash mark at the bottom left" width="100%" /></p>
+<p align="center"><img src="assets/lemonsweep.png" alt="Lemon Sweep: a giant crab mini-boss under its health bar at the top, a tview modal, a Bubble Tea cup and an ncurses box among terminal-window walls, green bytes in the air, a boomerang and an arc of lightning, the minimap at the top left, the heart and the dash mark at the bottom left" width="100%" /></p>
 
 [**Lemon Sweep**](apps/lemonsweep) is a first-person roguelite in a terminal made of terminals: the walls
 are a shell, a log viewer, some Go and htop. You are the garbage collector, and Bubble Tea, Ratatui, tview,

@@ -247,7 +247,7 @@ lemonsnake
 Ya da [tarayıcıda oyna](https://thebanri.github.io/limoni/?app=lemonsnake); sesi ve dünya skor
 tablosu da var.
 
-<p align="center"><img src="assets/lemonsweep.png" alt="Lemon Sweep: üstte can barıyla dev bir yengeç mini boss, terminal penceresi duvarlar arasında bir tview modalı, bir Bubble Tea bardağı ve bir ncurses kutusu, havada yeşil baytlar, bir bumerang ve bir şimşek, sol altta kalp ve dash işareti" width="100%" /></p>
+<p align="center"><img src="assets/lemonsweep.png" alt="Lemon Sweep: üstte can barıyla dev bir yengeç mini boss, terminal penceresi duvarlar arasında bir tview modalı, bir Bubble Tea bardağı ve bir ncurses kutusu, havada yeşil baytlar, bir bumerang ve bir şimşek, sol üstte mini harita, sol altta kalp ve dash işareti" width="100%" /></p>
 
 [**Lemon Sweep**](apps/lemonsweep) terminallerden yapılmış bir terminalde geçen birinci şahıs bir roguelite:
 duvarlar bir kabuk, bir log görüntüleyici, biraz Go ve htop. Sen çöp toplayıcısın; Bubble Tea, Ratatui,
