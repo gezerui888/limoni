@@ -72,12 +72,12 @@ var arenas = [...]arena{
 	{
 		name: "USERLAND", accent: 0x4fd1c5, about: "an open world",
 		floor: 0x090f12, seam: 0x1d4a50, ceil: 0x060a0d, tray: 0x0f1c20, light: 0x24545a,
-		rows:  userland(), start: vec{32, 32.5}, far: [2]vec{{32, 6}, {32, 58}},
+		rows: userland(), start: vec{32, 32.5}, far: [2]vec{{32, 6}, {32, 58}},
 	},
 	{
 		name: "KERNEL SPACE", accent: 0xff5a6e, about: "rings round ring 0",
 		floor: 0x140709, seam: 0x5c1c28, ceil: 0x0e0507, tray: 0x26101a, light: 0x5a2232,
-		rows:  rings(), start: vec{17, 17.5}, far: [2]vec{{17, 2.5}, {17, 31.5}},
+		rows: rings(), start: vec{17, 17.5}, far: [2]vec{{17, 2.5}, {17, 31.5}},
 	},
 	{
 		name: "/dev/zero", accent: 0x6ee07a, about: "open, and no end",
