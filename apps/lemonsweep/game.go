@@ -761,7 +761,7 @@ func (g *game) enter(i int) {
 	g.nShots, g.shotTop = 0, 0
 	g.zones, g.hazards, g.rings, g.arcs = [maxZones]zone{}, [maxHazards]hazard{}, [maxRings]ringFX{}, [maxArcs]arcFX{}
 	g.wave, g.vortex, g.pullT = wave{}, vortex{}, 0
-	g.pos, g.ang = vec{16, 16.5}, -math.Pi/2
+	g.pos, g.ang = cur.start, -math.Pi/2
 	g.anchor, g.stillT, g.miniAt, g.bossAt = g.pos, 0, miniEvery, bossEvery
 	g.prevAim = g.ang // or the gun swings at the start of every map
 }
@@ -770,11 +770,7 @@ func (g *game) enter(i int) {
 // next map, tougher than one met by level.
 func (g *game) spawnWarden() {
 	k := wardens[g.stage]
-	p := vec{16, 4}
-	if g.pos.y < 16 {
-		p = vec{16, 28}
-	}
-	if i := g.addEnemy(k, p); i >= 0 {
+	if i := g.addEnemy(k, farSpawn(g.pos)); i >= 0 {
 		e := &g.enemies[i]
 		e.warden = true
 		e.hp *= wardenHP[g.stage]

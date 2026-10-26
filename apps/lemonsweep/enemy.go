@@ -327,6 +327,12 @@ func (g *game) portal() vec {
 	}
 	behind := g.rnd.f() < 0.6
 	f := dir(g.ang)
+	// On a map wider than a screen of fog, a window across it sends
+	// nothing that arrives in time: only those within reach.
+	reach := math.Inf(1)
+	if len(cur.rows) > 32 {
+		reach = 24 * 24
+	}
 	var best, far vec
 	haveFar := false
 	for try := 0; try < 10; try++ {
@@ -334,7 +340,7 @@ func (g *game) portal() vec {
 		best = p
 		d := p.sub(g.pos)
 		dd := d.x*d.x + d.y*d.y
-		if dd <= 36 {
+		if dd <= 36 || dd > reach {
 			continue
 		}
 		if !behind || d.x*f.x+d.y*f.y < math.Cos(fov/2+0.2)*math.Sqrt(dd) {
@@ -346,6 +352,15 @@ func (g *game) portal() vec {
 	}
 	if haveFar {
 		return far
+	}
+	if !math.IsInf(reach, 1) {
+		// Nothing within reach was drawn: the nearest past six.
+		bd := math.Inf(1)
+		for _, p := range portals {
+			if dd := p.dist2(g.pos); dd > 36 && dd < bd {
+				best, bd = p, dd
+			}
+		}
 	}
 	return best
 }
@@ -440,11 +455,7 @@ func (g *game) spawnBoss() {
 	// Each boss in the order is tougher than the last by its own health;
 	// each time the order comes round, all of them again.
 	round := float64(g.bossN / len(bosses))
-	p := vec{16, 4}
-	if g.pos.y < 16 {
-		p = vec{16, 28}
-	}
-	if i := g.addEnemy(k, p); i >= 0 {
+	if i := g.addEnemy(k, farSpawn(g.pos)); i >= 0 {
 		g.enemies[i].hp *= 1 + 0.8*round
 		g.enemies[i].max = g.enemies[i].hp
 		g.bossLive = true

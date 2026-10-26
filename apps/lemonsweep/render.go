@@ -111,7 +111,7 @@ func (g *game) render(b *buffer.Buffer) {
 	}
 	pos := g.pos
 	if g.onTitle() {
-		pos = vec{16, 16}
+		pos = cur.start
 	}
 	sc.decals = sc.decals[:0]
 	if !g.onTitle() {

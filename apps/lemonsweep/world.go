@@ -9,12 +9,16 @@ import (
 // a log viewer, some Go, htop — and the frameworks come in through the
 // spawn windows (P).
 
-const mapW, mapH = 32, 32
+// mapW and mapH are the largest map's size; a smaller one is the top left
+// corner of it, and everything past its edge is wall.
+const mapW, mapH = 64, 64
 
 // arena is a map: its walls, and the colours of its floor and ceiling.
 type arena struct {
 	name                           string
-	rows                           [mapH]string
+	rows                           []string
+	start                          vec    // where a run starts
+	far                            [2]vec // where bosses come in: the one further from the player
 	floor, seam, ceil, tray, light uint32
 	accent                         uint32 // its colour on the menus
 	about                          string // a line under its name on the title, 21 at most
@@ -29,7 +33,8 @@ var arenas = [...]arena{
 	{
 		name: "THE HEAP", accent: 0x5ad1ff, about: "open, with cover",
 		floor: 0x0a0d18, seam: 0x24365e, ceil: 0x07090f, tray: 0x111727, light: 0x2a3654,
-		rows: [mapH]string{
+		start: vec{16, 16.5}, far: [2]vec{{16, 4}, {16, 28}},
+		rows: []string{
 			"zzzzPzzzllllllllllllllllzzzPzzzz",
 			"zzP..........................Pzz",
 			"zP............................Pz",
@@ -65,85 +70,20 @@ var arenas = [...]arena{
 		},
 	},
 	{
-		name: "THE STACK", accent: 0xffa94a, about: "staggered frames",
-		floor: 0x110c08, seam: 0x5a3a1c, ceil: 0x0c0806, tray: 0x22170d, light: 0x5a4024,
-		rows: [mapH]string{
-			"zzzzPzzzcccccccPPccccccczzzPzzzz",
-			"zzP..........................Pzz",
-			"zP............................Pz",
-			"z..............................z",
-			"z..............................z",
-			"z...cccccc............cccccc...z",
-			"z..............................z",
-			"P..............................P",
-			"z.......cccccc....cccccc.......z",
-			"z..............................z",
-			"z..............................z",
-			"z...cccccc...P....P...cccccc...z",
-			"z..............................z",
-			"z.......hh............hh.......z",
-			"z.......hh............hh.......z",
-			"P..............................P",
-			"P..............................P",
-			"z.......hh............hh.......z",
-			"z.......hh............hh.......z",
-			"z..............................z",
-			"z...cccccc...P....P...cccccc...z",
-			"z..............................z",
-			"z..............................z",
-			"z.......cccccc....cccccc.......z",
-			"P..............................P",
-			"z..............................z",
-			"z...cccccc............cccccc...z",
-			"z..............................z",
-			"z..............................z",
-			"zP............................Pz",
-			"zzP..........................Pzz",
-			"zzzzPzzzcccccccPPccccccczzzPzzzz",
-		},
+		name: "USERLAND", accent: 0x4fd1c5, about: "an open world",
+		floor: 0x090f12, seam: 0x1d4a50, ceil: 0x060a0d, tray: 0x0f1c20, light: 0x24545a,
+		rows:  userland(), start: vec{32, 32.5}, far: [2]vec{{32, 6}, {32, 58}},
 	},
 	{
-		name: "KERNEL SPACE", accent: 0xff5a6e, about: "pins that spawn",
+		name: "KERNEL SPACE", accent: 0xff5a6e, about: "rings round ring 0",
 		floor: 0x140709, seam: 0x5c1c28, ceil: 0x0e0507, tray: 0x26101a, light: 0x5a2232,
-		rows: [mapH]string{
-			"hhhhPhhhhhhhhhhPPhhhhhhhhhhPhhhh",
-			"hhP..........................Phh",
-			"hP............................Ph",
-			"h..............................h",
-			"h..............................h",
-			"h....ll....PP......PP....ll....h",
-			"P....ll....PP......PP....ll....P",
-			"h..............................h",
-			"h..............................h",
-			"h........z............z........h",
-			"h..............................h",
-			"h....cc....ll......ll....cc....h",
-			"h....cc....ll......ll....cc....h",
-			"h..............................h",
-			"h..............................h",
-			"h..............................h",
-			"h..............................h",
-			"h..............................h",
-			"h..............................h",
-			"h....cc....ll......ll....cc....h",
-			"h....cc....ll......ll....cc....h",
-			"h..............................h",
-			"h........z............z........h",
-			"h..............................h",
-			"h..............................h",
-			"P....ll....PP......PP....ll....P",
-			"h....ll....PP......PP....ll....h",
-			"h..............................h",
-			"h..............................h",
-			"hP............................Ph",
-			"hhP..........................Phh",
-			"hhhhPhhhhhhhhhhPPhhhhhhhhhhPhhhh",
-		},
+		rows:  rings(), start: vec{17, 17.5}, far: [2]vec{{17, 2.5}, {17, 31.5}},
 	},
 	{
 		name: "/dev/zero", accent: 0x6ee07a, about: "open, and no end",
 		floor: 0x070b08, seam: 0x1e4a2c, ceil: 0x050806, tray: 0x0f1a12, light: 0x24503a,
-		rows: [mapH]string{
+		start: vec{16, 16.5}, far: [2]vec{{16, 4}, {16, 28}},
+		rows: []string{
 			"zzzPzzzzzPzzzzzzzzzzzzPzzzzzPzzz",
 			"zzP..........................Pzz",
 			"zP............................Pz",
@@ -203,10 +143,182 @@ func useArena(i int) {
 }
 
 func tile(x, y int) byte {
-	if x < 0 || y < 0 || x >= mapW || y >= mapH {
+	if y < 0 || y >= len(cur.rows) || x < 0 || x >= len(cur.rows[y]) {
 		return 'z'
 	}
 	return cur.rows[y][x]
+}
+
+// farSpawn is where a boss comes in: of the map's two places, the one
+// further from p.
+func farSpawn(p vec) vec {
+	if p.dist2(cur.far[0]) < p.dist2(cur.far[1]) {
+		return cur.far[1]
+	}
+	return cur.far[0]
+}
+
+// userland is the open world: 64 tiles a side of open floor, with ruins of
+// windows scattered over it — walls, corners, blocks — and spawn windows
+// standing in the open. No two ruins come closer than three tiles, so a
+// boss walks between any two, and the start and the bosses' places are
+// left clear. Laid out by a fixed seed: the same world every time.
+func userland() []string {
+	const n = mapW
+	g := frame(n, 'z')
+	for _, k := range [...]int{11, 22, 41, 52} {
+		g[0][k], g[n-1][k], g[k][0], g[k][n-1] = 'P', 'P', 'P', 'P'
+	}
+	clear := [...]vec{{32, 32.5}, {32, 6}, {32, 58}}
+	r := rng(0x5eed1a7d)
+	walls := "zlch"
+	placed, shrines := 0, 0
+	for try := 0; try < 20000 && placed < 110; try++ {
+		var shape [][2]int
+		t := walls[r.intn(len(walls))]
+		switch k := r.intn(7); {
+		case shrines < 16 || k == 6 && shrines < 24: // a spawn window in the open, two by two
+			shape, t = [][2]int{{0, 0}, {1, 0}, {0, 1}, {1, 1}}, 'P'
+		case k == 0 || k == 1: // a straight wall
+			l := 3 + r.intn(6)
+			for i := 0; i < l; i++ {
+				if k == 0 {
+					shape = append(shape, [2]int{i, 0})
+				} else {
+					shape = append(shape, [2]int{0, i})
+				}
+			}
+		case k == 2 || k == 3: // a corner
+			a, b := 3+r.intn(4), 3+r.intn(4)
+			for i := 0; i < a; i++ {
+				shape = append(shape, [2]int{i, 0})
+			}
+			for i := 1; i < b; i++ {
+				shape = append(shape, [2]int{(a - 1) * (k - 2), i})
+			}
+		case k == 4: // a block
+			for i := 0; i < 2+r.intn(2); i++ {
+				for j := 0; j < 2+r.intn(2); j++ {
+					shape = append(shape, [2]int{i, j})
+				}
+			}
+		default: // a pillar
+			shape = [][2]int{{0, 0}}
+		}
+		x0, y0 := 4+r.intn(n-8), 4+r.intn(n-8)
+		if !fits(g, shape, x0, y0, clear[:]) {
+			continue
+		}
+		for _, d := range shape {
+			g[y0+d[1]][x0+d[0]] = t
+		}
+		placed++
+		if t == 'P' {
+			shrines++
+		}
+	}
+	return rowsOf(g)
+}
+
+// fits reports whether shape at (x0, y0) stays four tiles in from the
+// edge, has no wall within three tiles of it, and keeps six tiles from
+// every point in clear.
+func fits(g [][]byte, shape [][2]int, x0, y0 int, clear []vec) bool {
+	n := len(g)
+	for _, d := range shape {
+		x, y := x0+d[0], y0+d[1]
+		if x < 4 || y < 4 || x >= n-4 || y >= n-4 {
+			return false
+		}
+		for _, c := range clear {
+			if math.Abs(float64(x)+0.5-c.x) < 6 && math.Abs(float64(y)+0.5-c.y) < 6 {
+				return false
+			}
+		}
+		for yy := y - 3; yy <= y+3; yy++ {
+			for xx := x - 3; xx <= x+3; xx++ {
+				if g[yy][xx] != '.' {
+					return false
+				}
+			}
+		}
+	}
+	return true
+}
+
+// rings is Kernel Space: square rings round ring 0, where the run starts,
+// each with two gaps four tiles wide, the next ring's turned a quarter, so
+// the way in winds round. The corridors between are three tiles wide and
+// the outermost four, so a boss turns its corners past the spawn windows
+// there. Spawn windows stand at the outer ring's corners too, and in the
+// middle one's sides.
+func rings() []string {
+	const n = 34
+	g := frame(n, 'h')
+	for _, k := range [...]int{10, 23} {
+		g[0][k], g[n-1][k], g[k][0], g[k][n-1] = 'P', 'P', 'P', 'P'
+	}
+	for y := 1; y < n-1; y++ {
+		for x := 1; x < n-1; x++ {
+			// Twice the distance from the middle, so a whole number.
+			dx, dy := abs(2*x-(n-1)), abs(2*y-(n-1))
+			d := max(dx, dy)
+			var t byte
+			switch d {
+			case 7: // ring 1: gaps east and west
+				if dx == d && dy <= 3 {
+					continue
+				}
+				t = 'c'
+			case 15: // ring 2: gaps north and south
+				if dy == d && dx <= 3 {
+					continue
+				}
+				t = 'l'
+				if dx == d && dy <= 1 {
+					t = 'P'
+				}
+			case 23: // ring 3: gaps east and west
+				if dx == d && dy <= 3 {
+					continue
+				}
+				t = 'z'
+				if dx == d && dy == d {
+					t = 'P'
+				}
+			default:
+				continue
+			}
+			g[y][x] = t
+		}
+	}
+	return rowsOf(g)
+}
+
+// frame is an n by n map of floor walled round with w, a spawn window
+// either side of each corner.
+func frame(n int, w byte) [][]byte {
+	g := make([][]byte, n)
+	for y := range g {
+		g[y] = []byte(strings.Repeat(".", n))
+		g[y][0], g[y][n-1] = w, w
+	}
+	for x := 0; x < n; x++ {
+		g[0][x], g[n-1][x] = w, w
+	}
+	for _, c := range [4][4]int{{1, 1, 1, 1}, {n - 2, 1, -1, 1}, {1, n - 2, 1, -1}, {n - 2, n - 2, -1, -1}} {
+		x, y, dx, dy := c[0], c[1], c[2], c[3]
+		g[y][x], g[y][x+dx], g[y+dy][x] = w, 'P', 'P'
+	}
+	return g
+}
+
+func rowsOf(g [][]byte) []string {
+	rows := make([]string, len(g))
+	for y, r := range g {
+		rows[y] = string(r)
+	}
+	return rows
 }
 
 func solid(x, y float64) bool { return tile(int(math.Floor(x)), int(math.Floor(y))) != '.' }
@@ -264,7 +376,7 @@ func cast(px, py, dx, dy float64) hit {
 		sy, sdy = 1, (float64(my)+1-py)*ddy
 	}
 	side := 0
-	for i := 0; i < 128; i++ {
+	for i := 0; i < 192; i++ { // across the largest map, corner to corner
 		if sdx < sdy {
 			sdx += ddx
 			mx += sx

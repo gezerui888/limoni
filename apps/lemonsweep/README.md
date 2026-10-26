@@ -170,8 +170,11 @@ explode and throw shrapnel fill the arena with more shots than it can hold. The 
 ## Four maps, and the one you choose
 
 The title's **SWEEP** plays the map chosen under it — A/D, the arrow keys, or a click on its card. Each
-is a part of the machine with its own walls and light: **The Heap** (open, with cover), **The Stack**
-(staggered frames) and **Kernel Space** (pins, some of them spawn windows), each harder than the last —
+is a part of the machine with its own walls and light: **The Heap** (a room, open, with cover),
+**Userland** (an open world four times its size: ruins of windows scattered over open ground, spawn
+windows standing in the open, the far side lost in the haze; enemies come from windows within 24 tiles)
+and **Kernel Space** (square rings round ring 0, where the run starts, each ring's gaps a quarter turn from
+the last, so the way in winds round), each harder than the last —
 it starts as hard as two and a half minutes into the one before. The heap grows with time. Every two
 minutes a **mini-boss** comes: one of the bigger enemies met so far, grown, elite, its health at the top
 of the screen; it pays most of a level and some health. At ten minutes the map's **warden** comes — the

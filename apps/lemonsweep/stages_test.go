@@ -16,20 +16,24 @@ func TestEveryMapIsWhole(t *testing.T) {
 	defer useArena(0)
 	for i := range arenas {
 		a := &arenas[i]
+		n := len(a.rows)
+		if n > mapH {
+			t.Fatalf("%s is %d tall, more than mapH", a.name, n)
+		}
 		for y, row := range a.rows {
-			if len(row) != mapW {
-				t.Fatalf("%s row %d is %d wide", a.name, y, len(row))
+			if len(row) != n {
+				t.Fatalf("%s row %d is %d wide, the map %d tall", a.name, y, len(row), n)
 			}
 		}
 		useArena(i)
-		for k := 0; k < mapW; k++ {
-			for _, p := range [4][2]int{{k, 0}, {k, mapH - 1}, {0, k}, {mapW - 1, k}} {
+		for k := 0; k < n; k++ {
+			for _, p := range [4][2]int{{k, 0}, {k, n - 1}, {0, k}, {n - 1, k}} {
 				if tile(p[0], p[1]) == '.' {
 					t.Fatalf("%s is open at %v", a.name, p)
 				}
 			}
 		}
-		for _, p := range []vec{{16, 16.5}, {16, 4}, {16, 28}} {
+		for _, p := range []vec{a.start, a.far[0], a.far[1]} {
 			if !free(p.x, p.y, 0.6) {
 				t.Fatalf("%s: %v is not floor", a.name, p)
 			}
@@ -39,8 +43,9 @@ func TestEveryMapIsWhole(t *testing.T) {
 		}
 		// Flood the floor from the start; every floor tile must be reached.
 		var seen [mapW * mapH]bool
-		todo := [][2]int{{16, 16}}
-		seen[16*mapW+16] = true
+		sx, sy := int(a.start.x), int(a.start.y)
+		todo := [][2]int{{sx, sy}}
+		seen[sy*mapW+sx] = true
 		for len(todo) > 0 {
 			p := todo[len(todo)-1]
 			todo = todo[:len(todo)-1]
@@ -226,14 +231,15 @@ func TestTheTitlePicksTheMap(t *testing.T) {
 	}
 }
 
-// An enemy with a wall across its line walks round it: on THE STACK a
-// boba straight above a frame's wall reaches a player straight below it.
+// An enemy with a wall across its line walks round it: in Kernel Space a
+// boba in the second ring's corridor reaches a player in the first's, the
+// ring's wall between them and its gap round the corner.
 func TestEnemiesWalkRoundWalls(t *testing.T) {
 	g := playing()
 	defer useArena(0)
-	g.enter(1)
-	g.pos = vec{8.5, 9.5}
-	i := g.addEnemy(kBoba, vec{8.5, 3.5})
+	g.enter(2)
+	g.pos = vec{11.5, 11.5}
+	i := g.addEnemy(kBoba, vec{11.5, 7.5})
 	if g.sees(g.enemies[i].pos) {
 		t.Fatal("the wall is not between them")
 	}
@@ -288,7 +294,7 @@ func TestTitleShowsTheMaps(t *testing.T) {
 		b := buffer.NewBuffer(cell.Rect{Width: sz[0], Height: sz[1]})
 		g.render(b)
 		screen := snapshot(b)
-		for _, want := range []string{"THE HEAP", "THE STACK", "KERNEL SPACE", "/dev/zero", "warden down", "0:41", "20:50"} {
+		for _, want := range []string{"THE HEAP", "USERLAND", "KERNEL SPACE", "/dev/zero", "warden down", "0:41", "20:50"} {
 			if !strings.Contains(screen, want) {
 				t.Errorf("%dx%d: the title has no %q\n%s", sz[0], sz[1], want, screen)
 			}
@@ -324,9 +330,12 @@ func TestBossesDoNotStickInWalls(t *testing.T) {
 			kd := &kinds[k]
 			var at, me vec
 			for {
-				at = vec{1 + r.f()*(mapW-2), 1 + r.f()*(mapH-2)}
-				me = vec{1 + r.f()*(mapW-2), 1 + r.f()*(mapH-2)}
-				if free(at.x, at.y, kd.r*0.8) && free(me.x, me.y, playerR) && at.dist2(me) > 12*12 {
+				// Within thirty of each other: on the open world, further is
+				// a walk of more than the minute given, not a boss stuck.
+				n := float64(len(cur.rows))
+				at = vec{1 + r.f()*(n-2), 1 + r.f()*(n-2)}
+				me = vec{1 + r.f()*(n-2), 1 + r.f()*(n-2)}
+				if free(at.x, at.y, kd.r*0.8) && free(me.x, me.y, playerR) && at.dist2(me) > 12*12 && at.dist2(me) < 30*30 {
 					break
 				}
 			}

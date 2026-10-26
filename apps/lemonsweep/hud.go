@@ -163,7 +163,7 @@ const (
 // drawMinimap draws the arena round the player in a disc at the top left,
 // from row y0, turned so that ahead is up: walls in the map's colour, spawn
 // windows, enemies (a mini-boss orange, a boss bigger), bytes, and the
-// player an arrow in the middle. It returns the row under it.
+// player a caret in the middle. It returns the row under it.
 func (g *game) drawMinimap(c canvas, y0 int) int {
 	r := float64(miniD) / 2
 	f, rt := dir(g.ang), dir(g.ang+math.Pi/2)
@@ -210,13 +210,13 @@ func (g *game) drawMinimap(c canvas, y0 int) int {
 			g.miniDot(c, y0, e.pos, f, rt, hudBad, false)
 		}
 	}
-	// The player: an arrow pointing up, ahead.
+	// The player: a caret, ^, pointing up, ahead.
 	mx, my := 1+miniD/2, 2*y0+miniD/2
-	c.px(mx, my-2, rgb{1, 1, 1})
 	c.px(mx, my-1, rgb{1, 1, 1})
 	c.px(mx-1, my, rgb{1, 1, 1})
-	c.px(mx, my, rgb{1, 1, 1})
 	c.px(mx+1, my, rgb{1, 1, 1})
+	c.px(mx-2, my+1, rgb{1, 1, 1})
+	c.px(mx+2, my+1, rgb{1, 1, 1})
 	return y0 + miniD/2
 }
 

@@ -132,7 +132,7 @@ func TestDumpFrame(t *testing.T) {
 		},
 	}
 	// Each map, a few frameworks in it; /dev/zero as an endless run.
-	for i, name := range []string{"heap", "stack", "kernel", "zero"} {
+	for i, name := range []string{"heap", "userland", "kernel", "zero"} {
 		shots["map-"+name] = func() *game {
 			g := playing()
 			if i == len(arenas)-1 {
@@ -144,7 +144,7 @@ func TestDumpFrame(t *testing.T) {
 			g.ang = -math.Pi / 2
 			g.stageT, g.runTime, g.kills = 437, 437+float64(i)*640, 380+i*700
 			for k, kd := range []kindID{kBoba, kCrab, kBeetle, kGloss, kSpinner} {
-				g.addEnemy(kd, vec{13.5 + float64(k)*1.4, 11.5 + float64(k%2)})
+				g.addEnemy(kd, cur.start.add(vec{-2.5 + float64(k)*1.4, -5 + float64(k%2)}))
 			}
 			g.step(1.0 / 30)
 			g.msgT = 0
@@ -162,7 +162,7 @@ func TestDumpFrame(t *testing.T) {
 		return g
 	}
 	shots["pause-map"] = func() *game {
-		g := shots["map-stack"]()
+		g := shots["map-userland"]()
 		g.pauseRun()
 		return g
 	}
