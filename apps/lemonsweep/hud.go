@@ -866,7 +866,7 @@ func veil(c canvas, k float32, tint rgb) {
 
 var (
 	titleItems = [...]string{"SWEEP", "RECIPES", "SETTINGS", "QUIT"}
-	pauseItems = [...]string{"RESUME", "RECIPES", "SETTINGS", "QUIT"}
+	pauseItems = [...]string{"RESUME", "RECIPES", "SETTINGS", "MAIN MENU", "QUIT"}
 )
 
 // card draws a framed card w by h at (x, y), in the colour of its frame.
@@ -1118,7 +1118,7 @@ func (g *game) mapLine(c canvas, x, y, i int) {
 
 func (g *game) drawPause(c canvas) {
 	veil(c, 0.6, hex(0x03040a))
-	w, h := 44, 16
+	w, h := 44, 17 // five buttons, and the hint under them
 	x, y := (c.w-w)/2, (c.h-h)/2
 	card(c, x, y, w, h, hex(cardBorder))
 	bg := hex(cardBg)

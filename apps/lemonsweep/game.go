@@ -201,6 +201,7 @@ type game struct {
 	killedBy  kindID
 	killedHow string
 	pausedAt  float64
+	resumedAt float64 // when the pause last gave the run back; below zero, never
 
 	// pools
 	enemies   [maxEnemies]enemy
@@ -274,6 +275,7 @@ func (g *game) reset() {
 	g.showFPS, g.fps, g.frames, g.fpsAt = showFPS, fps, frames, fpsAt
 	g.ret, g.endless, g.mapSel, g.mapOff = ret, endless, mapSel, mapOff
 	g.enter(mapSel)
+	g.resumedAt = -1
 	g.level = 1
 	g.recalc()
 	g.hp = g.st.maxHP

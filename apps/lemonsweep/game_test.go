@@ -507,6 +507,49 @@ func TestMTogglesTheMinimap(t *testing.T) {
 	}
 }
 
+// Esc pauses and Esc resumes. On Wayland the game's window, shown again,
+// is sent the keys still held as presses: the Esc that resumed, arriving
+// again at once, must not pause the run it just resumed.
+func TestEscResumesAndStaysResumed(t *testing.T) {
+	g := playing()
+	esc := limoni.KeyEvent{Type: limoni.KeyEsc}
+	g.key(esc)
+	if g.phase != phPause {
+		t.Fatal("Esc did not pause")
+	}
+	for i := 0; i < 15; i++ { // half a second on the pause card
+		g.step(tick)
+	}
+	g.key(esc)
+	if g.phase != phPlay {
+		t.Fatal("Esc on the pause card did not resume")
+	}
+	g.step(tick)
+	g.key(esc) // the same Esc, still held when the window came back
+	if g.phase != phPlay {
+		t.Fatal("the Esc that resumed paused again")
+	}
+	for i := 0; i < 15; i++ {
+		g.step(tick)
+	}
+	g.key(esc)
+	if g.phase != phPause {
+		t.Fatal("a new Esc did not pause")
+	}
+}
+
+// MAIN MENU on the pause card goes back to the title, the run let go
+// without a record.
+func TestPauseGoesToTheTitle(t *testing.T) {
+	g := playing()
+	g.kills, g.runTime = 50, 120
+	g.pauseRun()
+	g.pausePick(3)
+	if !g.onTitle() || g.kills != 0 || g.best.runs != 0 {
+		t.Fatalf("MAIN MENU: on the title %v, kills %d, runs %d", g.onTitle(), g.kills, g.best.runs)
+	}
+}
+
 func TestSplitsAndShrapnelEnd(t *testing.T) {
 	// fork() and Cascading Diff make shots from shots; generations keep it
 	// finite even when nothing else would.
