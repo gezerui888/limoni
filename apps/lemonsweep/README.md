@@ -57,7 +57,8 @@ window of its own with kitty's `mouse_hide_wait` set so the pointer goes once th
 | `Space` | dash: a short burst no hit lands through. Two charges (the bars beside the fast-forward mark, over the health), each back in 1.6 s |
 | `1` `2` `3` or a click | take a card. A click counts only once the cards have stood a moment and the button that was firing has come up, so a held trigger takes nothing |
 | `Esc` or `P` | pause. In the browser, Esc also lets the pointer go |
-| `M` | sound on and off |
+| `M` | the minimap on and off (it is remembered) |
+| `N` | sound on and off |
 | RECIPES | in the title and the pause menus: the recipe book (below) |
 | SETTINGS | in the title and the pause menus: the sound, and the crosshair: style, colour, size, outline |
 

@@ -454,7 +454,7 @@ func TestWallTextIsInTheFont(t *testing.T) {
 }
 
 func TestRecordsRoundTrip(t *testing.T) {
-	r := records{bests: bests{runs: 3, secs: 754, level: 31, kills: 2041, peak: 612, bigHit: 1880}, endless: bests{runs: 2, secs: 1500, level: 50, kills: 9000, peak: 700, bigHit: 3000}, volume: 4, sens: 6,
+	r := records{bests: bests{runs: 3, secs: 754, level: 31, kills: 2041, peak: 612, bigHit: 1880}, endless: bests{runs: 2, secs: 1500, level: 50, kills: 9000, peak: 700, bigHit: 3000}, volume: 4, sens: 6, mapOff: true,
 		maps: [nStages]mapBest{{runs: 3, swept: 2, fastest: 41, kills: 820}, {runs: 2, swept: 1, fastest: 77, kills: 1100}}}
 	got := decodeRecords(encodeRecords(r))
 	if got != r {
@@ -469,6 +469,41 @@ func TestRecordsRoundTrip(t *testing.T) {
 	}
 	if best.secs != 100 || best.level != 9 || best.runs != 2 {
 		t.Fatalf("records kept %+v", best)
+	}
+}
+
+// M hides the minimap and shows it again, and the choice is saved; N is
+// the sound now.
+func TestMTogglesTheMinimap(t *testing.T) {
+	st := &memStore{}
+	g := playing()
+	g.store = st
+	b := buffer.NewBuffer(cell.Rect{Width: 140, Height: 44})
+	arrow := func() bool { // the player's arrow, white, in the disc's middle
+		g.render(b)
+		top, bot := halves(&b.Content[(1+miniD/4)*140+1+miniD/2])
+		white := func(c rgb) bool { return c.r > 0.9 && c.g > 0.9 && c.b > 0.9 } // cells round colours a little
+		return white(top) || white(bot)
+	}
+	if !arrow() {
+		t.Fatal("no minimap to start with")
+	}
+	g.key(limoni.KeyEvent{Type: limoni.KeyRune, Ch: 'm'})
+	if arrow() || !g.mapOff || !st.load().mapOff {
+		t.Fatalf("M: minimap still drawn or not saved (off %v, saved %v)", g.mapOff, st.load().mapOff)
+	}
+	g.reset()
+	if !g.mapOff {
+		t.Fatal("a new run brought the minimap back")
+	}
+	g.key(limoni.KeyEvent{Type: limoni.KeyRune, Ch: 'm'})
+	if !arrow() {
+		t.Fatal("M again did not bring it back")
+	}
+	vol := g.volume
+	g.key(limoni.KeyEvent{Type: limoni.KeyRune, Ch: 'n'})
+	if g.volume != 0 || vol == 0 {
+		t.Fatalf("N left the volume at %d", g.volume)
 	}
 }
 

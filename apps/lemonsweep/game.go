@@ -139,7 +139,8 @@ type game struct {
 	viewH    int
 	scrW     int // the last frame's size, for clicks on cards
 	scrH     int
-	sens     int // mouse sensitivity, 1-10 (lookScale)
+	sens     int  // mouse sensitivity, 1-10 (lookScale)
+	mapOff   bool // M hid the minimap
 
 	// the run
 	endless   bool    // /dev/zero, not one of the maps with a warden
@@ -264,14 +265,14 @@ func newGame(seed uint64) *game {
 // reset starts a new run.
 func (g *game) reset() {
 	best, store, audio, vol, last, sens, exact, seed := g.best, g.store, g.audio, g.volume, g.lastVol, g.sens, g.exact, g.rnd
-	ret, endless, mapSel := g.ret, g.endless, g.mapSel
+	ret, endless, mapSel, mapOff := g.ret, g.endless, g.mapSel, g.mapOff
 	showFPS, fps, frames, fpsAt := g.showFPS, g.fps, g.frames, g.fpsAt
 	noSound, clock, locked, mx, my, in, hint := g.noSound, g.clock, g.locked, g.mouseX, g.mouseY, g.mouseIn, g.hint
 	*g = game{}
 	g.best, g.store, g.audio, g.volume, g.lastVol, g.sens, g.exact, g.rnd = best, store, audio, vol, last, sens, exact, seed
 	g.noSound, g.clock, g.locked, g.mouseX, g.mouseY, g.mouseIn, g.hint = noSound, clock, locked, mx, my, in, hint
 	g.showFPS, g.fps, g.frames, g.fpsAt = showFPS, fps, frames, fpsAt
-	g.ret, g.endless, g.mapSel = ret, endless, mapSel
+	g.ret, g.endless, g.mapSel, g.mapOff = ret, endless, mapSel, mapOff
 	g.enter(mapSel)
 	g.level = 1
 	g.recalc()

@@ -259,10 +259,10 @@ func (g *game) drawHUD(c canvas, v *view) {
 	x += barW + 1
 	c.fgClock(x, 0, int(g.runTime), hudText)
 
-	// Under it, the map round the player; the build, when it is not in
-	// the panel on the right, under that.
+	// Under it, the map round the player (M hides it); the build, when it
+	// is not in the panel on the right, under that.
 	y := 1
-	if h >= 24 {
+	if h >= 24 && !g.mapOff {
 		y = g.drawMinimap(c, 1)
 	}
 	rows := max(0, h/2-3)

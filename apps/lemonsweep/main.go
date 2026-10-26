@@ -136,6 +136,7 @@ func newSession(seed uint64, mute bool) (*game, *mixer) {
 		if g.best.sens > 0 {
 			g.sens = g.best.sens
 		}
+		g.mapOff = g.best.mapOff
 		if g.best.volume >= 0 {
 			g.volume = g.best.volume
 			if g.volume > 0 {
@@ -274,6 +275,9 @@ func (g *game) key(k limoni.KeyEvent) {
 		case k.Type == limoni.KeySpace:
 			g.dash()
 		case isRune && ch == 'm':
+			g.mapOff = !g.mapOff
+			g.persist()
+		case isRune && ch == 'n':
 			if g.volume > 0 {
 				g.setVolume(0)
 			} else {
