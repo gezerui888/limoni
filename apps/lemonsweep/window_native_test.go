@@ -3,6 +3,7 @@
 package main
 
 import (
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -56,5 +57,26 @@ func TestWindowInAppleTerminal(t *testing.T) {
 	t.Setenv("LEMONSWEEP_WINDOW", "1")
 	if windowHint() != "" {
 		t.Error("the game's own window offers -window")
+	}
+}
+
+// The game opens its own window unasked in Apple's Terminal and on
+// Windows, but not inside -window's Terminal window or over SSH.
+func TestAutoGUI(t *testing.T) {
+	for _, c := range []struct {
+		term, window, ssh string
+		want              bool
+	}{
+		{"Apple_Terminal", "", "", true},
+		{"Apple_Terminal", "1", "", false},
+		{"Apple_Terminal", "", "10.0.0.2 22 10.0.0.1 22", false},
+		{"iTerm.app", "", "", runtime.GOOS == "windows"},
+	} {
+		t.Setenv("TERM_PROGRAM", c.term)
+		t.Setenv("LEMONSWEEP_WINDOW", c.window)
+		t.Setenv("SSH_CONNECTION", c.ssh)
+		if got := autoGUI(); got != c.want {
+			t.Errorf("%+v: autoGUI %v", c, got)
+		}
 	}
 }

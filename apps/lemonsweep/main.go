@@ -18,6 +18,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 	"time"
 
 	"github.com/thebanri/limoni"
@@ -48,10 +49,7 @@ func main() {
 		return
 	}
 
-	// Apple's Terminal draws half blocks short, in stripes: there the game
-	// opens its own window, unless asked not to or already in -window's.
-	apple := os.Getenv("TERM_PROGRAM") == "Apple_Terminal" && os.Getenv("LEMONSWEEP_WINDOW") == ""
-	if *gui || apple && !flagSet("gui") {
+	if *gui || autoGUI() && !flagSet("gui") {
 		g, mix := newSession(*seed, *mute)
 		g.showFPS = *showFPS
 		err := runGUI(g)
@@ -499,6 +497,18 @@ func (g *game) pointerButton(button int, down bool) {
 	case button == 2 && down:
 		g.reload()
 	}
+}
+
+// autoGUI reports whether the game should open its own window unasked:
+// in Apple's Terminal, which draws half blocks short, in stripes, and on
+// Windows, whose terminals never say a key was let go and cannot lock the
+// mouse. Not inside -window's Terminal window, and not over SSH, where
+// there is no desktop to open a window on.
+func autoGUI() bool {
+	if os.Getenv("LEMONSWEEP_WINDOW") != "" || os.Getenv("SSH_CONNECTION") != "" {
+		return false
+	}
+	return os.Getenv("TERM_PROGRAM") == "Apple_Terminal" || runtime.GOOS == "windows"
 }
 
 // flagSet reports whether the flag was given on the command line.
