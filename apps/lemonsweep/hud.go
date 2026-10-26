@@ -120,6 +120,49 @@ func (c canvas) fgClock(x, y, secs int, col rgb) int {
 	return c.fgNumber(x, y, secs%10, col)
 }
 
+// The HUD's pictures in pixels: '#' the colour, 'o' the second (a heart's
+// shine, the dash's trailing chevron).
+var (
+	heartIcon = [...]string{
+		".##.##.",
+		"#o#####",
+		"#######",
+		".#####.",
+		"..###..",
+		"...#...",
+	}
+	dashIcon = [...]string{
+		"oo....##....",
+		".oo....##...",
+		"..oo....##..",
+		"...oo....##.",
+		"...oo....##.",
+		"..oo....##..",
+		".oo....##...",
+		"oo....##....",
+	}
+)
+
+// icon draws rows of pixels from (x, py), each pixel scale square.
+func (c canvas) icon(x, py, scale int, rows []string, a, b rgb) {
+	for y, row := range rows {
+		for i := 0; i < len(row); i++ {
+			col := a
+			switch row[i] {
+			case '.':
+				continue
+			case 'o':
+				col = b
+			}
+			for sy := 0; sy < scale; sy++ {
+				for sx := 0; sx < scale; sx++ {
+					c.px(x+i*scale+sx, py+y*scale+sy, col)
+				}
+			}
+		}
+	}
+}
+
 func (g *game) drawHUD(c canvas, v *view) {
 	if g.onTitle() || c.w < 24 || c.h < 8 {
 		return
@@ -210,32 +253,62 @@ func (g *game) drawHUD(c canvas, v *view) {
 		c.fg((w-mw)/2+2, h/4, g.message, hudPink)
 	}
 
-	// Bottom left: health, its number big.
-	// dw: a big digit's width; lw: a letter's at scale 1, as DASH is.
-	numRows, dw, lw, dRows := (fontH*scale+2)/2, (fontW+1)*scale, fontW+1, (fontH+2)/2
+	// Bottom left: health — a heart, the number big, and beside it ten
+	// pips and the most it can be. It sits a row up, clear of the hints.
+	// dw: a big digit's width.
+	numRows, dw, dRows := (fontH*scale+2)/2, (fontW+1)*scale, (fontH+2)/2
 	if c.flat {
-		numRows, dw, lw, dRows = 2, 1, 1, 1
+		numRows, dw, dRows = 2, 1, 1
 	}
 	ph := numRows + 1
 	py := h - ph
+	hy := h - 1 - numRows
 	hpCol := hudGood
+	beat := float32(1)
 	if g.hp < g.st.maxHP*0.3 {
 		hpCol = hudBad
+		beat = 0.6 + 0.4*float32(math.Abs(math.Sin(g.clock*5)))
 	}
-	hpW := 3 + dw*digits(int(math.Ceil(g.st.maxHP))) + 2 + 1 + digits(int(g.st.maxHP)) + 1
-	shadePanel(c, 0, py, hpW, ph)
-	x = c.bigNumber(2, 2*py+1, int(math.Ceil(g.hp)), scale, hpCol)
-	c.fg(x+1, py, "HP", hudDim)
-	x = c.fg(x+1, py+numRows-1, "/", hudDim)
-	c.fgNumber(x, py+numRows-1, int(g.st.maxHP), hudDim)
-	g.bar(c, 1, h-1, hpW-2, g.hp/g.st.maxHP, hpCol, hex(0x2a1418))
+	const hpPips = 10
+	iw := scale*len(heartIcon[0]) + 1
+	if c.flat {
+		iw = 0
+	}
+	hpW := 2 + iw + dw*digits(int(math.Ceil(g.st.maxHP))) + 2 + 2*hpPips + 1
+	shadePanel(c, 0, hy, hpW, numRows)
+	x = 2
+	if !c.flat {
+		c.icon(x, 2*hy+numRows-3*scale, scale, heartIcon[:], hudBad.mul(beat), hex(0xffd0d8).mul(beat))
+		x += iw
+	}
+	x = c.bigNumber(x, 2*hy+1, int(math.Ceil(g.hp)), scale, hpCol) + 2
+	frac := g.hp / g.st.maxHP
+	for i := 0; i < hpPips; i++ {
+		// A pip a tenth of the health: full, part (dimmer), or empty.
+		k := math.Max(0, math.Min(1, frac*hpPips-float64(i)))
+		col := hex(0x2a1418)
+		if k > 0 {
+			col = col.mix(hpCol, float32(0.35+0.65*k))
+		}
+		c.px(x+2*i, 2*hy, col)
+		c.px(x+2*i, 2*hy+1, col)
+	}
+	xx := c.fg(x, hy+numRows-1, "/", hudDim)
+	c.fgNumber(xx, hy+numRows-1, int(g.st.maxHP), hudDim)
 
-	// Over it, the dashes: a bar each, like stamina, the next one filling
-	// as it recharges; and over that, what hit last.
+	// Over it, the dashes: a fast-forward mark, then a bar each, like stamina, the
+	// next one filling as it recharges; and over that, what hit last.
 	const dashBarW = 6
-	dy := py - dRows
+	if !c.flat {
+		dRows = len(dashIcon) / 2 // the mark's height
+	}
+	dy := hy - dRows
 	dCol := hex(elementCol[elDash])
-	dw0 := 2 + 4*lw + 1 + g.st.dashN*(dashBarW+1) + 1
+	markW := 5 // "DASH "
+	if !c.flat {
+		markW = len(dashIcon[0]) + 1
+	}
+	dw0 := 2 + markW + g.st.dashN*(dashBarW+1) + 1
 	if g.st.phoenix {
 		dw0 += 14 // PHOENIX and its clock, or READY
 	}
@@ -244,7 +317,13 @@ func (g *game) drawHUD(c canvas, v *view) {
 	if g.dashN > 0 {
 		tc = dCol
 	}
-	x = c.big(2, 2*dy+1, "DASH", 1, tc) + 1
+	x = 2
+	if c.flat {
+		x = c.fg(x, dy, "DASH ", tc) // no pixels to draw the mark in
+	} else {
+		c.icon(x, 2*dy, 1, dashIcon[:], tc, tc.mul(0.45))
+		x += markW
+	}
 	for i := 0; i < g.st.dashN; i++ {
 		frac, col := 1.0, dCol
 		switch {

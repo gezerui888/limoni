@@ -53,7 +53,7 @@ window of its own with kitty's `mouse_hide_wait` set so the pointer goes once th
 | left button | sweep (hold to keep firing). `F` does the same from the keyboard |
 | `R` or right button | collect early. An empty heap (magazine) collects by itself |
 | `W` `A` `S` `D` | move. `←` `→` or `Q` `E` turn |
-| `Space` | dash: a short burst no hit lands through. Two charges (◆◆ over the health), each back in 1.6 s |
+| `Space` | dash: a short burst no hit lands through. Two charges (the bars beside the fast-forward mark, over the health), each back in 1.6 s |
 | `1` `2` `3` or a click | take a card. A click counts only once the cards have stood a moment and the button that was firing has come up, so a held trigger takes nothing |
 | `Esc` or `P` | pause. In the browser, Esc also lets the pointer go |
 | `M` | sound on and off |
@@ -237,7 +237,7 @@ rises into the socket and clicks home with a jolt. The muzzle flash, the tracer 
 lifts the view, and a kill, a blast or a hit taken shakes it. A kill's bytes wait in the air, green squares
 lit along the top and pulsing (bigger for more experience), until the collector comes within reach; then they stream home.
 
-The HUD floats on panels that darken the picture under them, its numbers in the walls' pixel font. The
+The HUD floats on panels that darken the picture under them, its numbers in the walls' pixel font: health a pixel heart (it beats when low), the number, and ten pips beside it; the dashes a fast-forward mark and a bar each. The
 build is listed down the right edge, unframed: ACTIVE 3/6, then a row for each — its name, its ranks as
 pips, and a mark of its element's colour that, on an active, brightens as it readies to act and flashes
 as it does. A reload is a ring filling round the crosshair. The crosshair is yours
