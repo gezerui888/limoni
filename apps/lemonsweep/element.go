@@ -12,7 +12,7 @@ const (
 	maxBurn   = 20
 	maxPoison = 12
 	freezeAt  = 5
-	maxZones  = 64
+	maxZones  = 128 // Burn-in and Afterburner together hold ~55; gas and plague on top
 	dotTick   = 0.5
 )
 
