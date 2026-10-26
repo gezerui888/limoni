@@ -119,9 +119,11 @@ func DetectCapabilities() CapabilityProfile {
 	}
 	// Windows Terminal sets neither COLORTERM nor TERM, only WT_SESSION
 	// (passed on into WSL too), and draws 24-bit colour; so does the Windows
-	// console itself with VT processing on, which the driver requires.
+	// console itself with VT processing on, which the driver requires —
+	// on Windows, a terminal that names itself nowhere is one of the two.
 	// Without this every application there was cut down to 16 colours.
-	if os.Getenv("WT_SESSION") != "" || runtime.GOOS == "windows" {
+	// One that sets TERM or TERM_PROGRAM (tmux, mintty) is left to those.
+	if os.Getenv("WT_SESSION") != "" || runtime.GOOS == "windows" && term == "" && termProg == "" {
 		profile.TrueColor = true
 		profile.Colors256 = true
 	}
