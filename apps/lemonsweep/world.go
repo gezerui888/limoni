@@ -19,10 +19,17 @@ type arena struct {
 	rows                           []string
 	start                          vec    // where a run starts
 	far                            [2]vec // where bosses come in: the one further from the player
+	style                          byte   // its floor and ceiling: 0 a room's, styleOpen, styleBoard
 	floor, seam, ceil, tray, light uint32
 	accent                         uint32 // its colour on the menus
 	about                          string // a line under its name on the title, 21 at most
 }
+
+// The floors and ceilings of the maps that are not rooms.
+const (
+	styleOpen  = 'o' // open ground under a night sky (groundAt, skyAt)
+	styleBoard = 'b' // a circuit board's traces under a room's ceiling (traceAt)
+)
 
 // A run is one map, chosen on the title: one of the first nStages, each
 // with its warden, or the last, /dev/zero, the endless one. Every corner
@@ -70,13 +77,13 @@ var arenas = [...]arena{
 		},
 	},
 	{
-		name: "USERLAND", accent: 0x4fd1c5, about: "an open world",
-		floor: 0x090f12, seam: 0x1d4a50, ceil: 0x060a0d, tray: 0x0f1c20, light: 0x24545a,
+		name: "USERLAND", accent: 0x4fd1c5, about: "an open world", style: styleOpen,
+		floor: 0x0a120c, seam: 0x22422a, ceil: 0x04060e, tray: 0x0f1c20, light: 0x23344e,
 		rows: userland(), start: vec{32, 32.5}, far: [2]vec{{32, 6}, {32, 58}},
 	},
 	{
-		name: "KERNEL SPACE", accent: 0xff5a6e, about: "rings round ring 0",
-		floor: 0x140709, seam: 0x5c1c28, ceil: 0x0e0507, tray: 0x26101a, light: 0x5a2232,
+		name: "KERNEL SPACE", accent: 0xff5a6e, about: "rings round ring 0", style: styleBoard,
+		floor: 0x140709, seam: 0x9a5a24, ceil: 0x0e0507, tray: 0x26101a, light: 0x5a2232,
 		rows: rings(), start: vec{17, 17.5}, far: [2]vec{{17, 2.5}, {17, 31.5}},
 	},
 	{
@@ -165,13 +172,13 @@ func farSpawn(p vec) vec {
 // left clear. Laid out by a fixed seed: the same world every time.
 func userland() []string {
 	const n = mapW
-	g := frame(n, 'z')
+	g := frame(n, 'a')
 	for _, k := range [...]int{11, 22, 41, 52} {
 		g[0][k], g[n-1][k], g[k][0], g[k][n-1] = 'P', 'P', 'P', 'P'
 	}
 	clear := [...]vec{{32, 32.5}, {32, 6}, {32, 58}}
 	r := rng(0x5eed1a7d)
-	walls := "zlch"
+	walls := "fdra" // folders, documents, the trash, archives (textures.go)
 	placed, shrines := 0, 0
 	for try := 0; try < 20000 && placed < 110; try++ {
 		var shape [][2]int
@@ -254,7 +261,7 @@ func fits(g [][]byte, shape [][2]int, x0, y0 int, clear []vec) bool {
 // middle one's sides.
 func rings() []string {
 	const n = 34
-	g := frame(n, 'h')
+	g := frame(n, 'k')
 	for _, k := range [...]int{10, 23} {
 		g[0][k], g[n-1][k], g[k][0], g[k][n-1] = 'P', 'P', 'P', 'P'
 	}
@@ -269,12 +276,12 @@ func rings() []string {
 				if dx == d && dy <= 3 {
 					continue
 				}
-				t = 'c'
+				t = 'u' // CPUs (textures.go)
 			case 15: // ring 2: gaps north and south
 				if dy == d && dx <= 3 {
 					continue
 				}
-				t = 'l'
+				t = 'm' // memory
 				if dx == d && dy <= 1 {
 					t = 'P'
 				}
@@ -282,7 +289,7 @@ func rings() []string {
 				if dx == d && dy <= 3 {
 					continue
 				}
-				t = 'z'
+				t = 'k' // the board
 				if dx == d && dy == d {
 					t = 'P'
 				}
