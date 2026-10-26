@@ -496,6 +496,34 @@ func TestDumpFrame(t *testing.T) {
 			}
 		}
 	}
+	// Each active a few frames after it acts, against a row of foes that
+	// do not die: does it show? (DUMP_FRAMES: three moments each.)
+	for a := augID(0); a < nAug; a++ {
+		if !augs[a].act {
+			continue
+		}
+		for _, f := range []int{2, 4, 6, 12} {
+			if f != 6 && os.Getenv("DUMP_FRAMES") == "" {
+				continue
+			}
+			shots[fmt.Sprintf("act-%s-%02d", strings.ReplaceAll(strings.ToLower(augs[a].name), " ", ""), f)] = func() *game {
+				g := playing()
+				g.pos, g.ang, g.bossAt = vec{16, 26}, -math.Pi/2, 1e9
+				pickN(g, a, 3)
+				for i, k := range []kindID{kBoba, kCrab, kModal, kBoba, kBeetle} {
+					j := g.addEnemy(k, vec{13.5 + float64(i)*1.3, 21.5 + float64(i%2)*0.8})
+					g.enemies[j].hp, g.enemies[j].max = 1e6, 1e6
+					g.enemies[j].cd = 1e9
+				}
+				for i := 0; i < f; i++ {
+					g.step(1.0 / 30)
+					g.hp = g.st.maxHP
+				}
+				g.msgT = 0
+				return g
+			}
+		}
+	}
 	for name, make := range shots {
 		g := make()
 		w, h := uint16(140), uint16(44)

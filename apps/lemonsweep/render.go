@@ -48,6 +48,7 @@ const (
 	bbShot
 	bbPart
 	bbByte
+	bbDaemon
 )
 
 type scratch struct {
@@ -59,7 +60,7 @@ type scratch struct {
 	px     []rgb // the world's pixels, before they are sharpened into cells
 }
 
-var sc = scratch{bbs: make([]billboard, 0, maxEnemies+maxShots+maxParts+maxBytes), decals: make([]decal, 0, 32)}
+var sc = scratch{bbs: make([]billboard, 0, maxEnemies+maxShots+maxParts+maxBytes+8), decals: make([]decal, 0, 32)}
 
 func (g *game) render(b *buffer.Buffer) {
 	w, h := int(b.Area.Width), int(b.Area.Height)
@@ -360,6 +361,15 @@ func byDepth(a, b billboard) int {
 
 // project returns where world point p is on screen: its column, its depth
 // and how many rows a world unit takes there.
+// nearCut is the depth an arc reaching behind the eye is cut at: a little
+// past project's own limit.
+const nearCut = 0.2
+
+// depthOf is how far in front of the eye p is, as project measures it.
+func (v *view) depthOf(p, pos vec) float64 {
+	return v.invDet * (-v.plY*(p.x-pos.x) + v.plX*(p.y-pos.y))
+}
+
 func (v *view) project(p, pos vec) (sx, depth, rows float64, ok bool) {
 	rx, ry := p.x-pos.x, p.y-pos.y
 	tx := v.invDet * (v.dirY*rx - v.dirX*ry)
@@ -398,6 +408,9 @@ func (g *game) drawSprites(v *view, pos vec) {
 			add(g.bytes[i].pos, bbByte, i)
 		}
 	}
+	for k, n := 0, min(g.rank[augDaemon], 8); k < n; k++ {
+		add(g.daemonPos(k, n), bbDaemon, k)
+	}
 	slices.SortFunc(bbs, byDepth)
 	sc.bbs = bbs
 	for _, bb := range bbs {
@@ -410,6 +423,12 @@ func (g *game) drawSprites(v *view, pos vec) {
 			g.drawPart(v, pos, &g.parts[bb.i])
 		case bbByte:
 			g.drawByte(v, pos, &g.bytes[bb.i])
+		case bbDaemon:
+			// A daemon: a violet orb of light at chest height.
+			n := min(g.rank[augDaemon], 8)
+			if sx, depth, rows, ok := v.project(g.daemonPos(bb.i, n), pos); ok {
+				g.glowBall(v, sx, 2*(v.horizon+0.5*rows-0.55*rows), math.Min(5, math.Max(1.2, 0.09*2*rows)), depth, hex(0xc07bff))
+			}
 		}
 	}
 }
@@ -617,15 +636,19 @@ func (g *game) drawShot(v *view, pos vec, s *shot) {
 		g.glowBall(v, sx, 2*(v.horizon+0.5*rows-0.42*rows), math.Max(1, 0.1*2*rows), depth, hex(0xfff3b0))
 		return
 	}
-	if s.kind == shotPlayer && s.gen == 0 {
+	if s.kind == shotPlayer || s.kind == shotShrapnel {
 		// A round in flight: a hot streak, white at its head, its tail
-		// the way it came.
-		col := hex(0xffd36b)
+		// the way it came; a round the gun did not fire, longer and orange,
+		// since it starts off to the side.
+		col, tl := hex(0xffd36b), 0.9
+		if s.gen > 0 || s.kind == shotShrapnel {
+			col, tl = hex(0xffa040), 1.4
+		}
 		if s.crit {
 			col = hex(0xff6a3d)
 		}
 		l := s.vel.len()
-		tail := s.pos.sub(s.vel.scale(math.Min(0.9, s.age*30) / l))
+		tail := s.pos.sub(s.vel.scale(math.Min(tl, s.age*30) / l))
 		tx, _, trows, tok := v.project(tail, pos)
 		if !tok {
 			tx, trows = sx, rows
@@ -641,24 +664,18 @@ func (g *game) drawShot(v *view, pos vec, s *shot) {
 	var r rune
 	var col rgb
 	switch s.kind {
-	case shotPlayer:
-		r, col = '•', hex(0xfff3b0)
-		if s.gen > 0 {
-			r, col = '∙', hex(0xffd36b)
-		}
-		if s.crit {
-			col = hex(0xff6a3d)
-		}
-	case shotShrapnel:
-		r, col = '*', hex(0xffb347)
 	case shotShard:
-		// An ice lance: a cold streak.
-		tail := s.pos.sub(s.vel.scale(math.Min(0.7, s.age*30) / s.vel.len()))
+		// An ice lance: a long cold streak, doubled for thickness, with a
+		// glowing crystal at its point.
+		tail := s.pos.sub(s.vel.scale(math.Min(1.6, s.age*30) / s.vel.len()))
 		tx, _, trows, tok := v.project(tail, pos)
 		if !tok {
 			tx, trows = sx, rows
 		}
-		g.streak(v, tx, 2*(v.horizon+0.08*trows), sx, 2*(v.horizon+0.08*rows), depth, hex(0x9fe8ff))
+		ty, hy := 2*(v.horizon+0.08*trows), 2*(v.horizon+0.08*rows)
+		g.streak(v, tx, ty, sx, hy, depth, hex(0x9fe8ff))
+		g.streak(v, tx, ty+1, sx, hy+1, depth, hex(0x5ab8ff))
+		g.glowBall(v, sx, hy, math.Min(4, math.Max(1.3, 0.07*2*rows)), depth, hex(0xbff4ff))
 		return
 	case shotRang:
 		g.drawRang(v, sx, 2*(v.horizon+0.08*rows), math.Min(18, math.Max(2.5, 0.42*rows)), depth, s.age*24)
@@ -667,9 +684,6 @@ func (g *game) drawShot(v *view, pos vec, s *shot) {
 		r, col = '▮', hex(0xf74c00)
 	case shotPearl:
 		r, col = 'o', hex(0xff8fe0)
-	}
-	if rows > 14 && s.kind == shotPlayer {
-		r = '●'
 	}
 	g.put(v, x, y, r, col.mul(0.5+0.5*fog(depth)), 0, rgb{})
 }

@@ -255,13 +255,23 @@ func (g *game) drawArcs(v *view, pos vec) {
 		if !a.alive {
 			continue
 		}
-		ax, ad, arows, ok1 := v.project(a.a, pos)
-		bx, bd, brows, ok2 := v.project(a.b, pos)
+		// An end behind the eye — an arc from the player — is cut where it
+		// comes into view, so it seems to leave from the gun.
+		pa, pb, za, zb := a.a, a.b, a.za, a.zb
+		if da, db := v.depthOf(pa, pos), v.depthOf(pb, pos); da < nearCut && db > nearCut {
+			t := (nearCut - da) / (db - da)
+			pa, za = pa.add(pb.sub(pa).scale(t)), za+(zb-za)*t
+		} else if db < nearCut && da > nearCut {
+			t := (nearCut - db) / (da - db)
+			pb, zb = pb.add(pa.sub(pb).scale(t)), zb+(za-zb)*t
+		}
+		ax, ad, arows, ok1 := v.project(pa, pos)
+		bx, bd, brows, ok2 := v.project(pb, pos)
 		if !ok1 || !ok2 {
 			continue
 		}
-		ay := 2 * (v.horizon + 0.5*arows - a.za*arows)
-		by := 2 * (v.horizon + 0.5*brows - a.zb*brows)
+		ay := 2 * (v.horizon + 0.5*arows - za*arows)
+		by := 2 * (v.horizon + 0.5*brows - zb*brows)
 		depth := math.Min(ad, bd)
 		fade := float32(a.life / a.max)
 		const segs = 7

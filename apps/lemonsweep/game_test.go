@@ -278,6 +278,10 @@ func TestAFrameAllocatesNothing(t *testing.T) {
 		}
 		// Boomerangs in flight, the phoenix's clock, a mini-boss and bytes in the air.
 		pickN(g, augRoundTrip, 3)
+		pickN(g, augDaemon, 3)
+		pickN(g, augColdPath, 2)
+		pickN(g, augTesla, 2)
+		pickN(g, augCron, 2)
 		pickN(g, augPhoenix, 1)
 		g.phoenixT = 40
 		g.stageT = miniEvery - 1
