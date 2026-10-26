@@ -424,19 +424,21 @@ func TestDumpFrame(t *testing.T) {
 	shots["boss-textual"] = boss(kTextual, false, 12)
 	shots["poster"] = func() *game {
 		g := playing()
-		g.pos, g.ang = vec{16.12, 28.2}, -math.Pi/2
+		g.pos, g.ang = vec{16.0, 24.5}, -math.Pi/2
 		g.level, g.kills, g.runTime = 12, 412, 312
+		g.stageT = 312
 		g.bossAt = 1e9 // no boss on the poster
 		for _, a := range []augID{augREP, augREP, augFork, augPanic, augHotPath, augHotPath, augScroll} {
 			pickN(g, a, 1)
 		}
+		pickN(g, augRoundTrip, 1)
 		place := []struct {
 			k kindID
 			p vec
 		}{
-			{kModal, vec{13.9, 22.7}}, {kCrab, vec{15.95, 22.6}}, {kElder, vec{18.0, 22.7}},
-			{kBoba, vec{14.9, 24.4}}, {kBar, vec{17.1, 24.5}},
-			{kJSX, vec{15.9, 25.7}}, {kSpinner, vec{14.4, 26.0}}, {kSpinner, vec{14.0, 26.25}}, {kSpinner, vec{17.6, 26.1}},
+			{kModal, vec{12.25, 17.0}}, {kElder, vec{19.75, 17.0}},
+			{kBoba, vec{15.1, 20.0}}, {kBar, vec{17.0, 20.5}},
+			{kSpinner, vec{14.75, 21.5}}, {kSpinner, vec{16.13, 21.9}},
 		}
 		for _, e := range place {
 			i := g.addEnemy(e.k, e.p)
@@ -445,12 +447,27 @@ func TestDumpFrame(t *testing.T) {
 				g.enemies[i].hp = g.enemies[i].max * 0.6
 			}
 		}
+		// A mini-boss at the back, under its bar at the top; the rest at
+		// depths of their own, so none hides another.
+		if i := g.addEnemy(kCrab, vec{16.0, 15.0}); i >= 0 {
+			e := &g.enemies[i]
+			e.mini, e.elite, e.phaseOff = true, true, 0
+			e.hp, e.max = 380, 500
+		}
 		g.ammo = 9
 		g.hp = g.st.maxHP * 0.72
-		for i, a := range []float64{-1.66, -1.57, -1.5} {
-			g.shoot(g.pos.add(vec{0, -1.2 - float64(i)*0.9}), a, 10, 0, shotPlayer)
+		for i, a := range []float64{-1.62, -1.57, -1.52} {
+			g.shoot(g.pos.add(vec{0, -1.6 - float64(i)*1.1}), a, 10, 0, shotPlayer)
 		}
-		g.shoot(vec{15.2, 23.4}, math.Pi/2, 5, 0, shotBar)
+		for i, p := range []vec{{15.4, 18.0}, {16.9, 16.6}} {
+			j := g.shoot(p, -math.Pi/2, 10, 1, shotRang)
+			g.shots[j].age = 0.2 + 0.17*float64(i)
+		}
+		g.addArc(vec{16.4, 23.9}, vec{17.0, 20.5}, 0.3, 0.2, 0.3, hex(0xffe14a))
+		for _, p := range []vec{{15.5, 22.5}, {16.6, 21.7}, {14.6, 21.0}} {
+			g.dropBytes(p, 3)
+		}
+		g.dropBytes(vec{16.2, 22.0}, 6)
 		g.recoil = 0.62
 		g.mouseIn, g.mouseX, g.mouseY, g.viewW, g.viewH = true, 64, 21, 124, 40
 		g.msgT = 0

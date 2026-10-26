@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/ebitengine/oto/v3 v3.5.1
 	github.com/hajimehoshi/ebiten/v2 v2.10.5
-	github.com/thebanri/limoni v0.15.1-0.20261025154112-63975b856118
+	github.com/thebanri/limoni v0.15.1-0.20261026195218-8cfba2c8ef68
 	golang.org/x/image v0.45.0
 )
 

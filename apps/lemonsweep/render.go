@@ -882,7 +882,7 @@ func (g *game) drawByte(v *view, pos vec, o *orb) {
 	if o.xp >= 5 {
 		size = 0.2
 	}
-	n := int(math.Min(10, math.Max(1, size*2*rows)))
+	n := int(math.Min(6, math.Max(1, size*2*rows))) // close up, a square, not a wall of green
 	cy := 2 * (v.horizon + 0.5*rows - (0.3+0.08*math.Sin(o.t*5))*rows)
 	x0, y0 := int(sx)-n/2, int(cy)-n/2
 	k := (0.45 + 0.55*fog(depth)) * float32(0.85+0.15*math.Sin(o.t*6))
