@@ -14,7 +14,6 @@
   <a href="https://golang.org"><img src="https://img.shields.io/badge/go-%3E%3D%201.25-blue?style=flat-square&logo=go" alt="Go Version"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache_2.0-blue?style=flat-square" alt="License"></a>
   <a href="docs/benchmarks.md"><img src="https://img.shields.io/badge/draw%20path-0_B%2Fop-brightgreen?style=flat-square" alt="Zero Allocations"></a>
-  <a href="https://buymeacoffee.com/thebanri"><img src="https://img.shields.io/badge/Buy_Me_A_Coffee-support-FFDD00?style=flat-square&logo=buymeacoffee&logoColor=black" alt="Buy Me A Coffee"></a>
 </p>
 
 <p align="center">
@@ -23,6 +22,10 @@
 
 <p align="center">
   <strong><a href="https://thebanri.github.io/limoni/">▶ Try it in your browser</a></strong> — the same engine compiled to WebAssembly, no install.
+</p>
+
+<p align="center">
+  <a href="https://buymeacoffee.com/thebanri"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="50"></a>
 </p>
 
 <p align="center">
