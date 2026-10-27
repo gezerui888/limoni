@@ -2296,13 +2296,13 @@ func processState(state string) string {
 }
 
 func loadDemoMarkdown() string {
-	paths := []string{".agents/skills/limoni_development/skill.md", "../../.agents/skills/limoni_development/skill.md"}
+	paths := []string{"README.md", "../../README.md"}
 	for _, path := range paths {
 		if data, err := os.ReadFile(path); err == nil {
 			return string(data)
 		}
 	}
-	return "# Limoni Demo\nFailed to read markdown file.\n\n- `skill.md` was not found.\n- Showing fallback demo content."
+	return "# Limoni Demo\nFailed to read markdown file.\n\n- `README.md` was not found.\n- Showing fallback demo content."
 }
 
 // faceNormal is the outward normal of a front face. Front faces are wound

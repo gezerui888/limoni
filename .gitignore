@@ -26,8 +26,10 @@ platform-results/
 
 # Local tool / editor state. Skills are the exception: they are project
 # knowledge, checked in so every session and every contributor gets them.
-.claude/*
-!.claude/skills/
+# Local AI assistant notes: kept on disk, not published
+.claude/
+.agents/
+CLAUDE.md
 .idea/
 .vscode/
 settings.json
