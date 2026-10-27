@@ -14,6 +14,7 @@
   <a href="https://golang.org"><img src="https://img.shields.io/badge/go-%3E%3D%201.25-blue?style=flat-square&logo=go" alt="Go Sürümü"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/lisans-Apache_2.0-blue?style=flat-square" alt="Lisans"></a>
   <a href="docs/tr/benchmarks.md"><img src="https://img.shields.io/badge/%C3%A7izim%20yolu-0_B%2Fop-brightgreen?style=flat-square" alt="Sıfır Bellek Tahsisatı"></a>
+  <a href="https://buymeacoffee.com/thebanri"><img src="https://img.shields.io/badge/Buy_Me_A_Coffee-destek_ol-FFDD00?style=flat-square&logo=buymeacoffee&logoColor=black" alt="Buy Me A Coffee"></a>
 </p>
 
 <p align="center">
