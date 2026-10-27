@@ -1,8 +1,9 @@
 name: Docs site
 
 # Rebuilds limoni-docs (https://github.com/thebanri/limoni-docs) whenever the
-# docs change on main. That site has no content of its own: its build pulls
-# docs/ and docs/tr/ from this repository, so a redeploy is all it needs.
+# docs or the Go API change on main. That site has no content of its own: its
+# build pulls docs/ and docs/tr/ and generates the API reference from the Go
+# source and doc comments, so a redeploy is all it needs.
 #
 # One-time setup: in Vercel, limoni-docs -> Settings -> Git -> Deploy Hooks,
 # create a hook for the main branch, and store its URL here as the repository
@@ -13,6 +14,7 @@ on:
     branches: [main]
     paths:
       - 'docs/**'
+      - '**.go'
   workflow_dispatch:
 
 concurrency:
