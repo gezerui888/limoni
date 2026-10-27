@@ -25,7 +25,8 @@
 </p>
 
 <p align="center">
-  <img src="assets/3d.gif" alt="Limoni terminalde gölgelendirilmiş bir 3D model çiziyor" width="100%" />
+  <img src="assets/xray.gif" alt="Ay ışığında piksel bir gece şehri ve geçen bir tren; röntgen geçişi yalnızca Limoni'nin farkının her karede gönderdiği hücreleri yakıyor, yanında tam yeniden çizime karşı gönderilen bayt sayacı" width="100%" />
+  <br><sub>Yalnızca değişen gönderilir: <code>go run ./examples/xray</code> farkın yazdığı her hücreyi yakar.</sub>
 </p>
 
 ---
@@ -385,6 +386,7 @@ ise yeni ve deneysel. v1.0'dan önce nelerin tamamlanması gerektiği
 - **Hatalar:** [issue aç](https://github.com/thebanri/limoni/issues/new/choose). Şablon terminal emülatörünü soruyor, çünkü görsel hataların çoğu ona bağlı.
 - **İlk katkı:** [`good first issue`](https://github.com/thebanri/limoni/labels/good%20first%20issue) etiketli issue'lar tek bir dosyayla sınırlı ve değişikliğin nasıl doğrulanacağını anlatıyor. [CONTRIBUTING.md](CONTRIBUTING.md) ile başla.
 - **Bir şey mi yaptın?** [AWESOME.md](AWESOME.md) listesine ekle.
+- **Beğendin mi?** Bir ⭐ başkalarının bulmasına yardım eder; istersen [bir kahve ısmarlayabilirsin](https://buymeacoffee.com/thebanri).
 
 Geliştirme sırasında iskelet kod, testler ve doküman taslakları için AI asistanları
 (Claude, Gemini) kullanıldı. Mimariyi yazar tasarladı, profilledi ve ölçtü.

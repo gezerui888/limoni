@@ -25,7 +25,8 @@
 </p>
 
 <p align="center">
-  <img src="assets/3d.gif" alt="Limoni rendering a shaded 3D model in the terminal" width="100%" />
+  <img src="assets/xray.gif" alt="A pixel-art night city with a moon and a passing train; an X-ray pass lights up only the cells Limoni's diff sends each frame, with a counter of bytes sent against a full repaint" width="100%" />
+  <br><sub>Only what changed is sent: <code>go run ./examples/xray</code> lights up every cell the diff writes.</sub>
 </p>
 
 ---
@@ -400,6 +401,7 @@ before v1.0.
 - **Bugs:** [open an issue](https://github.com/thebanri/limoni/issues/new/choose). The template asks for your terminal emulator, since most rendering bugs depend on it.
 - **First contribution:** issues labelled [`good first issue`](https://github.com/thebanri/limoni/labels/good%20first%20issue) are scoped to one file and say how to verify the change. Start with [CONTRIBUTING.md](CONTRIBUTING.md).
 - **Built something?** Add it to [AWESOME.md](AWESOME.md).
+- **Like it?** A ⭐ helps others find it, and you can [buy me a coffee](https://buymeacoffee.com/thebanri).
 
 AI assistants (Claude, Gemini) were used during development for scaffolding, tests
 and documentation drafts. The architecture was designed, profiled and benchmarked
