@@ -8,6 +8,8 @@ a patch bump (`v0.x.y`) does not.
 
 ## [Unreleased]
 
+## [v0.16.0] — 2026-10-27
+
 ### Breaking
 
 The API review before v1.0: one name for each thing, and the frame's
@@ -58,9 +60,20 @@ already existed; nothing here changes what an application can do.
 
 - `Buffer.Snapshot` reads with `CellAt`, so taking one no longer marks the
   buffer dirty, and works while a clip is set.
+- A focused `Button` with neither `Style` nor `FocusedStyle` set takes the
+  frame theme's `focus` role; explicit styles, and frames without a theme,
+  keep reverse video and bold (#100, by @gezerui888).
 
 ### Fixed
 
+- Windows Terminal and the Windows console got 16 colours: Windows Terminal
+  sets neither `COLORTERM` nor `TERM`, only `WT_SESSION`. `WT_SESSION`, or a
+  Windows process with no terminal named in `TERM`/`TERM_PROGRAM`, now means
+  truecolor.
+- Apple's Terminal: 24-bit colour only from build 470 (older builds read
+  `38;2;r;g;b` as separate attributes and drew reverse video and blue); no
+  `REP` (a repeated `─` drew once and the row landed short) and no scroll
+  regions (rows the diff thought had moved stayed where they were).
 - `go install …/apps/termimg@latest` on Windows stopped at a dozen compile
   errors (`unix.Poll`, `Setsid`, `SIGWINCH`). termimg is Unix-only now by
   build tag; on Windows it builds and says so, and that Windows Terminal
@@ -1056,7 +1069,8 @@ already existed; nothing here changes what an application can do.
 ## v0.1.0 – v0.1.8
 See the [GitHub releases](https://github.com/thebanri/limoni/releases).
 
-[Unreleased]: https://github.com/thebanri/limoni/compare/v0.15.0...HEAD
+[Unreleased]: https://github.com/thebanri/limoni/compare/v0.16.0...HEAD
+[v0.16.0]: https://github.com/thebanri/limoni/compare/v0.15.0...v0.16.0
 [v0.15.0]: https://github.com/thebanri/limoni/compare/v0.14.0...v0.15.0
 [v0.14.0]: https://github.com/thebanri/limoni/compare/v0.13.2...v0.14.0
 [v0.13.2]: https://github.com/thebanri/limoni/compare/v0.13.1...v0.13.2
