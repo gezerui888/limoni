@@ -1,0 +1,21 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.thebanri/limoni-mcp",
+  "title": "Limoni",
+  "description": "Drive a running Limoni terminal app by its semantic tree: find, click, type, wait_for.",
+  "repository": {
+    "url": "https://github.com/thebanri/limoni",
+    "source": "github",
+    "subfolder": "cmd/limoni-mcp"
+  },
+  "websiteUrl": "https://github.com/thebanri/limoni/tree/main/cmd/limoni-mcp",
+  "version": "0.15.0",
+  "packages": [
+    {
+      "registryType": "mcpb",
+      "identifier": "https://github.com/thebanri/limoni/releases/download/v0.15.0/limoni-mcp.mcpb",
+      "fileSha256": "ed3ed1bdbe976244061f4ceeb1005d2d8fa7685cd1477613a69a441b556fb942",
+      "transport": { "type": "stdio" }
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+#!/bin/sh
+# Runs the build for this machine; on Windows the host runs limoni-mcp.exe instead.
+d=$(dirname "$0")
+case $(uname -s) in Darwin) os=darwin ;; *) os=linux ;; esac
+case $(uname -m) in arm64 | aarch64) arch=arm64 ;; *) arch=amd64 ;; esac
+exec "$d/limoni-mcp-$os-$arch" "$@"
