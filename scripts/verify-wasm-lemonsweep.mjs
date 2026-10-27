@@ -92,6 +92,8 @@ send("s"); // down to RECIPES
 await sleep(100);
 send("s"); // down to SETTINGS
 await sleep(100);
+send("s"); // down to MAIN MENU
+await sleep(100);
 send("s"); // down to QUIT
 await sleep(100);
 send("\r");
