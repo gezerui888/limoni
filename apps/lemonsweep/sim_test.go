@@ -136,7 +136,7 @@ func bot(g *game, taste []augID) {
 		}
 	} else {
 		// Nothing in sight: the bytes, or back to the middle.
-		to := vec{16, 16}.sub(g.pos)
+		to := cur.start.sub(g.pos)
 		if b, ok := nearestBytes(g); ok {
 			to = b.sub(g.pos)
 		}

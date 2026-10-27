@@ -111,7 +111,7 @@ func (g *game) render(b *buffer.Buffer) {
 	}
 	pos := g.pos
 	if g.onTitle() {
-		pos = vec{16, 16}
+		pos = cur.start
 	}
 	sc.decals = sc.decals[:0]
 	if !g.onTitle() {
@@ -283,6 +283,9 @@ func (g *game) wallAt(col *column, vv float64) rgb {
 }
 
 func (g *game) ceilingAt(v *view, fy, rx, ry float64, pos vec) rgb {
+	if cur.style == styleOpen {
+		return g.skyAt(v, fy, rx, ry)
+	}
 	o := math.Max(v.horizon-fy, 0.25)
 	d := v.f * 0.5 * (wallH - eye) / o
 	wx, wy := pos.x+rx*d, pos.y+ry*d
@@ -323,8 +326,16 @@ func (g *game) floorAt(v *view, fy, rx, ry float64, pos vec) rgb {
 	d := v.f * 0.25 / o
 	wx, wy := pos.x+rx*d, pos.y+ry*d
 	fx, fyy := footprint(v, d, 2*d*d/v.f, rx, ry)
-	k := math.Max(seam(wx, fx, 0.03), seam(wy, fyy, 0.03)) / (1 + d*0.12)
-	c := fogged(hex(cur.floor).mix(hex(cur.seam), float32(k)), d)
+	var c rgb
+	switch cur.style {
+	case styleOpen:
+		c = groundAt(wx, wy, d)
+	case styleBoard:
+		c = traceAt(wx, wy, fx, fyy, d)
+	default:
+		k := math.Max(seam(wx, fx, 0.03), seam(wy, fyy, 0.03)) / (1 + d*0.12)
+		c = fogged(hex(cur.floor).mix(hex(cur.seam), float32(k)), d)
+	}
 	if len(sc.decals) > 0 {
 		// Rings and zones give off their own light: over the fog, not in it.
 		c = g.floorDecals(c, wx, wy, 1.5*math.Max(fx, fyy))

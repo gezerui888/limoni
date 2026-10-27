@@ -163,7 +163,7 @@ const (
 // drawMinimap draws the arena round the player in a disc at the top left,
 // from row y0, turned so that ahead is up: walls in the map's colour, spawn
 // windows, enemies (a mini-boss orange, a boss bigger), bytes, and the
-// player an arrow in the middle. It returns the row under it.
+// player a caret in the middle. It returns the row under it.
 func (g *game) drawMinimap(c canvas, y0 int) int {
 	r := float64(miniD) / 2
 	f, rt := dir(g.ang), dir(g.ang+math.Pi/2)
@@ -210,13 +210,13 @@ func (g *game) drawMinimap(c canvas, y0 int) int {
 			g.miniDot(c, y0, e.pos, f, rt, hudBad, false)
 		}
 	}
-	// The player: an arrow pointing up, ahead.
+	// The player: a caret, ^, pointing up, ahead.
 	mx, my := 1+miniD/2, 2*y0+miniD/2
-	c.px(mx, my-2, rgb{1, 1, 1})
 	c.px(mx, my-1, rgb{1, 1, 1})
 	c.px(mx-1, my, rgb{1, 1, 1})
-	c.px(mx, my, rgb{1, 1, 1})
 	c.px(mx+1, my, rgb{1, 1, 1})
+	c.px(mx-2, my+1, rgb{1, 1, 1})
+	c.px(mx+2, my+1, rgb{1, 1, 1})
 	return y0 + miniD/2
 }
 
@@ -259,10 +259,10 @@ func (g *game) drawHUD(c canvas, v *view) {
 	x += barW + 1
 	c.fgClock(x, 0, int(g.runTime), hudText)
 
-	// Under it, the map round the player; the build, when it is not in
-	// the panel on the right, under that.
+	// Under it, the map round the player (M hides it); the build, when it
+	// is not in the panel on the right, under that.
 	y := 1
-	if h >= 24 {
+	if h >= 24 && !g.mapOff {
 		y = g.drawMinimap(c, 1)
 	}
 	rows := max(0, h/2-3)
@@ -866,7 +866,7 @@ func veil(c canvas, k float32, tint rgb) {
 
 var (
 	titleItems = [...]string{"SWEEP", "RECIPES", "SETTINGS", "QUIT"}
-	pauseItems = [...]string{"RESUME", "RECIPES", "SETTINGS", "QUIT"}
+	pauseItems = [...]string{"RESUME", "RECIPES", "SETTINGS", "MAIN MENU", "QUIT"}
 )
 
 // card draws a framed card w by h at (x, y), in the colour of its frame.
@@ -1118,7 +1118,7 @@ func (g *game) mapLine(c canvas, x, y, i int) {
 
 func (g *game) drawPause(c canvas) {
 	veil(c, 0.6, hex(0x03040a))
-	w, h := 44, 16
+	w, h := 44, 17 // five buttons, and the hint under them
 	x, y := (c.w-w)/2, (c.h-h)/2
 	card(c, x, y, w, h, hex(cardBorder))
 	bg := hex(cardBg)

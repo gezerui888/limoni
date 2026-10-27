@@ -136,6 +136,7 @@ func newSession(seed uint64, mute bool) (*game, *mixer) {
 		if g.best.sens > 0 {
 			g.sens = g.best.sens
 		}
+		g.mapOff = g.best.mapOff
 		if g.best.volume >= 0 {
 			g.volume = g.best.volume
 			if g.volume > 0 {
@@ -213,7 +214,7 @@ func (g *game) key(k limoni.KeyEvent) {
 			// The Esc that let the browser's pointer go may arrive after
 			// the pause it caused; it must not undo it.
 			if (k.Type == limoni.KeyEsc && g.clock-g.pausedAt > 0.3) || isRune && ch == 'p' {
-				g.phase = phPlay
+				g.resume()
 				return
 			}
 			g.menuKey(k, isRune, ch, &g.pause, len(pauseItems), g.pausePick)
@@ -267,13 +268,18 @@ func (g *game) key(k limoni.KeyEvent) {
 			return
 		}
 		switch {
-		case k.Type == limoni.KeyEsc || isRune && ch == 'p':
+		case (k.Type == limoni.KeyEsc || isRune && ch == 'p') && (g.resumedAt < 0 || g.clock-g.resumedAt > 0.3):
+			// Not the key that just resumed: the game's window on Wayland,
+			// shown again, is sent the keys still held as presses.
 			g.pauseRun()
 		case isRune && ch == 'r':
 			g.reload()
 		case k.Type == limoni.KeySpace:
 			g.dash()
 		case isRune && ch == 'm':
+			g.mapOff = !g.mapOff
+			g.persist()
+		case isRune && ch == 'n':
 			if g.volume > 0 {
 				g.setVolume(0)
 			} else {
@@ -363,12 +369,16 @@ func (g *game) mapAt(c canvas, x, y int) int {
 func (g *game) pausePick(i int) {
 	switch i {
 	case 0:
-		g.phase = phPlay
+		g.resume()
 	case 1:
 		g.openBook()
 	case 2:
 		g.openSettings()
 	case 3:
+		// Back to the title: the run is let go, not counted.
+		g.reset()
+		g.phase, g.menu = phTitle, 0
+	case 4:
 		g.quit = true
 	}
 }
@@ -479,6 +489,12 @@ func (g *game) nudgeCard(dx float64) {
 func (g *game) pauseRun() {
 	g.phase, g.pause, g.pausedAt = phPause, 0, g.clock
 	g.held = [nAct]bool{}
+}
+
+// resume goes back to the run from the pause, and marks when, so the key
+// that resumed cannot pause again.
+func (g *game) resume() {
+	g.phase, g.resumedAt = phPlay, g.clock
 }
 
 // pointerButton is a button of the browser's locked pointer.

@@ -57,7 +57,8 @@ window of its own with kitty's `mouse_hide_wait` set so the pointer goes once th
 | `Space` | dash: a short burst no hit lands through. Two charges (the bars beside the fast-forward mark, over the health), each back in 1.6 s |
 | `1` `2` `3` or a click | take a card. A click counts only once the cards have stood a moment and the button that was firing has come up, so a held trigger takes nothing |
 | `Esc` or `P` | pause. In the browser, Esc also lets the pointer go |
-| `M` | sound on and off |
+| `M` | the minimap on and off (it is remembered) |
+| `N` | sound on and off |
 | RECIPES | in the title and the pause menus: the recipe book (below) |
 | SETTINGS | in the title and the pause menus: the sound, and the crosshair: style, colour, size, outline |
 
@@ -169,8 +170,13 @@ explode and throw shrapnel fill the arena with more shots than it can hold. The 
 ## Four maps, and the one you choose
 
 The title's **SWEEP** plays the map chosen under it — A/D, the arrow keys, or a click on its card. Each
-is a part of the machine with its own walls and light: **The Heap** (open, with cover), **The Stack**
-(staggered frames) and **Kernel Space** (pins, some of them spawn windows), each harder than the last —
+is a part of the machine with its own look: **The Heap** (a room walled with terminal windows, open, with
+cover), **Userland** (an open world four times its size, the user's files left out on open ground under a
+night sky: folders, documents, trash cans and boxes of archives, spawn windows standing among them, the
+far side lost in the haze; enemies come from windows within 24 tiles) and **Kernel Space** (the machine
+under it all: square rings of CPUs, memory sticks and circuit board round ring 0, where the run starts,
+each ring's gaps a quarter turn from the last so the way in winds round, copper traces on the floor),
+each harder than the last —
 it starts as hard as two and a half minutes into the one before. The heap grows with time. Every two
 minutes a **mini-boss** comes: one of the bigger enemies met so far, grown, elite, its health at the top
 of the screen; it pays most of a level and some health. At ten minutes the map's **warden** comes — the

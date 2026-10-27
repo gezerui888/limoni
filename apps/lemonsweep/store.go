@@ -10,7 +10,8 @@ type records struct {
 	endless bests // /dev/zero's, kept apart: its runs are meant to go on
 	maps    [nStages]mapBest
 	volume  int
-	sens    int // 0: not saved
+	sens    int  // 0: not saved
+	mapOff  bool // the minimap hidden
 	ret     reticle
 	hasRet  bool // a crosshair was saved
 }
@@ -71,6 +72,7 @@ type saved struct {
 	BigHit int  `json:"biggest_hit"`
 	Volume *int `json:"volume,omitempty"`
 	Sens   int  `json:"sensitivity,omitempty"`
+	MapOff bool `json:"minimap_off,omitempty"`
 
 	Endless *savedBests `json:"endless,omitempty"`
 	Maps    []savedMap  `json:"maps,omitempty"`
@@ -103,7 +105,7 @@ type savedReticle struct {
 
 func encodeRecords(r records) []byte {
 	v := r.volume
-	s := saved{Runs: r.runs, Secs: r.secs, Level: r.level, Kills: r.kills, Peak: r.peak, BigHit: r.bigHit, Volume: &v, Sens: r.sens}
+	s := saved{Runs: r.runs, Secs: r.secs, Level: r.level, Kills: r.kills, Peak: r.peak, BigHit: r.bigHit, Volume: &v, Sens: r.sens, MapOff: r.mapOff}
 	if e := r.endless; e.runs > 0 {
 		s.Endless = &savedBests{e.runs, e.secs, e.level, e.kills, e.peak, e.bigHit}
 	}
@@ -126,7 +128,7 @@ func decodeRecords(b []byte) records {
 	if json.Unmarshal(b, &s) != nil {
 		return records{volume: -1}
 	}
-	r := records{bests: bests{s.Runs, s.Secs, s.Level, s.Kills, s.Peak, s.BigHit}, volume: -1}
+	r := records{bests: bests{s.Runs, s.Secs, s.Level, s.Kills, s.Peak, s.BigHit}, volume: -1, mapOff: s.MapOff}
 	if e := s.Endless; e != nil {
 		r.endless = bests{e.Runs, e.Secs, e.Level, e.Kills, e.Peak, e.BigHit}
 	}
@@ -152,12 +154,13 @@ type store interface {
 	save(records)
 }
 
-// persist saves the records with the current volume, sensitivity and crosshair.
+// persist saves the records with the current volume, sensitivity, crosshair
+// and whether the minimap is shown.
 func (g *game) persist() {
 	if g.store == nil {
 		return
 	}
-	g.best.volume, g.best.sens = g.volume, g.sens
+	g.best.volume, g.best.sens, g.best.mapOff = g.volume, g.sens, g.mapOff
 	g.best.ret, g.best.hasRet = g.ret, true
 	g.store.save(g.best)
 }
