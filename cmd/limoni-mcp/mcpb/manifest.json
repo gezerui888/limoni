@@ -1,0 +1,42 @@
+{
+  "manifest_version": "0.3",
+  "name": "limoni-mcp",
+  "display_name": "Limoni",
+  "version": "0.15.0",
+  "description": "Drive a running Limoni terminal app by its semantic tree: find, click, type, wait_for.",
+  "long_description": "A bridge from MCP over stdio to a Limoni application's automation socket. Tools address widgets by role, label and value, the same tree a screen reader reads, instead of scraping characters and clicking coordinates. The application opts in with limoni.WithAutomation in a build tagged limoni_debug; secrets are redacted and every limit is enforced by the application.",
+  "author": { "name": "thebanri", "url": "https://github.com/thebanri" },
+  "repository": { "type": "git", "url": "https://github.com/thebanri/limoni" },
+  "homepage": "https://github.com/thebanri/limoni",
+  "documentation": "https://github.com/thebanri/limoni/tree/main/cmd/limoni-mcp",
+  "support": "https://github.com/thebanri/limoni/issues",
+  "license": "Apache-2.0",
+  "keywords": ["tui", "terminal", "testing", "automation", "go"],
+  "server": {
+    "type": "binary",
+    "entry_point": "server/limoni-mcp",
+    "mcp_config": {
+      "command": "${__dirname}/server/limoni-mcp",
+      "args": ["-socket", "${user_config.socket}"]
+    }
+  },
+  "user_config": {
+    "socket": {
+      "type": "string",
+      "title": "Automation socket",
+      "description": "Path of the Unix socket the application passed to limoni.WithAutomation.",
+      "required": true
+    }
+  },
+  "tools": [
+    { "name": "status", "description": "Whether the application is reachable, and what it allows" },
+    { "name": "tree", "description": "The semantic tree of the current screen" },
+    { "name": "find", "description": "Widgets matching a role, label or value" },
+    { "name": "screen", "description": "The screen as text, if the application allows it" },
+    { "name": "click", "description": "Activate a widget, optionally only to reach a checked or selected state" },
+    { "name": "press_key", "description": "Send a key" },
+    { "name": "type_text", "description": "Type text into the focused widget" },
+    { "name": "wait_for", "description": "Wait until a widget matching a query appears" }
+  ],
+  "compatibility": { "platforms": ["darwin", "linux", "win32"] }
+}

@@ -452,6 +452,35 @@ jobs:
           go build -o bin/scroll ./examples/scroll
           GOOS=js GOARCH=wasm go build -o bin/limoni.wasm ./examples/wasm
 
+  # The bundle the release job publishes to the MCP Registry, built and
+  # checked on every change so a broken one is found before a tag: the
+  # registry validates server.json, and the launcher inside answers MCP.
+  mcp-bundle:
+    name: limoni-mcp bundle
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Pack, validate and run it
+        run: |
+          set -euo pipefail
+          cmd/limoni-mcp/mcpb/pack.sh 0.0.0 dist-mcp
+          cmd/limoni-mcp/mcpb/get-publisher.sh
+          ./mcp-publisher validate dist-mcp/server.json
+          unzip -q dist-mcp/limoni-mcp.mcpb -d bundle
+          printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"ci","version":"0"}}}' \
+            '{"jsonrpc":"2.0","id":2,"method":"tools/list"}' |
+            timeout 10 bundle/server/limoni-mcp -socket /nonexistent | tee /tmp/mcp.out
+          grep -q '"wait_for"' /tmp/mcp.out
+
   # The scoreboard keeps its runs in Postgres (a free Neon database, behind
   # Vercel). Its store and the Vercel function are tested against a real one
   # here; elsewhere those tests skip, so this step fails if they did not
