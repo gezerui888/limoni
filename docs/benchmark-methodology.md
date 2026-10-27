@@ -335,8 +335,7 @@ is an `ioctl` against the controlling terminal — roughly a millisecond when
 something answers, and `EAGAIN` on CI, where no `TERM` is set. The runner had
 been paying a terminal round-trip per frame and calling it Ratatui's cost. It
 was caught by CI failing outright, not by the number looking wrong; the run had
-been green locally, which is the failure mode `CLAUDE.md` warns about under
-"compiling is not verifying".
+been green locally: compiling is not verifying.
 
 With the size query answered from a fixed value — which is what an in-memory
 benchmark must do — `resize` on 0.30 is 97.5 µs against 0.29's 57 µs. A 1.7×
