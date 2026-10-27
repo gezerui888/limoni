@@ -1,0 +1,37 @@
+name: Docs site
+
+# Rebuilds limoni-docs (https://github.com/thebanri/limoni-docs) whenever the
+# docs change on main. That site has no content of its own: its build pulls
+# docs/ and docs/tr/ from this repository, so a redeploy is all it needs.
+#
+# One-time setup: in Vercel, limoni-docs -> Settings -> Git -> Deploy Hooks,
+# create a hook for the main branch, and store its URL here as the repository
+# secret LIMONI_DOCS_DEPLOY_HOOK. Without the secret this workflow does nothing.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+  workflow_dispatch:
+
+concurrency:
+  group: docs-site
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  redeploy:
+    name: Redeploy limoni-docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call the Vercel deploy hook
+        env:
+          HOOK: ${{ secrets.LIMONI_DOCS_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "::notice::LIMONI_DOCS_DEPLOY_HOOK is not set; skipping."
+            exit 0
+          fi
+          curl -fsS -X POST "$HOOK"
