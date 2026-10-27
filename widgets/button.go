@@ -22,8 +22,10 @@ type Button struct {
 	// Disabled buttons draw dimmed, ignore clicks and say so in the tree.
 	Disabled bool
 
-	Style        cell.Style
-	FocusedStyle cell.Style // defaults to reverse video
+	Style cell.Style
+	// FocusedStyle defaults to reverse video and bold. When both styles are
+	// unset, it uses the theme focus style if available.
+	FocusedStyle cell.Style
 }
 
 // Draw draws the button and registers its click.
@@ -49,7 +51,11 @@ func (b Button) Draw(ctx cell.Context, buf *buffer.Buffer) {
 	case b.Disabled:
 		style.Modifier |= cell.ModifierDim
 	case ctx.IsFocused(b.ID):
-		style = style.Merge(focusStyle(b.FocusedStyle))
+		focusedStyle := b.FocusedStyle
+		if focusedStyle == (cell.Style{}) && b.Style == (cell.Style{}) && ctx.ThemeStyle != nil {
+			focusedStyle = ctx.ThemeStyle("focus")
+		}
+		style = style.Merge(focusStyle(focusedStyle))
 	}
 	n := buf.SetStringWithin(area.X, area.Y, "[ ", style, area.Width)
 	n += buf.SetStringWithin(area.X+n, area.Y, b.Label, style, area.Width-min(n, area.Width))
